@@ -39,6 +39,11 @@ while (my $line = <$in>){
         if ($line !~ m/\.\s*$/){ # add dots at every sentence
             $line =~ s/(\S)(\s*)$/$1\.$2/;
         }
+        
+        # remove variable numbers (for now)
+        $line =~ s/X[0-9]/X/g;
+        $da_line =~ s/X[0-9]/X/g;
+        
         print {$out_das} $da_line;
         print {$out_text} $line;
     }
