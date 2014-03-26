@@ -1,0 +1,1616 @@
+FULL_DA = inform(name="Ali Baba",type=placetoeat,eattype=restaurant,area=riverside,near="The Bakers",near="Avalon")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3") 
+-> "[near]Close to [near]both the [near+X]X [near]and [near+X]X []you will find the [area+riverside]riverside [eattype+restaurant]restaurant, []The [name+X]X"; 
+
+FULL_DA = inform(name="Lan Hong House",food=Chinese,eattype=restaurant,area=riverside)
+ABSTRACT_DA = inform(name="X1",food=Chinese,eattype=restaurant,area=riverside) 
+-> "A [food+Chinese]Chinese [eattype+restaurant]restaurant []alternative for [area+riverside]riverside [food]dining []is the [name+X]X"; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,eattype=restaurant,near="The Phoenix Chinese Restaurant",area="girton",area="romsey")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",area="X4") 
+-> "[area]Located in [area+X]X [area]the [area+X]X [area]area [eattype+restaurant]restaurant []The [name+X]X []can be found [near]close by [near+X]X"; 
+
+FULL_DA = inform(name="Clowns",type=placetoeat,pricerange=moderate,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that offers [pricerange+moderate]moderate [pricerange]price range."; 
+
+FULL_DA = inform(name="Green Man",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,pricerange=expensive,near="The Regal",near="The Portland Arms",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X []which offers an [pricerange+expensive]expensive [pricerange]price range [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Cafe Adriatic",type=placetoeat,eattype=restaurant,near="Burger King",pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=expensive) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X []which offers an [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="All Bar One",type=placetoeat,eattype=restaurant,area=citycentre,near="The Sorrento Hotel and Restaurant",food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X []is a [food+Chinese_takeaway]Chinese takeaway [food]and [food+Japanese]Japanese [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,area=riverside,near="Ranch",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant []in the [area+riverside]riverside [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Golden Curry",type=placetoeat,eattype=restaurant,near="The Six Bells, High Saint",area="romsey",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,area="addenbrookes",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Continental,food=French) 
+-> "[name+X]X []is a [food+French]French [food]and [food+Continental]Continental [eattype+restaurant]restaurant [area]near [area+X]X"; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,area="girton",pricerange=moderate,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",pricerange=moderate,eattype=restaurant) 
+-> "[name+X]X []is a [pricerange+moderate]moderately [pricerange]priced [eattype+restaurant]restaurant [area]in [area+X]X"; 
+
+FULL_DA = inform(name="The Golden Curry",type=placetoeat,eattype=restaurant,near="Cafe Brazil",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X []providing [food+Indian]Indian [food]food []and [food+Indian_takeaway]Indian takeaway."; 
+
+FULL_DA = inform(name="Le Gros Franck",eattype=restaurant,near="Cambridge University Engineering Department")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near the [near+X]X"; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,eattype=restaurant,pricerange=expensive,near="Tatties (Trinity Street)",near="Clare Hall",area="castlehill")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",near="X3",area="X4") 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant []in [area+X]X [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,area="romsey",area="kingshedges",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",area="X3",food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []in [area+X]X []near [area+X]X"; 
+
+FULL_DA = inform(name="Asia",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,food=Indian) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [food+Indian]Indian [eattype+restaurant]restaurant []in the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Henry's Cafe Bar",type=placetoeat,pricerange=moderate,area=riverside,near="Cambridge Artworks",near="Strada",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area=riverside,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area, [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Brasserie Gerard",type=placetoeat,eattype=restaurant,near="Acorn Guest House",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []serving [food+French]French [food]food, [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,eattype=restaurant,near="King's College",area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+riverside]riverside [area]area []that [food]serves [food+Indian]Indian [food]food."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,eattype=restaurant,pricerange=expensive,near="The White Hart",near="The Elm Tree",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",near="X3",food=Italian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X []that [food]serves [food+Italian]Italian [food]food [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Cafe Rouge",type=placetoeat,eattype=restaurant,area=riverside,near="H.F.C Bank",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area []that [food]serves [food+French]French [food]food. []It is [near]near the [near+X]X"; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,area=riverside,near="Express by Holiday Inn Cambridge",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Italian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near the [near+X]X []that [food+Italian]serves Italian food."; 
+
+FULL_DA = inform(name="Crowne Plaza Hotel",type=placetoeat,eattype=restaurant,area=citycentre,food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food="Chinese takeaway",food=Japanese) 
+-> "The [name+X]X []is a [eattype+restaurant]restaurant [area]located in the [area+citycentre]centre of town []having [food+Japanese]Japanese [food]food []and [food+Chinese_takeaway]Chinese food for takeaway."; 
+
+FULL_DA = inform(name="The Saffron Brasserie",type=placetoeat,eattype=restaurant,area=riverside,area="addenbrookes",near="The Cambridge Squash Club",near="The Mill")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area="X2",near="X3",near="X4") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []at the [area+riverside]side of the river [near]near [near+X]X [near]and [near+X]X []in the [area]area [area]of [area+X]X"; 
+
+FULL_DA = inform(name="Wagamama",type=placetoeat,eattype=restaurant,area=citycentre,near="Cambridge Crossways Badminton Club",near="Cazimir")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",near="X3") 
+-> "The [eattype+restaurant]restaurant [name+X]X []is in the [area+citycentre]centre of the city []near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,pricerange=expensive,area="castlehill",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,area="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [pricerange]if you are seeking something [pricerange+expensive]expensive."; 
+
+FULL_DA = inform(name="John Lewis Brasserie",type=placetoeat,area=citycentre,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=citycentre,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]centre of city."; 
+
+FULL_DA = inform(name="The Golden Palace",type=placetoeat,eattype=restaurant,near="The Empress",area=riverside,area=citycentre,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,area=citycentre,food=Chinese) 
+-> "[food]For [food+Chinese]chinese [food]food [name+X]X [eattype+restaurant]restaurant []is the best one [area]in the [area+citycentre]centre of the city. []It is [area]located on the [area+riverside]side of the river [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Wrestlers",type=placetoeat,eattype=restaurant,near="The Snug, East Road",area=riverside,area="romsey")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,area="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area+riverside]along the side of the river [area]in [area+X]X []It is [near]located near [near+X]X"; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,pricerange=moderate,area="girton",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area="X2",eattype=restaurant) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]in [area+X]X"; 
+
+FULL_DA = inform(name="Prezzo",type=placetoeat,eattype=restaurant,area="castlehill",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in [area+X]X"; 
+
+FULL_DA = inform(name="Strada",type=placetoeat,eattype=restaurant,area=citycentre,near="The Curry House",near="The Bakers",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",near="X3",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [near]located near [near+X]X [near]and [near+X]X [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="The Bombay Brasserie",type=placetoeat,eattype=restaurant,pricerange=moderate,area=riverside,food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area=riverside,food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [food+Indian]Indian [food]food [eattype+restaurant]restaurant []with [food+Indian_takeaway]takeaway service []in the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="The Eagle",type=placetoeat,eattype=restaurant,area=citycentre,near="The Boathouse",near="Michaelhouse Centre",food="Chinese takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",near="X3",food="Chinese takeaway") 
+-> "[name+X]X []is a [food+Chinese_takeaway]Chinese food takeaway [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Cafe Naz",type=placetoeat,area="castlehill",near="Tree Hugging Hippy Juice Bar",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,near="Bridge Guest House",pricerange=expensive,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=expensive,food=Chinese) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [food+Chinese]Chinese [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Golden Curry",type=placetoeat,eattype=restaurant,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre) 
+-> "[name+X]X []is a [pricerange+cheap]cheap [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,area="castlehill",pricerange=expensive,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",pricerange=expensive,eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant []in [area+X]X"; 
+
+FULL_DA = inform(name="India Palace",type=placetoeat,eattype=restaurant,area=riverside,near="Cafe Rouge",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [food]food [eattype+restaurant]restaurant []with [food+Indian_takeaway]Indian food take out [area]in the [area+riverside]riverside [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Alexander Bed and Breakfast",type=placetoeat,eattype=restaurant,near="Jinling",near="The Curry King",food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X []which has [food+Japanese]Japanese [food]food and [food+Chinese_takeaway]Chinese takeaway [food]food."; 
+
+FULL_DA = inform(name="Brasserie Gerard",type=placetoeat,eattype=restaurant,area=riverside,near="Wagamama")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2") 
+-> "I would recommend [name+X]X []a [eattype+restaurant]restaurant []near [near+X]X [area]in the [area+riverside]riverside"; 
+
+FULL_DA = inform(name="The Golden Palace",type=placetoeat,eattype=restaurant,near="Museum of Archaelogy and Anthropology",food=Seafood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Seafood) 
+-> "I would suggest [name+X]X []a [food+Seafood]seafood [eattype+restaurant]restaurant [near]near the [near+X]X"; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,eattype=restaurant,near="The Cambridge Chop House",area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre) 
+-> "I would recommend the [eattype+restaurant]restaurant [name+X]X [area]in the [area+citycentre]city centre [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="The Alma",area="addenbrookes",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Continental,food=French) 
+-> "[name+X]X []is a [food+French]french [food]and [food+Continental]continental [food]style [eattype+restaurant]restaurant [area]located in [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Agora at the Copper Kettle",type=placetoeat,area=citycentre,near="The Jerusalem Cafe",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=citycentre,near="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="The Curry House",type=placetoeat,eattype=restaurant,near="Taxi Gallery",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []offering [food+Indian]Indian [food]food [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,area="romsey",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Contemporary,food=English) 
+-> "How about [name+X]X []It's a [eattype+restaurant]restaurant [area]in [area+X]X []that [food]serves [food+Contemporary]contemporary [food+English]English [food]food."; 
+
+FULL_DA = inform(name="India House",type=placetoeat,area=riverside,near="The Cherry Hinton Village Centre",near="Primavera",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=riverside,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside, [near]near [near+X]X []and [near+X]X"; 
+
+FULL_DA = inform(name="Pizza Express",type=placetoeat,near="The Snug, East Road",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",eattype=restaurant) 
+-> "There's a [name+X]X [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,eattype=restaurant,pricerange=cheap)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap) 
+-> "[name+X]X []is a [pricerange+cheap]cheap [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="The Bombay Brasserie",type=placetoeat,eattype=restaurant,area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Yu Garden",type=placetoeat,eattype=restaurant,near="Cambridge University Rugby Union Football Club",near="Saigon City",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [food]food [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre,near="Regency Gallery")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre,near="X2") 
+-> "There's an [pricerange+cheap]inexpensive [eattype+restaurant]restaurant []called [name+X]X [area]in the [area+citycentre]centre of town, [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Teri-Aki",type=placetoeat,near="Parkside Pools",pricerange=moderate,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=moderate,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+riverside]riverside [area]area [pricerange]in the [pricerange+moderate]moderate [pricerange]price range."; 
+
+FULL_DA = inform(name="Hakka",type=placetoeat,eattype=restaurant,near="Cocum",area="newchesterton",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Chinese) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+X]X [area]area []that [food]serves [food+Chinese]Chinese [food]food."; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Indian) 
+-> "[name+X]X []is a [pricerange+cheap]cheap [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Bella Italia, Leisure Park",type=placetoeat,eattype=restaurant,near="The Eagle",area="addenbrookes",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Tram Depot",type=placetoeat,eattype=restaurant,near="The Panton Arms",pricerange=cheap)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=cheap) 
+-> "[name+X]X []is a [pricerange+cheap]cheap [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Le Gros Franck",type=placetoeat,pricerange=expensive,near="Cambridge University Real Tennis Club",area="trumpington",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",area="X3",eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,eattype=restaurant,pricerange=moderate,area="girton",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that has [food+Indian]Indian [food]food [pricerange]at a [pricerange+moderate]moderate [pricerange]price [area]in [area+X]X"; 
+
+FULL_DA = inform(name="Burger King",type=placetoeat,eattype=restaurant,near="The Baron of Beef",food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Fastfood) 
+-> "[name+X]X []is a [food+Fastfood]fast food [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Hotel du Vin and Bistro",eattype=restaurant,addr="15-19 Trumpington Street")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,addr="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [addr]at [addr+X]X"; 
+
+FULL_DA = inform(name="The Six Bells, High Saint",type=placetoeat,eattype=restaurant,near="Home from Home",area="cherryhinton",area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]located on the [area+riverside]riverside, [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Doubletree by Hilton, Cambridge Garden House",type=placetoeat,eattype=restaurant,near="Soul Tree Nightclub",near="Alexander Bed and Breakfast",food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food="Cafe food",food=English) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []serving [food+English]English [food+Cafe_food]cafe style [food]food []and it is located [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Brasserie Gerard",type=placetoeat,eattype=restaurant,area=riverside,near="Sitar Tandoori",near="Blue Spice",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant []in the [area+riverside]riverside, []close to [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Lan Hong House",type=placetoeat,eattype=restaurant,near="Great Saint Mary's Church",area=riverside,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area+riverside]next to the river, [near]near [near+X]X"; 
+
+FULL_DA = inform(name="All Bar One",type=placetoeat,eattype=restaurant,near="The Atrium Club",area=citycentre,area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre, [area]near the [area+riverside]riverside [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Doubletree by Hilton, Cambridge Garden House",type=placetoeat,near="Polonia",pricerange=expensive,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=expensive,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]near [near+X]X []and [area+riverside]the river."; 
+
+FULL_DA = inform(name="Bella Italia, Grafton Centre",type=placetoeat,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]near the [area+riverside]river."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,pricerange=expensive,area="addenbrookes",near="The Clarendon Arms",near="Worth House")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2",near="X3",near="X4") 
+-> "The [eattype+restaurant]restaurant [name+X]X []is [near]near [near+X]X [near]and [near+X]X []serving [pricerange+expensive]expensive [food]food [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Aki Teri",type=placetoeat,area=riverside,near="Trinity Street Post Office",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=riverside,near="X2",eattype=restaurant) 
+-> "[name+X]X [eattype+restaurant]restaurant []is [near]near [near+X]X [area]on the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="Cambridge City Football Club",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="X2",food=Chinese) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []serving [food+Chinese]Chinese [food]food [area]on the [area+riverside]riverside [area]and also in the [area+citycentre]centre of the city [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Gourmet Burger Kitchen",type=placetoeat,eattype=restaurant,near="River Bar and Kitchen",food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []serving [food+Japanese]Japanese [food]food []and also serving as a [food+Chinese_takeaway]Chinese takeaway [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Fort Saint George",type=placetoeat,near="Le Gros Franck",area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]on the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,near="Iceland Foods Plc",area=riverside,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=Italian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]on the [area+riverside]riverside []that [food]serves [food+Italian]Italian [food]cuisine."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that is [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]on the [area+riverside]riverside []that is [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Clowns",eattype=restaurant,phone="01223355711")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,phone="X2") 
+-> "I would suggest [name+X]X [eattype+restaurant]restaurant, []which can be reached at [phone+X]X"; 
+
+FULL_DA = inform(name="Al Casbah",type=placetoeat,pricerange=moderate,area="romsey",area="cherryhinton",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area="X2",area="X3",eattype=restaurant) 
+-> "I recommend [name+X]X, []a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]in [area+X]X [area]and [area+X]X"; 
+
+FULL_DA = inform(name="Zizzi",type=placetoeat,eattype=restaurant,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Italian) 
+-> "I recommend [name+X]X [eattype+restaurant]restaurant []for [food+Italian]Italian [food]food"; 
+
+FULL_DA = inform(name="Hakka",type=placetoeat,eattype=restaurant,area="newchesterton",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Chinese) 
+-> "I would suggest [name+X]X, []a [food+Chinese]Chinese [eattype+restaurant]restaurant []in [area+X]X"; 
+
+FULL_DA = inform(name="The Unicorn Steak and Ale House",type=placetoeat,eattype=restaurant,area="trumpington",near="The Cherry Hinton Village Centre",near="Mumford Theatre")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",near="X4") 
+-> "I recommend the [eattype+restaurant]restaurant [name+X]X []near [near+X]X [near]and [near+X]X [area]in [area+X]X"; 
+
+FULL_DA = inform(name="The Unicorn Steak and Ale House",type=placetoeat,area="trumpington",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",eattype=restaurant) 
+-> "I recommend [name+X]X [eattype+restaurant]restaurant [area]in [area+X]X"; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,pricerange=cheap,area=citycentre,near="Hamilton Lodge",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=cheap,area=citycentre,near="X2",eattype=restaurant) 
+-> "I recommend the [name+X]X [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+citycentre]city centre, []it is [pricerange+cheap]cheap."; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,area="girton",eattype=restaurant,pricerange=moderate)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",eattype=restaurant,pricerange=moderate) 
+-> "I recommend [name+X]X []a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]in [area+X]X"; 
+
+FULL_DA = inform(name="Pizza Express",type=placetoeat,eattype=restaurant,area=citycentre,near="Addenbrooke's Hospital",food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food=Italian,food="Takeaway pizza") 
+-> "I recommend [name+X]X []a [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+citycentre]city centre []that specialises in [food+Takeaway_pizza]take away pizza [food]and [food+Italian]Italian [food]food."; 
+
+FULL_DA = inform(name="Sitar Tandoori",type=placetoeat,eattype=restaurant,area="cherryhinton",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Indian) 
+-> "I recommend [name+X]X, []an [food+Indian]Indian [eattype+restaurant]restaurant []that [area]can be found in [area+X]X"; 
+
+FULL_DA = inform(name="Al Casbah",type=placetoeat,area="romsey",near="Victoria Internet Cafe",near="Hobsons House",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",near="X3",near="X4",eattype=restaurant) 
+-> "I recommend [name+X]X []a [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X [area]in [area+X]X"; 
+
+FULL_DA = inform(name="Giraffe",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Fusion)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Fusion) 
+-> "I recommend [name+X]X []a [food+Fusion]fusion [eattype+restaurant]restaurant []that offers [food+Chinese_takeaway]chinese take away"; 
+
+FULL_DA = inform(name="Jinling",type=placetoeat,eattype=restaurant,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Chinese) 
+-> "I recommend [name+X]X []a [food+Chinese]Chinese [eattype+restaurant]restaurant"; 
+
+FULL_DA = inform(name="Charlie Chan",type=placetoeat,near="Nu-Mega Ingredients Ltd",pricerange=expensive,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=expensive,eattype=restaurant) 
+-> "I would suggest [name+X]X, []an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Eraina Taverna",type=placetoeat,eattype=restaurant,area=citycentre,near="Ask Restaurant")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+citycentre]centre of town."; 
+
+FULL_DA = inform(name="The Fleur Bar and Bistro",type=placetoeat,eattype=restaurant,food=Seafood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Seafood) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []providing [food+Seafood]seafood."; 
+
+FULL_DA = inform(name="Wok n Grill",type=placetoeat,eattype=restaurant,area="trumpington",area=riverside,near="The Lion and Lamb",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",area=riverside,near="X3",food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [area+riverside]on the river [near]near to [near+X]X []providing [food+Indian]Indian [food]food."; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,near="Don Pasquale Restaurant",area="castlehill",eattype=restaurant,pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area="X3",eattype=restaurant,pricerange=expensive) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant, [area]in the [area+X]X [area]area [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Vaults",type=placetoeat,eattype=restaurant,near="The White Hart",pricerange=expensive,area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=expensive,area=citycentre) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant, [area]in the [area+citycentre]middle of town [near]near [near+X]X"; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,area="castlehill",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,area="X2",food=Italian) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [food+Italian]italian [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+riverside]Riverside [area]areas."; 
+
+FULL_DA = inform(name="Cafe Rouge",type=placetoeat,eattype=restaurant,near="The Cambridge Corn Exchange",area=riverside,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]by the [area+riverside]riverside, [near]near [near+X]X []providing [food+French]French [food]food."; 
+
+FULL_DA = inform(name="Wok n Grill",type=placetoeat,eattype=restaurant,area="trumpington",near="Blue Spice",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",food=Chinese) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X []providing [food+Chinese]Chinese [food]food."; 
+
+FULL_DA = inform(name="La Mimosa",type=placetoeat,eattype=restaurant,area="girton",near="Cazimir",near="Ugly Duckling",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",near="X4",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Al Casbah",type=placetoeat,eattype=restaurant,pricerange=moderate,area="romsey",area="addenbrookes")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",area="X3") 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]near [area+X]X [area]and [area+X]X"; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,near="Ugly Duckling",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Contemporary,food=English) 
+-> "[name+X]X []is a [food+Contemporary]contemporary [food+English]English [eattype+restaurant]restaurant [near]located near the [near+X]X"; 
+
+FULL_DA = inform(name="Burger King",area=riverside,eattype=restaurant,food=Fastfood,pricerange=cheap)
+ABSTRACT_DA = inform(name="X1",area=riverside,eattype=restaurant,food=Fastfood,pricerange=cheap) 
+-> "[name+X]X []is a [pricerange+cheap]cheap [food+Fastfood]fastfood [eattype+restaurant]restaurant [area]located [area]near the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,eattype=restaurant,pricerange=expensive,area="castlehill")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2") 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Burger King",eattype=restaurant,postcode="CB1 1PS")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,postcode="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [postcode]located in postcode [postcode+X]X"; 
+
+FULL_DA = inform(name="Zizzi",type=placetoeat,eattype=restaurant,area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="The Golden Palace",type=placetoeat,eattype=restaurant,near="Funky Fun House",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Chinese) 
+-> "I recommend [name+X]X, []a [food+Chinese]Chinese [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Red Bull",type=placetoeat,pricerange=moderate,area="newnham",near="Hotpot Restaurant",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area="X2",near="X3",eattype=restaurant) 
+-> "I would suggest [name+X]X, []a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [near]near [near+X]X [area]in [area+X]X"; 
+
+FULL_DA = inform(name="A and B Guest House",type=placetoeat,eattype=restaurant,area="cherryhinton",food="Chinese takeaway",food=Fusion)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food="Chinese takeaway",food=Fusion) 
+-> "I would guess [name+X]X [area]in [area+X]X, []a [food+Fusion]Fusion [eattype+restaurant]restaurant []that offers [food+Chinese_takeaway]Chinese takeaway."; 
+
+FULL_DA = inform(name="The Tram Depot",type=placetoeat,eattype=restaurant,pricerange=cheap,near="Dojo Noodle Bar")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,near="X2") 
+-> "I would suggest [name+X]X, []a [pricerange+cheap]cheap [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Man on the Moon",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Japanese) 
+-> "I would suggest [name+X]X, []a [food+Japanese]Japanese [eattype+restaurant]restaurant []offering [food+Chinese_takeaway]Chinese takeaway."; 
+
+FULL_DA = inform(name="Zizzi",type=placetoeat,eattype=restaurant,area=citycentre,food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food=Italian,food="Takeaway pizza") 
+-> "I would suggest [name+X]X, []an [food+Italian]Italian [eattype+restaurant]restaurant []in the [area+citycentre]city centre []offering [food+Takeaway_pizza]Takeaway pizza"; 
+
+FULL_DA = inform(name="Le Gros Franck",type=placetoeat,pricerange=expensive,near="Charlie Chan",near="The Waterman",area="trumpington",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",near="X3",area="X4",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [near]near to [near+X]X [near]and [near+X]X [pricerange]in the [pricerange+expensive]expensive [pricerange]pricerange."; 
+
+FULL_DA = inform(name="The Lion and Lamb",type=placetoeat,eattype=restaurant,pricerange=moderate)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]pricerange."; 
+
+FULL_DA = inform(name="Burger King",type=placetoeat,eattype=restaurant,food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Fastfood) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []providing [food+Fastfood]fast food."; 
+
+FULL_DA = inform(name="Web and Eat",type=placetoeat,eattype=restaurant,area=riverside,food="Chinese takeaway",food=Takeaway)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food="Chinese takeaway",food=Takeaway) 
+-> "[name+X]X []is a [food+Takeaway]take-out [food+Chinese_takeaway]Chinese [eattype+restaurant]restaurant [area]located by the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,area="romsey",near="Victoria Internet Cafe",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",food=Contemporary,food=English) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]located in [area+X]X []serving [food+Contemporary]fashionable [food]and [food+English]English-style [food]food, []and is [near]located near [near+X]X"; 
+
+FULL_DA = inform(name="The Lion and Lamb",type=placetoeat,eattype=restaurant,area="fenditton",pricerange=moderate,near="Central Post Office",near="Sitar Tandoori")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=moderate,near="X3",near="X4") 
+-> "[name+X]X []is an [pricerange+moderate]inexpensive [eattype+restaurant]restaurant [near]located close to [near+X]X [near]and close to [near+X]X []in the [area+X]X [area]locality."; 
+
+FULL_DA = inform(name="The Vaults",type=placetoeat,eattype=restaurant,near="Bella Italia, Grafton Centre")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Old Crown",eattype=restaurant,area="girton")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,area="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,pricerange=expensive,area="addenbrookes",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2",food=Continental,food=French) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [food+French]French [food+Continental]Continental [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Charlie Chan",type=placetoeat,eattype=restaurant,area=citycentre,near="The Fez Club",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [near]near [near+X]X [area]located in the [area+citycentre]city centre [area]area."; 
+
+FULL_DA = inform(name="Asia",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,near="The Six Bells, Covent Garden")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,near="X2") 
+-> "[name+X]X []is a [pricerange+expensive]high-end [eattype+restaurant]restaurant [near]located near [near+X]X [area]near the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,near="Sitar Tandoori",area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside) 
+-> "[name+X]X []is an [eattype+restaurant]eatery [near]located near [near+X]X [area]near the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Caffe Uno",type=placetoeat,eattype=restaurant,near="Funky Fun House",food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is an [food+Italian]Italian [food+Takeaway_pizza]take-out [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,eattype=restaurant,pricerange=moderate,area="girton",area="trumpington",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",area="X3",food=Indian) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [food+Indian]Indian [eattype+restaurant]restaurant [area]in [area+X]X [area]and [area+X]X"; 
+
+FULL_DA = inform(name="The Tram Depot",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Fastfood) 
+-> "[name+X]X []is a [pricerange+cheap]reasonably priced [food+Fastfood]fast food [eattype+restaurant]restaurant [area]down by the [area+riverside]river."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,pricerange=expensive,area="castlehill",near="Gonville and Caius College",near="Varsity Restaurant",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,area="X2",near="X3",near="X4",eattype=restaurant) 
+-> "[area]Over in [area+X]X []there is an [pricerange+expensive]expensive [eattype+restaurant]restaurant []called [name+X]X, [pricerange]a bit [pricerange+expensive]pricy []but worth the trip; [name+X]X [near]near [near+X]X [near]between [near+X]X"; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,area="addenbrookes",pricerange=expensive,food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=expensive,food=Continental,food=French) 
+-> "If you feel like [food+French]French [food+Continental]Continental [food]cuisine, []there is an [pricerange+expensive]upscale [eattype+restaurant]bistro [area]over near [area+X]X []called [name+X]X []that would do nicely."; 
+
+FULL_DA = inform(name="Ugly Duckling",type=placetoeat,eattype=restaurant,area=citycentre,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]near the [area+citycentre]centre of town."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,pricerange=expensive,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area of town."; 
+
+FULL_DA = inform(name="The Gandhi",type=placetoeat,eattype=restaurant,area=riverside,near="Clare College",food=Seafood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Seafood) 
+-> "[name+X]X []is a [food+Seafood]Seafood [eattype+restaurant]restaurant [area]near the [near+X]X [area]section of the [area+riverside]riverside [area]area of town."; 
+
+FULL_DA = inform(name="Tandoori Palace",type=placetoeat,eattype=restaurant,area="castlehill",area="arbury")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",area="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]near [area+X]X [area]and [area+X]X"; 
+
+FULL_DA = inform(name="Pizza Hut",type=placetoeat,eattype=restaurant,near="The Fitzwilliam Museum",area=citycentre,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre,food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="Prezzo",type=placetoeat,near="The Ancient Shepherds",area="castlehill",area="girton",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area="X3",area="X4",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [area]and [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Zizzi",type=placetoeat,eattype=restaurant,area=citycentre,near="Snakatak",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Lan Hong House",type=placetoeat,eattype=restaurant,area=riverside,near="The Plough",near="The Mill",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [food]food [eattype+restaurant]restaurant []and is [area]located in the [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Green Man",type=placetoeat,eattype=restaurant,area="trumpington")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Lan Hong House",type=placetoeat,eattype=restaurant,area=riverside,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [food]food [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Bosphorus",type=placetoeat,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="Clowns",eattype=coffeeshop,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",eattype=coffeeshop,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+coffeeshop]cafe [eattype+restaurant]restaurant"; 
+
+FULL_DA = inform(name="Cafe Rouge",type=placetoeat,eattype=restaurant,area=riverside,food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Fastfood) 
+-> "[name+X]X []is a [food+Fastfood]fastfood [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area"; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Continental,food=French) 
+-> "[name+X]X []is a [food+Continental]Continental [eattype+restaurant]restaurant []serving [food+French]French [food]food"; 
+
+FULL_DA = inform(name="Wok n Grill",area="trumpington",eattype=restaurant,food=Chinese)
+ABSTRACT_DA = inform(name="X1",area="X2",eattype=restaurant,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in [area+X]X"; 
+
+FULL_DA = inform(name="The Vaults",type=placetoeat,eattype=restaurant,pricerange=expensive,near="Frankie and Benny's",near="Hat and Feathers")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",near="X3") 
+-> "[name+X]X []is an [pricerange+expensive]upmarket [eattype+restaurant]venue. []It is located [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Wheatsheaf",type=placetoeat,near="Club Salsa",area="barnwell",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Doubletree by Hilton, Cambridge Garden House",type=placetoeat,near="Autumn House",area=riverside,area=citycentre,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area=riverside,area=citycentre,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]centre of town [area]in the [area+riverside]riverside [area]area [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,near="The Curry Queen Tandoori",pricerange=moderate,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=moderate,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [pricerange]in the [pricerange+moderate]moderate [pricerange]pricerange."; 
+
+FULL_DA = inform(name="Chiquito Mexican Bar and Grill",type=placetoeat,eattype=restaurant,area="addenbrookes",near="Bosphorus")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Doubletree by Hilton, Cambridge Garden House",type=placetoeat,eattype=restaurant,area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Carluccio's",type=placetoeat,eattype=restaurant,near="The Lensfield Hotel",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Jinling",type=placetoeat,near="The Fountain Inn",area=citycentre,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area=citycentre,eattype=restaurant) 
+-> "The [name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Red Bull",type=placetoeat,eattype=restaurant,pricerange=moderate,area="newnham",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [near]near [area+X]X []with a [pricerange+moderate]moderate [pricerange]pricerange."; 
+
+FULL_DA = inform(name="Fort Saint George",type=placetoeat,eattype=restaurant,area=riverside,near="The Snug, East Road",near="Tang Chinese",food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=Fastfood) 
+-> "[name+X]X []is a [food+Fastfood]fast food [eattype+restaurant]restaurant [area]on the [area+riverside]riverside [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="Clare Hall",near="Trinity Street Post Office",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Ahar",type=placetoeat,eattype=restaurant,area="romsey",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+X]X [area]area []that offers [food+Indian_takeaway]Indian food to take away."; 
+
+FULL_DA = inform(name="La Raza",type=placetoeat,eattype=restaurant,near="Finches Bed and Breakfast",food="Chinese takeaway",food=Fusion)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food="Chinese takeaway",food=Fusion) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that [food]serves [food+Fusion]Fusion [food+Chinese_takeaway]Chinese takeaway, []and it is [near]found near [near+X]X"; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,eattype=restaurant,pricerange=expensive,near="ADC Theatre")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2") 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Le Gros Franck",type=placetoeat,pricerange=expensive,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []specialising in [pricerange+expensive]fine dining."; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,near="The Barn Tea Rooms",pricerange=cheap,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=cheap,eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+cheap]affordable [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Asia",type=placetoeat,eattype=restaurant,area=riverside,area="addenbrookes",near="B Bar and Restaurant")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area="X2",near="X3") 
+-> "[name+X]X []is a [area+riverside]riverfront [eattype+restaurant]restaurant [area]near [area+X]X []and [near+X]X"; 
+
+FULL_DA = inform(name="Bella Italia, Grafton Centre",type=placetoeat,eattype=restaurant,area=riverside,food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area, []providing [food+Takeaway_pizza]take-away pizza []."; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,eattype=restaurant,near="Anatolia Turkish Restaurant",pricerange=moderate,food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=moderate,food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X []providing [food+Indian]Indian [food]food, []to eat in or [food+Indian_takeaway]take away, [pricerange]in the [pricerange+moderate]moderate [pricerange]pricerange."; 
+
+FULL_DA = inform(name="Jesus College",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Takeaway)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Takeaway) 
+-> "The [name+X]X [eattype+restaurant]restaurant is a [food+Chinese_takeaway]Chinese [food+Takeaway]takeaway [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name=none,type=placetoeat,eattype=restaurant,near="Worth House",food=English)
+ABSTRACT_DA = inform(name=none,type=placetoeat,eattype=restaurant,near="X1",food=English) 
+-> "I am sorry but there is no information about a [eattype+restaurant]restaurant []providing [food+English]English [food]food [near]near to [near+X]X"; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="Broughton House Gallery",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Continental,food=French) 
+-> "[name+X]X []is a [food+French]French []and [food+Continental]Continental [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,area=riverside,near="Hat and Feathers",near="Kettle's Yard",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,area="romsey",pricerange=moderate)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=moderate) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Mai Thai",type=placetoeat,eattype=restaurant,food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Cafe food",food=English) 
+-> "[name+X]X [eattype+restaurant]restaurant []is a [food+Cafe_food]cafe []which serves [food+English]English [food]food."; 
+
+FULL_DA = inform(name="The Tram Depot",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,near="The Oak Bistro")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,near="X2") 
+-> "[name+X]X []is a [pricerange+cheap]cheap [eattype+restaurant]restaurant [area]located at the [area+riverside]riverside [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Fleur Bar and Bistro",type=placetoeat,eattype=restaurant,near="The Salisbury Arms",area=riverside,pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,pricerange=expensive) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]located at the [area+riverside]riverside [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,pricerange=expensive,near="Varsity Restaurant",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]located near [near+X]X"; 
+
+FULL_DA = inform(name="Lan Hong House",area=riverside,food=Chinese,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",area=riverside,food=Chinese,eattype=restaurant) 
+-> "There is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]on the [area+riverside]riverside []called [name+X]X"; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,eattype=restaurant,pricerange=moderate,area="girton")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []in [area+X]X []with a [pricerange+moderate]moderately priced []menu."; 
+
+FULL_DA = inform(name="Le Gros Franck",type=placetoeat,eattype=restaurant,near="The Bath House",near="trumpington",area=riverside,area="The Bird in Hand")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",area=riverside,area="X4") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]on the [area+riverside]riverside [near]close to [near+X]X. []It is [near]near [near+X]X []in [area+X]X"; 
+
+FULL_DA = inform(name="Gourmet Burger Kitchen",type=placetoeat,eattype=restaurant,area=citycentre,near="Tatties (Trinity Street)",food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food="Cafe food",food=English) 
+-> "[name+X]X []is an [food+English]English [food]and [food+Cafe_food]cafe food [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X"; 
+
+FULL_DA = inform(name="d'Arry's",eattype=restaurant,addr="2-4 King Street",phone="01223902119")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,addr="X2",phone="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [addr]located at [addr+X]X []and its [phone]phone number is [phone+X]X"; 
+
+FULL_DA = inform(name="Sitar Tandoori",type=placetoeat,eattype=restaurant,area="cherryhinton",near="Kings Hedges Learner Pool",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [food]and [food+Indian_takeaway]Indian takeaway [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Hotel du Vin and Bistro",type=placetoeat,eattype=restaurant,area=riverside,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant []on the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Strada",type=placetoeat,area=citycentre,near="Parker's Bar",near="Corpus Christi",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=citycentre,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Henry's Cafe Bar",type=placetoeat,pricerange=moderate,area=riverside,near="Pipasha Restaurant",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area=riverside,near="X2",eattype=restaurant) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]on the [area+riverside]riverside [near]near [near+X]X"; 
+
+FULL_DA = inform(name="The Agora at the Copper Kettle",type=placetoeat,eattype=restaurant,near="The Maypole",area=citycentre,food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre,food="Cafe food",food=English) 
+-> "[name+X]X []is an [food+English]English [food+Cafe_food]Cafe food [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [area]area [near]near [near+X]X"; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,pricerange=expensive,near="HK Fusion",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",food=Italian) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [food+Italian]Italian [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Cambridge University Library",type=placetoeat,eattype=restaurant,area=citycentre,food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food="Cafe food",food=English) 
+-> "[name+X]X []is an [food+English]English [food+Cafe_food]cafe food [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="The Saffron Brasserie",type=placetoeat,eattype=restaurant,area=riverside,food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []which offers [food+Indian_takeaway]take-out service [area]located near the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,eattype=restaurant,area=citycentre,pricerange=cheap,near="The Wrestlers",near="The Eagle")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,pricerange=cheap,near="X2",near="X3") 
+-> "[name+X]X []is an [pricerange+cheap]affordable [eattype+restaurant]restaurant [near]located near [near+X]X [near]and [near+X]X []in the [area+citycentre]center of the city."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,eattype=restaurant,pricerange=expensive,area="castlehill",near="Yippee Noodle Bar")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2",near="X3") 
+-> "[name+X]X []is a [pricerange+expensive]high-end [eattype+restaurant]restaurant [area]located in [area+X]X [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Royal Standard",type=placetoeat,eattype=restaurant,area="romsey",pricerange=moderate,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=moderate,food=Indian) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [food+Indian]Indian [eattype+restaurant]restaurant [area]located in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Pizza Hut",type=placetoeat,eattype=restaurant,food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is a [food+Takeaway_pizza]takeaway [eattype+restaurant]restaurant []where you can find [food+Italian]Italian [food]food."; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,area=riverside,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+riverside]Riverside [area]area."; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,pricerange=moderate,area="romsey",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",food=Contemporary,food=English) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [food+English]English [food+Contemporary]Contemporary [eattype+restaurant]restaurant [area]in [area+X]X"; 
+
+FULL_DA = inform(name="Ali Baba",eattype=restaurant,area=riverside)
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []on the [area+riverside]riverside."; 
+
+FULL_DA = inform(name="River Bar and Kitchen",type=placetoeat,area="fenditton",area="trumpington",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",area="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Mai Thai",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="Grand Arcade",near="Ranch")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]centre of town, [area]on the [area+riverside]riverside, [near]near to [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Al Casbah",type=placetoeat,eattype=restaurant,near="Pizza Hut",area="romsey")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [near]near to [near+X]X"; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,eattype=restaurant,near="Bella Italia, Grafton Centre",food=Seafood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Seafood) 
+-> "[name+X]X []is a [food+Seafood]seafood [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,area=riverside,near="Eraina Taverna",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Chinese) 
+-> "[name+X]X [food]is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]near the [area+riverside]river [near]and [near+X]X."; 
+
+FULL_DA = inform(name="The Vaults",type=placetoeat,eattype=restaurant,area=citycentre,near="Taxi Gallery",near="Grafton Shopping Centre")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city center, [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,eattype=restaurant,area="girton",pricerange=moderate)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=moderate) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area, [pricerange]in the [pricerange+moderate]moderate [pricerange]price range"; 
+
+FULL_DA = inform(name="Courtyard Cafe at the Fitzwilliam Museum",type=placetoeat,eattype=restaurant,area=riverside,food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Fastfood) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area []which [food]serves [food+Fastfood]fast food"; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,pricerange=expensive,area="addenbrookes",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2",food=Continental,food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X []providing [food+French]French [food]and [food+Continental]Continental [food]food [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,near="Parkside Pools",pricerange=moderate,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=moderate,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [pricerange]in the [pricerange+moderate]moderate [pricerange]price range."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="El Shaddai",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Continental,food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X []that [food]serves [food+Continental]Continental [food]and [food+French]French [food]food."; 
+
+FULL_DA = inform(name="Burger King",area=riverside,eattype=restaurant,food=Fastfood,pricerange=cheap)
+ABSTRACT_DA = inform(name="X1",area=riverside,eattype=restaurant,food=Fastfood,pricerange=cheap) 
+-> "[name+X]X []is a [pricerange+cheap]cheap [food+Fastfood]fast food [eattype+restaurant]restaurant [area]near the [area+riverside]river."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,eattype=restaurant,area="castlehill",near="Milton Country Park",near="Browns Restaurant",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",near="X4",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in [area+X]X, [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="The Bombay Brasserie",type=placetoeat,eattype=restaurant,near="Meghna",pricerange=moderate,food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=moderate,food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [pricerange]whose prices are [pricerange+moderate]moderate []and [food]serve both [food+Indian]Indian [food]and [food+Indian_takeaway]Indian takeaway [food]foods."; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,area="romsey",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Contemporary,food=English) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [food]serving both [food+English]English [food]food and [food+Contemporary]Contemporary [food]food."; 
+
+FULL_DA = inform(name=none,area=citycentre,near="d'Arry's")
+ABSTRACT_DA = inform(name=none,area=citycentre,near="X1") 
+-> "[]I am sorry but there are no venues [near]near [near+X]X [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="Le Gros Franck",type=placetoeat,eattype=restaurant,pricerange=expensive,near="Yippee Noodle Bar",near="Little Seoul",area="trumpington")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",near="X3",area="X4") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X [near]and [near+X]X []and they are [pricerange]on the [pricerange+expensive]expensive [pricerange]pricerange."; 
+
+FULL_DA = inform(name="196 Meze Bar",type=placetoeat,pricerange=moderate,area="romsey",near="Barclays Bank PLC",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,near="La Mimosa",area="castlehill",eattype=restaurant,pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area="X3",eattype=restaurant,pricerange=expensive) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Red Bull",type=placetoeat,eattype=restaurant,pricerange=moderate,area="newnham",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,eattype=restaurant,area=riverside,food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []that provides [food+Indian_takeaway]Indian takeaway [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,near="Alpha-Milton Guest House",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Contemporary,food=English) 
+-> "[name+X]X []is an [food+English]English [eattype+restaurant]restaurant []that [food]serves [food+Contemporary]Contemporary [food]food [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Jinling",type=placetoeat,near="Tang Chinese",area=citycentre,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area=citycentre,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X []and [area]in the [area+citycentre]centre of town."; 
+
+FULL_DA = inform(name="Ugly Duckling",type=placetoeat,eattype=restaurant,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Chinese) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []and [food]serves [food+Chinese]Chinese [food]food"; 
+
+FULL_DA = inform(name="The Vaults",type=placetoeat,eattype=restaurant,near="Riverside Restaurant and Granta Bar",area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Arundel House Hotel",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Takeaway)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Takeaway) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that [food]serves [food+Takeaway]take away [food]food including [food+Chinese_takeaway]Chinese takeaway."; 
+
+FULL_DA = inform(name="Asia",type=placetoeat,pricerange=expensive,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Royal Standard",type=placetoeat,eattype=restaurant,pricerange=moderate,area="romsey")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [area]located in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="d'Arry's",type=placetoeat,eattype=restaurant,area=citycentre,near="Wandlebury Country Park",food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X []and it [food]serves [food+Japanese]Japanese [food]food and [food+Chinese_takeaway]Chinese takeaway [food]food."; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Fastfood) 
+-> "[name+X]X []is a [food+Fastfood]Fastfood [eattype+restaurant]restaurant [area]at the [area+riverside]riverside []and their [pricerange]prices are [pricerange+cheap]cheap."; 
+
+FULL_DA = inform(name="Lan Hong House",food=Chinese,eattype=restaurant,area=riverside)
+ABSTRACT_DA = inform(name="X1",food=Chinese,eattype=restaurant,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]near the [area+riverside]river []and it [food]serves [food+Chinese]Chinese [food]food"; 
+
+FULL_DA = inform(name="Bella Italia, Leisure Park",type=placetoeat,eattype=restaurant,near="Edwinns Bar and Restaurant",area="addenbrookes",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Dojo Noodle Bar",eattype=restaurant,near="Holiday Inn Cambridge")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,food=Indian) 
+-> "[name+X]X []is a [pricerange+cheap]cheaply priced [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,pricerange=cheap,area=citycentre,near="Limehouse",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=cheap,area=citycentre,near="X2",eattype=restaurant) 
+-> "[name+X]X [pricerange]is a [pricerange+cheap]cheaply priced [eattype+restaurant]restaurant [area]in the [area+citycentre]center of the city [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,area="romsey",near="Courtyard Cafe at the Fitzwilliam Museum",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",food=Contemporary,food=English) 
+-> "[name+X]X []is an [food+English]English [eattype+restaurant]restaurant []that [food]serves [food+Contemporary]Contemporary [food]food [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Shiraz",type=placetoeat,eattype=restaurant,pricerange=expensive,near="The Clarendon Arms")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Golden Palace",type=placetoeat,eattype=restaurant,near="Ta Bouche",area=riverside,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,area=riverside,near="The Bakers Arms",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Hakka",type=placetoeat,eattype=restaurant,near="Cambridge University Library",area="newchesterton",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,pricerange=expensive,area="addenbrookes",near="Kettle's Yard")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2",near="X3") 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name=none,near="girton",area="Nusha")
+ABSTRACT_DA = inform(name=none,near="X1",area="X2") 
+-> "[]I am sorry, but there are no venues matching your constraints [near]near [near+X]X, [area]in the [area+X]X []area."; 
+
+FULL_DA = inform(name="Bella Italia, Grafton Centre",type=placetoeat,eattype=restaurant,area=riverside,near="Sitar Tandoori",near="Le Patissier",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area, [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name=none,area="fenditton",near="Backstreet Bistro")
+ABSTRACT_DA = inform(name=none,area="X1",near="X2") 
+-> "[]I am sorry, but I know of no venues [near]near [near+X]X [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="196 Meze Bar",type=placetoeat,area="romsey",pricerange=moderate,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",pricerange=moderate,eattype=restaurant) 
+-> "[]May I suggest the [name+X]X? []It is a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant [area]near [area+X]X."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,near="The Rice Boat",food="Chinese takeaway",food=Fusion)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food="Chinese takeaway",food=Fusion) 
+-> "[name+X]X []is a [food+Chinese_takeaway]Chinese [food+Fusion]fusion [food+Chinese_takeaway]takeaway [eattype+restaurant]restaurant, [near]located near [near+X]X."; 
+
+FULL_DA = inform(name="Shiraz",type=placetoeat,eattype=restaurant,near="Corpus Christi",area=riverside,pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,pricerange=expensive) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]near the [area+riverside]river [near]near [near+X]X. []The [pricerange]price ranges [pricerange+expensive]a bit higher."; 
+
+FULL_DA = inform(name="Thanh Binh",type=placetoeat,eattype=restaurant,food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Cafe food",food=English) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []specialising in [food+English]English [food+Cafe_food]cafe [food]food."; 
+
+FULL_DA = inform(name="Giraffe",type=placetoeat,eattype=restaurant,area=citycentre,near="Saint Catharine's College")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]located near [near+X]X [area]in the [area+citycentre]city's centre."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Continental,food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []providing [food+French]French [food]and [food+Continental]Continental [food]food."; 
+
+FULL_DA = inform(name="d'Arry's",type=placetoeat,eattype=restaurant,area=citycentre,near="Carringtons cafe restaurant",near="Restaurant seventeen",food="Chinese takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",near="X3",food="Chinese takeaway") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []providing [food+Chinese_takeaway]Chinese takeaway [area]in the [area+citycentre]centre of town, [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,pricerange=expensive,near="VUE Cinema",near="Mumford Theatre",area="castlehill",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",near="X3",area="X4",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [area]in the [area+X]X [area]area, [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="CB two",type=placetoeat,eattype=restaurant,area=riverside,area="romsey",near="Cambridge Contemporary Art",near="The Pickerel Inn")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area="X2",near="X3",near="X4") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="The Fountain Inn",type=placetoeat,eattype=restaurant,pricerange=cheap)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+cheap]cheap [pricerange]price range."; 
+
+FULL_DA = inform(name="Sitar Tandoori",type=placetoeat,eattype=restaurant,area="cherryhinton",area="romsey")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",area="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Royal Cambridge Hotel",eattype=restaurant,addr="Trumpington Street",phone="01223351631")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,addr="X2",phone="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []on [addr+X]X. []Its [phone]phone number is [phone+X]X."; 
+
+FULL_DA = inform(name="Wagamama",type=placetoeat,eattype=restaurant,area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]centre of town."; 
+
+FULL_DA = inform(name="Doubletree by Hilton, Cambridge Garden House",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,near="The Rock")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]on the [area+riverside]riverside [near]near [near+X]X [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="The Gandhi",type=placetoeat,eattype=restaurant,near="Lan Hong House",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []providing [food+Indian]Indian [food]food [near]near [near+X]X."; 
+
+FULL_DA = inform(name="La Tasca",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,near="Caffe Nero")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=riverside,near="X2") 
+-> "[name+X]X []is a [pricerange+cheap]cheap [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Burger King",type=placetoeat,eattype=restaurant,food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Fastfood) 
+-> "[name+X]X []is a [food+Fastfood]fast food [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name=none,type=placetoeat,eattype=restaurant,near="Nu-Mega Ingredients Ltd",food=English)
+ABSTRACT_DA = inform(name=none,type=placetoeat,eattype=restaurant,near="X1",food=English) 
+-> "[]There are no [eattype+restaurant]restaurants [near]near [near+X]X []which [food]serve [food+English]English [food]food."; 
+
+FULL_DA = inform(name="Brasserie Gerard",type=placetoeat,eattype=restaurant,area=riverside,near="The Mitre",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,pricerange=expensive,near="The Gandhi",near="Beefeater Traveller's Rest")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="The Six Bells, High Saint",type=placetoeat,eattype=restaurant,area="cherryhinton",area="kingshedges",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",area="X3",food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []in the [area+X]X [area]and [area+X]X [area]areas."; 
+
+FULL_DA = inform(name="Al Casbah",type=placetoeat,eattype=restaurant,area="romsey",pricerange=moderate,near="Ranch",near="Devonshire Arms")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=moderate,near="X3",near="X4") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area, [near]near [near+X]X [near]and [near+X]X. []They have a [pricerange+moderate]moderate [pricerange]price range."; 
+
+FULL_DA = inform(name="The Vaults",type=placetoeat,area=citycentre,near="Green Man",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=citycentre,near="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [near]and the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,eattype=restaurant,pricerange=expensive,area="castlehill",near="The Glassworks",near="Rainbow Vegetarian Cafe")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2",near="X3",near="X4") 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="Avalon",near="The Bakers Arms",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Shiraz",type=placetoeat,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="Charlie Chan",type=placetoeat,eattype=restaurant,near="The Phoenix Chinese Restaurant",pricerange=expensive,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=expensive,food=Chinese) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [food+Chinese]Chinese [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,eattype=restaurant,pricerange=moderate,area="girton",area="castlehill",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",area="X3",food=Indian) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="Shelford Rugby Club",pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=expensive) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name=none,near="kingshedges",area="The Bird in Hand")
+ABSTRACT_DA = inform(name=none,near="X1",area="X2") 
+-> "[]There are no venues in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Sitar Tandoori",eattype=restaurant,addr="43 High Street, Cherry Hinton")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,addr="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [addr]located at [addr+X]X."; 
+
+FULL_DA = inform(name="Shiraz",type=placetoeat,area=riverside,near="Kettle's Yard",near="Nu-Mega Ingredients Ltd",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=riverside,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [area+riverside]riverside [area]area [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Ugly Duckling",type=placetoeat,eattype=restaurant,near="John Lewis Brasserie",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Wheatsheaf",type=placetoeat,eattype=restaurant,area="barnwell",near="Allenbell",near="Club Salsa")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",near="X4") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area, [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,near="Cambridge Police Station",area=riverside,area="trumpington")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,area="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]and [area+X]X [area]areas, [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Gandhi",type=placetoeat,eattype=restaurant,near="Edwinns Bar and Restaurant",area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area, [near]near [near+X]X."; 
+
+FULL_DA = inform(name=none,near="Michaelhouse Centre",area=citycentre)
+ABSTRACT_DA = inform(name=none,near="X1",area=citycentre) 
+-> "[]I am sorry there is no information about a venue [area]in the [area+citycentre]city centre [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Zizzi",type=placetoeat,eattype=restaurant,near="Starbucks",food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant []that provides [food+Takeaway_pizza]takeaway pizza [near]near [near+X]X."; 
+
+FULL_DA = inform(name=none,area="barnwell",near="Camboats")
+ABSTRACT_DA = inform(name=none,area="X1",near="X2") 
+-> "[]I am sorry there is no information about a venue [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Strada",type=placetoeat,eattype=restaurant,area=citycentre,near="Ali Baba",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Meghna",type=placetoeat,eattype=restaurant,area="castlehill",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X []which [food]serves [food+Indian]Indian [food]food."; 
+
+FULL_DA = inform(name="Asia",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]at the [area+riverside]riverside [food]serving [food+Indian]Indian [food]food. []It's [pricerange]in the [pricerange+expensive]expensive [pricerange]pricerange."; 
+
+FULL_DA = inform(name="The Red Bull",type=placetoeat,near="Courtyard Cafe at the Fitzwilliam Museum",area="newnham",area="fenditton",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area="X3",area="X4",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [area]and [area+X]X, [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Michaelhouse Centre",type=placetoeat,eattype=restaurant,near="Winfield",area=citycentre,area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [area]and [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Cafe Rouge",type=placetoeat,eattype=restaurant,area=riverside,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="India House",type=placetoeat,eattype=restaurant,area=riverside,near="Caffe Uno",food=Seafood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Seafood) 
+-> "[name+X]X []is a [food+Seafood]seafood [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Zizzi",type=placetoeat,eattype=restaurant,near="Legends Bar, Cambridge City Football Club",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Alex",type=placetoeat,eattype=restaurant,area="romsey",food="Chinese takeaway",food=Fusion)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food="Chinese takeaway",food=Fusion) 
+-> "[name+X]X []is a [food+Fusion]Fusion [eattype+restaurant]restaurant []that provides [food+Chinese_takeaway]Chinese takeaway [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name=none,near="The Earl Of Derby",area=riverside)
+ABSTRACT_DA = inform(name=none,near="X1",area=riverside) 
+-> "[]I am sorry but there is no information about a venue [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Teri-Aki",eattype=restaurant,postcode="CB5 8AB")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,postcode="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [postcode]in the [postcode+X]X [postcode]postcode."; 
+
+FULL_DA = inform(name="La Tasca",type=placetoeat,eattype=restaurant,area=riverside,near="Primavera",near="Thanh Binh")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Meghna",type=placetoeat,eattype=restaurant,area="castlehill",near="London Stansted Airport",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []that provides [food+Indian_takeaway]Indian takeaway [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Bombay Brasserie",type=placetoeat,pricerange=moderate,area=riverside,near="Sainsbury's",near="Kettle's Yard",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area=riverside,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [area]in the [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Lan Hong House",type=placetoeat,eattype=restaurant,area=riverside,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Prezzo",type=placetoeat,eattype=restaurant,food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant []that provides [food+Takeaway_pizza]takeaway pizza."; 
+
+FULL_DA = inform(name="The Ancient Shepherds",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X []is a [food+Japanese]Japanese [eattype+restaurant]restaurant []that provides [food+Chinese_takeaway]Chinese takeaway."; 
+
+FULL_DA = inform(name="Brasserie Gerard",type=placetoeat,eattype=restaurant,near="Grand Arcade",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Cambridge Chop House",eattype=restaurant,area="girton")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,area="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Cafe Rouge",type=placetoeat,eattype=restaurant,area=riverside,near="Web and Eat",near="River Bar and Kitchen",food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Carlton Arms",type=placetoeat,eattype=restaurant,area=citycentre,food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X []is a [food+Japanese]Japanese [eattype+restaurant]restaurant [area]in the [area+citycentre]centre of the city []that offers [food+Chinese_takeaway]Chinese takeaway."; 
+
+FULL_DA = inform(name="Aki Teri",type=placetoeat,eattype=restaurant,area=riverside,area="castlehill",near="Tesco")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,area="addenbrookes",pricerange=expensive,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",pricerange=expensive,eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Clowns",type=placetoeat,eattype=restaurant,area=citycentre,near="Ta Bouche",food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []offering [food+Italian]Italian [food]food and [food+Takeaway_pizza]takeaway pizza [area]in the [area+citycentre]center of the city [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="Cambridge City Football Club",near="addenbrookes",area=riverside,area="Subway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",area=riverside,area="X4") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="The Curry House",type=placetoeat,area="castlehill",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X."; 
+
+FULL_DA = inform(name="Doubletree by Hilton, Cambridge Garden House",type=placetoeat,near="The Boathouse",pricerange=expensive,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=expensive,eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Royal Cambridge Hotel",type=placetoeat,eattype=restaurant,near="Stazione Restaurant and Coffee bar",near="Cambridge Waffle Company",food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food="Cafe food",food=English) 
+-> "[name+X]X []is an [food+English]English [food+Cafe_food]cafe food [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="The Fountain Inn",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre,near="The Elm Tree")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]centre of town [near]near [near+X]X []whose [pricerange]prices are [pricerange+cheap]cheap."; 
+
+FULL_DA = inform(name="River Bar and Kitchen",type=placetoeat,eattype=restaurant,near="Le Patissier",area="fenditton",area="cherryhinton")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",area="X4") 
+-> "[name+X]X []is one of those [eattype+restaurant]restaurants [area]in the [area+X]X [area]and [area+X]X [area]areas [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Bella Italia, Grafton Centre",type=placetoeat,eattype=restaurant,area=riverside,food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]near the [area+riverside]river [food]serving [food+Takeaway_pizza]takeaway pizza []too."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,area="castlehill",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside,area="X2",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [area]in the [area+X]X [area]and [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Charlie Chan",type=placetoeat,eattype=restaurant,area=citycentre,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [area]area."; 
+
+FULL_DA = inform(name="Le Gros Franck",type=placetoeat,pricerange=expensive,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,area="addenbrookes",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Continental,food=French) 
+-> "[]The [eattype+restaurant]restaurant [name+X]X [food]serves [food+French]French [food]and [food+Continental]Continental [food]food [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,pricerange=expensive,near="The Empress",near="Cambridge University Library",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Cafe Rouge",type=placetoeat,eattype=restaurant,near="Cambridge City Football Club",area=riverside,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=French) 
+-> "[name+X]X []is a [food+French]French [eattype+restaurant]restaurant [near]near [near+X]X [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,near="Gonville and Caius College")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2") 
+-> "[]You may want to visit [name+X]X [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,pricerange=expensive,near="Pipasha Restaurant",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",food=Italian) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]near [near+X]X []that [food]serves [food+Italian]Italian [food]food."; 
+
+FULL_DA = inform(name=none,area=citycentre,near="The Alex")
+ABSTRACT_DA = inform(name=none,area=citycentre,near="X1") 
+-> "[]There are no places you are looking for [near]near [near+X]X [area]in the [area+citycentre]centre of town."; 
+
+FULL_DA = inform(name="Teri-Aki",type=placetoeat,pricerange=moderate,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,eattype=restaurant) 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [eattype+restaurant]restaurant []you may want to visit."; 
+
+FULL_DA = inform(name="The Snug, East Road",type=placetoeat,area=riverside,near="The Portland Arms",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=riverside,near="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area, [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Curry House",type=placetoeat,area="castlehill",area="arbury",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",area="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+X]X [area]areas."; 
+
+FULL_DA = inform(name="Charlie Chan",type=placetoeat,pricerange=expensive,near="B Bar and Restaurant",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",eattype=restaurant) 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Fountain Inn",type=placetoeat,eattype=restaurant,area=citycentre,pricerange=cheap,near="The Golden Curry",near="El Shaddai")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,pricerange=cheap,near="X2",near="X3") 
+-> "[name+X]X []is a [pricerange+cheap]cheap [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre, [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Dojo Noodle Bar",type=placetoeat,eattype=restaurant,near="Kings Hedges Learner Pool",area="girton",area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]and [area+X]X [area]areas [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,pricerange=expensive,area="castlehill",near="Prezzo",near="The Pickerel Inn",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,area="X2",near="X3",near="X4",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [area]in the [area+X]X [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Ali Baba",type=placetoeat,eattype=restaurant,area=riverside,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,eattype=restaurant,near="LA Fitness",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []that provides [food+Indian_takeaway]Indian takeaway [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Clowns",type=placetoeat,eattype=restaurant,area=citycentre,food=Italian,food="Takeaway pizza")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food=Italian,food="Takeaway pizza") 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant []that provides [food+Takeaway_pizza]takeaway pizza [area]in the [area+citycentre]city centre [area]area."; 
+
+FULL_DA = inform(name="The Bombay Brasserie",type=placetoeat,eattype=restaurant,pricerange=moderate)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range."; 
+
+FULL_DA = inform(name="Cafe Adriatic",type=placetoeat,eattype=restaurant,pricerange=expensive,area="romsey")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area="X2") 
+-> "[name+X]X []is an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="De Luca Cucina and Bar",type=placetoeat,eattype=restaurant,area=riverside,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="John Lewis Brasserie",type=placetoeat,eattype=restaurant,area=citycentre,near="Lan Hong House",food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food="Cafe food",food=English) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]located near [near+X]X []that offers [food+English]English [food]cuisine [food]and [food+Cafe_food]cafe [food]food."; 
+
+FULL_DA = inform(name="Royal Standard",type=placetoeat,eattype=restaurant,near="David Lloyd Sports Club",area="romsey",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X []and it [food]serves [food+Indian]Indian [food]food."; 
+
+FULL_DA = inform(name="Cafe Adriatic",type=placetoeat,pricerange=expensive,near="Revolution",area="romsey",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,near="X2",area="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [near]near [near+X]X. []It's [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Bella Italia, Grafton Centre",type=placetoeat,eattype=restaurant,near="City Centre North B and B",area=riverside,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,food=Italian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]on the [area+riverside]riverside [near]near [near+X]X. []They [food]serve [food+Italian]Italian [food]food."; 
+
+FULL_DA = inform(name="Ali Baba",type=placetoeat,eattype=restaurant,area="fenditton",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X []and it [food]serves [food+Indian]Indian [food]food and [food+Indian_takeaway]Indian takeaway []too."; 
+
+FULL_DA = inform(name="Cotto",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Fusion)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food="Chinese takeaway",food=Fusion) 
+-> "[name+X]X []is a [food+Fusion]Fusion [eattype+restaurant]restaurant []that provides [food+Chinese_takeaway]Chinese takeaway."; 
+
+FULL_DA = inform(name="Wagamama",type=placetoeat,eattype=restaurant,near="Wok n Grill",area=citycentre,food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre,food="Cafe food",food=English) 
+-> "[name+X]X []is an [food+English]English [eattype+restaurant]restaurant []that [food]serves [food+Cafe_food]cafe [food]food [area]in the [area+citycentre]city centre [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Fort Saint George",eattype=restaurant,area=riverside)
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]near the [area+riverside]river."; 
+
+FULL_DA = inform(name="Cafe Adriatic",type=placetoeat,eattype=restaurant,near="Cambridge Lawn Tennis Club",food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X [food]is a [food+Japanese]Japanese [eattype+restaurant]restaurant [near]near [near+X]X []that offers [food+Chinese_takeaway]Chinese [food]food [food+Chinese_takeaway]to take away."; 
+
+FULL_DA = inform(name="Rainbow Vegetarian Cafe",type=placetoeat,eattype=restaurant,pricerange=moderate,area="girton",area="fenditton")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",area="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in [area+X]X [area]and [area+X]X []and [pricerange]their prices are [pricerange+moderate]moderate."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,area="addenbrookes",pricerange=expensive,food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=expensive,food=Continental,food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that [food]serves [food+French]French [food]food []and [area]in [area+X]X []though they [food]serve [food+Continental]Continental [food]food, []they are [pricerange]in the [pricerange+expensive]expensive [pricerange]pricerange."; 
+
+FULL_DA = inform(name="The Bombay Brasserie",type=placetoeat,near="The County Arms",pricerange=moderate,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=moderate,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]on the [area+riverside]riverside [near]near [near+X]X []and [pricerange]their prices are [pricerange+moderate]moderate."; 
+
+FULL_DA = inform(name="Yu Garden",area="fenditton",eattype=restaurant,food=Chinese)
+ABSTRACT_DA = inform(name="X1",area="X2",eattype=restaurant,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Royal Standard",type=placetoeat,eattype=restaurant,area="romsey",pricerange=moderate,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",pricerange=moderate,food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []in the [pricerange+moderate]moderate [pricerange]price range [area]located in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="The Cricketers",type=placetoeat,eattype=restaurant,area=citycentre,food="Cafe food",food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,food="Cafe food",food=English) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that [food]serves [food+Cafe_food]cafe [food]and [food+English]English [food]food [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="Carluccio's",type=placetoeat,eattype=restaurant,area="girton",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Italian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that [food]serves [food+Italian]Italian [food]food [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Royal Cambridge Hotel",type=placetoeat,pricerange=moderate,area=riverside,near="Cambridge Waffle Company",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area=riverside,near="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [near]near the [near+X]X [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="The Red Bull",type=placetoeat,pricerange=moderate,area="newnham",area="cherryhinton",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area="X2",area="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [area]in the [area+X]X [area]and [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,pricerange=expensive)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range."; 
+
+FULL_DA = inform(name="Hakka",type=placetoeat,eattype=restaurant,area="newchesterton",near="Sesame Restaurant and Bar",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Lan Hong House",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="Camboats",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="X2",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [area]and [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Punter",type=placetoeat,pricerange=expensive,area="castlehill",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=expensive,area="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Cafe Adriatic",type=placetoeat,area="romsey",near="The White Hart",near="King's College",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",near="X3",near="X4",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Cafe Naz",type=placetoeat,eattype=restaurant,near="Cambridge and County Folk Museum",area="castlehill")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Galleria",type=placetoeat,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="Kelsey Kerridge Sports Centre",type=placetoeat,eattype=restaurant,area=riverside,food="Chinese takeaway",food=Takeaway)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,food="Chinese takeaway",food=Takeaway) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area []which [food]serves [food+Chinese_takeaway]Chinese [food+Takeaway]takeaway [food]food"; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,eattype=restaurant,pricerange=moderate,area="girton",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",food=Indian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area []which [food]serves [food+Indian]Indian [food]food [pricerange]in the [pricerange+moderate]moderate [pricerange]price range"; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,eattype=restaurant,near="Dodo Gallery",pricerange=cheap)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=cheap) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [pricerange]in the [pricerange+cheap]cheap [pricerange]price range"; 
+
+FULL_DA = inform(name="Pizza Hut",type=placetoeat,area=citycentre,near="The Rice Boat",near="The Lion and Lamb",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=citycentre,near="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre, [near]located near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="Pizza Hut",type=placetoeat,eattype=restaurant,area=citycentre,near="Cambridge Contemporary Art",near="Zizzi",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",near="X3",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name=none,near="Mouth Music",area=riverside)
+ABSTRACT_DA = inform(name=none,near="X1",area=riverside) 
+-> "[]I am sorry there is no information matching the constraints [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Burger King",type=placetoeat,eattype=restaurant,near="Caffe Uno",food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",food=Fastfood) 
+-> "[name+X]X []is a [food+Fastfood]fast food [eattype+restaurant]restaurant [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Downing College",type=placetoeat,eattype=restaurant,near="The Anchor",near="Tenpin",food="Chinese takeaway",food=Japanese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food="Chinese takeaway",food=Japanese) 
+-> "[name+X]X []is a [food+Japanese]Japanese [eattype+restaurant]restaurant []that provides [food+Chinese_takeaway]Chinese takeaway [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Twenty-four",type=placetoeat,eattype=restaurant,food=Seafood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Seafood) 
+-> "[name+X]X []is a [food+Seafood]seafood [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="The Bombay Brasserie",type=placetoeat,eattype=restaurant,pricerange=moderate,area=riverside,food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area=riverside,food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is a [pricerange+moderate]moderately priced [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area []which offers [food+Indian_takeaway]Indian takeaway."; 
+
+FULL_DA = inform(name="Dojo Noodle Bar",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="Wok n Grill",type=placetoeat,eattype=restaurant,near="The Bakers Arms",near="Fenner s Cricket Ground",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",near="X3",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [near]near [near+X]X [near]and [near+X]X"; 
+
+FULL_DA = inform(name="The Cambridge Chop House",type=placetoeat,near="The Geldart",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X"; 
+
+FULL_DA = inform(name="Midsummer House",type=placetoeat,eattype=restaurant,area=riverside,near="Arts Picture House and Cafe-Bar")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Royal Standard",type=placetoeat,eattype=restaurant,area="romsey")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="The Golden Palace",area=riverside,food=Chinese,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",area=riverside,food=Chinese,eattype=restaurant) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area."; 
+
+FULL_DA = inform(name="The Snug, East Road",type=placetoeat,eattype=restaurant,near="Cineworld Cinema",area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Fountain Inn",type=placetoeat,area=citycentre,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area=citycentre,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre."; 
+
+FULL_DA = inform(name="Shiraz",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,area=riverside) 
+-> "[]If you are looking for an [pricerange+expensive]expensive [eattype+restaurant]restaurant [area]near the [area+riverside]river, []I would suggest [name+X]X."; 
+
+FULL_DA = inform(name=none,near="Pizza Express",area=citycentre)
+ABSTRACT_DA = inform(name=none,near="X1",area=citycentre) 
+-> "[]I regret to tell you that there are no places I know of [near]near [near+X]X [area]in the [area+citycentre]centre of town."; 
+
+FULL_DA = inform(name="HK Fusion",type=placetoeat,eattype=restaurant,area="cherryhinton",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",food=Chinese) 
+-> "[]May I suggest the [name+X]X [eattype+restaurant]restaurant? []It is a [food+Chinese]Chinese [food]food [eattype+restaurant]restaurant [area]near [area+X]X."; 
+
+FULL_DA = inform(name="The Red Bull",type=placetoeat,eattype=restaurant,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Italian) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that [food]serves [food+Italian]Italian [food]food."; 
+
+FULL_DA = inform(name="The Golden Palace",type=placetoeat,eattype=restaurant,area=riverside,near="Alexander Bed and Breakfast",near="Hilarys Wholesale",food=Fastfood)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=Fastfood) 
+-> "[name+X]X []is a [food+Fastfood]fast food [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X, [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Tandoori Palace",type=placetoeat,near="Cambridge University Engineering Department",area="castlehill",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near the [near+X]X."; 
+
+FULL_DA = inform(name="La Margherita",type=placetoeat,eattype=restaurant,pricerange=expensive,near="Funky Fun House",near="Saint Barnabas Press Gallery",food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=expensive,near="X2",near="X3",food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="The Oak Bistro",type=placetoeat,eattype=restaurant,area="trumpington",area=riverside,near="Primavera",food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",area=riverside,near="X3",food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant [area]in the [area+X]X [area]and [area+riverside]riverside [area]areas [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Pizza Express",type=placetoeat,eattype=restaurant,near="Le Gros Franck",area=citycentre,food=Italian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=citycentre,food=Italian) 
+-> "[name+X]X []is an [food+Italian]Italian [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Tang Chinese",eattype=restaurant,phone="01223902135")
+ABSTRACT_DA = inform(name="X1",eattype=restaurant,phone="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []and its [phone]phone number is [phone+X]X."; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,area="girton",eattype=restaurant,pricerange=moderate)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",eattype=restaurant,pricerange=moderate) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Lan Hong House",type=placetoeat,eattype=restaurant,area=riverside,near="Dodo Gallery",near="The Empress",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",near="X3",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X [near]and [near+X]X."; 
+
+FULL_DA = inform(name="Henry's Cafe Bar",type=placetoeat,near="Ugly Duckling",area=riverside,area=citycentre,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area=riverside,area=citycentre,eattype=restaurant) 
+-> "[]If you would like to visit a nice [eattype+restaurant]restaurant, []I would suggest [name+X]X [near]near [near+X]X [area]by the [area+riverside]riverside, [area]in the [area+citycentre]centre of the city."; 
+
+FULL_DA = inform(name="Little Seoul",type=placetoeat,eattype=restaurant,area=riverside)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]by the [area+riverside]river."; 
+
+FULL_DA = inform(name="Backstreet Bistro",type=placetoeat,eattype=restaurant,pricerange=moderate,area="romsey",food=Contemporary,food=English)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=moderate,area="X2",food=Contemporary,food=English) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range []that offers [food+English]English [food]and [food+Contemporary]Contemporary [food]food [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="Blue Spice",type=placetoeat,eattype=restaurant,food=Indian)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,food=Indian) 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,eattype=restaurant,pricerange=cheap,near="Earl Of Beaconsfield")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,near="X2") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+cheap]cheap [pricerange]price range [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Alimentum",type=placetoeat,eattype=restaurant,near="India Palace",area="addenbrookes",food=Continental,food=French)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area="X3",food=Continental,food=French) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []that [food]serves [food+French]French [food]and [food+Continental]Continental [food]food [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="The Red Bull",type=placetoeat,pricerange=moderate,area="newnham",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,pricerange=moderate,area="X2",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+moderate]moderate [pricerange]price range [area]in the [area+X]X [area]area."; 
+
+FULL_DA = inform(name="The Rice Boat",type=placetoeat,near="Hughes Hall",pricerange=cheap,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=cheap,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [near]near [near+X]X [pricerange]in the [pricerange+cheap]cheap [pricerange]price range."; 
+
+FULL_DA = inform(name="d'Arry's",type=placetoeat,eattype=restaurant,near="Arts Picture House and Cafe-Bar",pricerange=expensive,area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",pricerange=expensive,area=citycentre) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+expensive]expensive [pricerange]price range [area]in the [area+citycentre]centre of town, [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Shiraz",type=placetoeat,near="Le Gros Franck",pricerange=expensive,area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",pricerange=expensive,area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant []in the [pricerange+expensive]expensive [pricerange]price range [area]on the [area+riverside]riverside [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Ugly Duckling",type=placetoeat,eattype=restaurant,area=citycentre,near="The Fez Club",food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=citycentre,near="X2",food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Frankie and Benny's",type=placetoeat,eattype=restaurant,area="romsey",near="The Rice Boat")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Tandoori Palace",type=placetoeat,area="castlehill",near="Pembroke College",eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,area="X2",near="X3",eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+X]X [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Nanna Mexico",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,pricerange=cheap,area=citycentre) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [pricerange]in the [pricerange+cheap]cheap [pricerange]price range [area]in the [area+citycentre]city centre [area]area."; 
+
+FULL_DA = inform(name="The Golden Palace",type=placetoeat,eattype=restaurant,near="Cambridge University Real Tennis Club",area=riverside,area=citycentre,food=Chinese)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,near="X2",area=riverside,area=citycentre,food=Chinese) 
+-> "[name+X]X []is a [food+Chinese]Chinese [eattype+restaurant]restaurant [area]in the [area+citycentre]city centre [area]and [area+riverside]riverside [area]areas [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Fort Saint George",type=placetoeat,near="The Bakers",area=riverside,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",type=placetoeat,near="X2",area=riverside,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Clowns",eattype=coffeeshop,eattype=restaurant)
+ABSTRACT_DA = inform(name="X1",eattype=coffeeshop,eattype=restaurant) 
+-> "[name+X]X []is a [eattype+coffeeshop]cafe [eattype+restaurant]restaurant."; 
+
+FULL_DA = inform(name="Asia",type=placetoeat,eattype=restaurant,area=riverside,near="The Salisbury Arms",food=Indian,food="Indian takeaway")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,near="X2",food=Indian,food="Indian takeaway") 
+-> "[name+X]X []is an [food+Indian]Indian [eattype+restaurant]restaurant []that provides [food+Indian_takeaway]Indian takeaway [area]in the [area+riverside]riverside [area]area [near]near [near+X]X."; 
+
+FULL_DA = inform(name="Tang Chinese",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="The Plough",near="The Barn Tea Rooms")
+ABSTRACT_DA = inform(name="X1",type=placetoeat,eattype=restaurant,area=riverside,area=citycentre,near="X2",near="X3") 
+-> "[name+X]X []is a [eattype+restaurant]restaurant [area]in the [area+citycentre]centre of town [area]and [area+riverside]riverside [near]near [near+X]X [near]and [near+X]X."; 
+
