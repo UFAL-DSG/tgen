@@ -2,6 +2,9 @@
 TREEX_DIR=/home/odusek/treex
 
 
+data-text.yaml.gz: data-text.treex.gz
+	treex Read::Treex from=$< Write::YAML to=$@
+
 data-text.treex.gz: data-text.txt
 	treex Read::Sentences from=$< $(TREEX_DIR)/devel/en2en/scenarios/en_analysis.scen Write::Treex to=$@
 
