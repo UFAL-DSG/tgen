@@ -1,0 +1,6 @@
+.project
+.pydevproject
+.settings
+*.treex.gz
+*.yaml.gz
+*.pickle.gz
