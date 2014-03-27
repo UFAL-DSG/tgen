@@ -11,20 +11,10 @@ import cPickle as pickle
 import random
 
 from flect.logf import log_info
-from alex.components.nlg.tectotpl.block.read.yaml import YAML as YAMLReader
 from alex.components.nlg.tectotpl.core.util import file_stream
 
-from futil import read_das
-
-
-class CandidateGenerator(object):
-    pass
-
-
-class Ranker(object):
-
-    def get_best_child(self, parent, cdf):
-        raise NotImplementedError
+from futil import read_das, read_ttrees
+from tgen import CandidateGenerator, Ranker
 
 
 class RandomGenerator(CandidateGenerator, Ranker):
@@ -52,14 +42,7 @@ class RandomGenerator(CandidateGenerator, Ranker):
         """
         # read training data
         log_info('Reading ' + t_file)
-        if 'pickle' in t_file:
-            ttrees = pickle.load(file_stream(t_file, mode='rb', encoding=None))
-        else:
-            yaml_reader = YAMLReader(scenario=None, args={})
-            ttrees = yaml_reader.process_document(t_file)
-            pickle_file = t_file.replace('yaml', 'pickle')
-            fh = file_stream(pickle_file, mode='wb', encoding=None)
-            pickle.dump(ttrees, fh, pickle.HIGHEST_PROTOCOL)
+        ttrees = read_ttrees(t_file)
         log_info('Reading ' + da_file)
         das = read_das(da_file)
         # collect counts

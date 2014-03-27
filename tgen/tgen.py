@@ -20,6 +20,16 @@ from futil import read_das
 from randgen import RandomGenerator
 
 
+class CandidateGenerator(object):
+    pass
+
+
+class Ranker(object):
+
+    def get_best_child(self, parent, cdf):
+        raise NotImplementedError
+
+
 class TTreeGenerator(object):
     """Random t-tree generator given DAs.
 
@@ -51,21 +61,21 @@ class TTreeGenerator(object):
         # creating a tree
         root = zone.create_ttree()
         cdfs = self.candgen.get_merged_cdfs(da)
-        nodes = deque([self.generate_child(root, cdfs[root.formeme])])
+        nodes = deque([self.generate_child(root, da, cdfs[root.formeme])])
         treesize = 1
         while nodes and treesize < self.MAX_TREE_SIZE:
             node = nodes.popleft()
             if node.formeme not in cdfs:  # skip weirdness
                 continue
             for _ in xrange(self.candgen.get_number_of_children(node.formeme)):
-                child = self.generate_child(node, cdfs[node.formeme])
+                child = self.generate_child(node, da, cdfs[node.formeme])
                 nodes.append(child)
                 treesize += 1
         return doc
 
-    def generate_child(self, parent, cdf):
+    def generate_child(self, parent, da, cdf):
         """Generate one t-node, given its parent and the CDF for the possible children."""
-        formeme, t_lemma, right = self.ranker.get_best_child(parent, cdf)
+        formeme, t_lemma, right = self.ranker.get_best_child(parent, da, cdf)
         child = parent.create_child()
         child.t_lemma = t_lemma
         child.formeme = formeme
