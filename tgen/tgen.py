@@ -80,25 +80,39 @@ if __name__ == '__main__':
 
     random.seed(1206)
 
-    files = sys.argv[1:]
-    if len(files) != 4:
+    if len(sys.argv) < 3:
         sys.exit(__doc__)
-    fname_da_train, fname_ttrees_train, fname_da_test, fname_ttrees_out = files
 
-    # initialize, train_generator
-    log_info('Initializing...')
-    candgen = RandomGenerator()
-    candgen.train(fname_da_train, fname_ttrees_train)
-    tgen = TTreeGenerator({'candgen': candgen, 'ranker': candgen})
+    action = sys.argv[1]
+    args = sys.argv[2:]
 
-    # generate
-    log_info('Generating...')
-    doc = None
-    das = read_das(fname_da_test)
-    for da in das:
-        doc = tgen.generate_tree(da, doc)
+    if action == 'train':
+        if len(args) != 3:
+            sys.exit(__doc__)
+        fname_da_train, fname_ttrees_train, fname_cand_model = args
 
-    # write output
-    log_info('Writing output...')
-    writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
-    writer.process_document(doc)
+        log_info('Training...')
+        candgen = RandomGenerator()
+        candgen.train(fname_da_train, fname_ttrees_train)
+        candgen.save_model(fname_cand_model)
+
+    elif action == 'generate':
+        if len(args) != 3:
+            sys.exit(__doc__)
+        fname_cand_model, fname_da_test, fname_ttrees_out = args
+
+        # load model
+        log_info('Initializing...')
+        candgen = RandomGenerator()
+        candgen.load_model(fname_cand_model)
+        tgen = TTreeGenerator({'candgen': candgen, 'ranker': candgen})
+        # generate
+        log_info('Generating...')
+        doc = None
+        das = read_das(fname_da_test)
+        for da in das:
+            doc = tgen.generate_tree(da, doc)
+        # write output
+        log_info('Writing output...')
+        writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
+        writer.process_document(doc)

@@ -33,6 +33,18 @@ class RandomGenerator(CandidateGenerator, Ranker):
         self.form_counts = None
         self.child_cdfs = None
 
+    def load_model(self, fname):
+        log_info('Loading model from ' + fname)
+        with file_stream(fname, mode='rb', encoding=None) as fh:
+            self.form_counts = pickle.load(fh)
+            self.child_cdfs = pickle.load(fh)
+
+    def save_model(self, fname):
+        log_info('Saving model to ' + fname)
+        with file_stream(fname, mode='wb', encoding=None) as fh:
+            pickle.dump(self.form_counts, fh, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.child_cdfs, fh, pickle.HIGHEST_PROTOCOL)
+
     def train(self, da_file, t_file):
         """``Train'' the generator (collect counts of DAs and corresponding t-nodes).
 
@@ -52,13 +64,15 @@ class RandomGenerator(CandidateGenerator, Ranker):
         das = read_das(da_file)
         # collect counts
         log_info('Collecting counts')
-        form_counts = defaultdict(lambda: defaultdict(Counter))
+        form_counts = {}
         child_counts = defaultdict(Counter)
         for ttree, da in zip(ttrees.bundles, das):
             ttree = ttree.get_zone('en', '').ttree
             # counts for formeme/lemma given dai
             for dai in da:
                 for tnode in ttree.get_descendants():
+                    if not dai in form_counts:
+                        form_counts[dai] = defaultdict(Counter)
                     form_counts[dai][tnode.parent.formeme][(tnode.formeme, tnode.t_lemma, tnode > tnode.parent)] += 1
             # counts for number of children
             for tnode in ttree.get_descendants():
