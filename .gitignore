@@ -4,3 +4,4 @@
 *.treex.gz
 *.yaml.gz
 *.pickle.gz
+*.pyc
