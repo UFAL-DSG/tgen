@@ -7,6 +7,9 @@ Ranker based on logistic regression.
 
 from __future__ import unicode_literals
 import cPickle as pickle
+import re
+from functools import partial
+from collections import defaultdict
 
 from flect.logf import log_info
 from flect.model import Model
@@ -18,7 +21,96 @@ import operator
 from flect.dataset import DataSet
 
 
-# TODO: Feature Generator
+class Features(object):
+
+    def __init__(self, cfg):
+        self.features = self.parse_feature_spec(cfg['features'])
+
+    def parse_feature_spec(self, spec):
+        """Prepares feature feature function from specifications in the following format:
+
+        Label: value/same_as_current scope param1, ...
+
+        Scope may be: parent, siblings, grandpa, uncles, or their combinations (connected
+        with '+', no spaces). Always applies only to the part of the tree that is already
+        built (i.e. to the top/left only).
+        """
+        features = {}
+        for feat in spec:
+            label, func_name, func_scope, func_params = re.split(r'[:\s]+', feat, 3)
+            func_params = re.split(r'[,\s]+', func_params)
+            feat_func = None
+            scope_func = partial(self.find_nodes, func_scope.split('+'))
+            if func_name.lower() == 'same_as_current':
+                feat_func = partial(self.same_as_current, scope_func=scope_func, attrib=func_params[0])
+            elif func_name.lower() == 'value':
+                feat_func = partial(self.get_value, scope_func=scope_func, attrib=func_params[0])
+            else:
+                raise Exception('Unknown feature function:' + feat)
+            features[label] = feat_func
+        return features
+
+    def get_features(self, node, parent):
+        feats = {}
+        for name, func in self.features.iteritems():
+            val = func(node, parent)
+            for subname, subval in val.iteritems():
+                feats[name + '_' + subname] = subval
+        return feats
+
+    @staticmethod
+    def find_nodes(parent, scope):
+        """Given a parent node and scope specifications (in a list), this returns the
+        corresponding nodes.
+        """
+        nodes = []
+        for scope_spec in scope:
+            if scope_spec == 'parent':
+                nodes.append(parent)
+            elif scope_spec == 'grandpa' and parent.parent:
+                nodes.append(parent.parent)
+            elif scope_spec == 'siblings':  # TODO: use left siblings only ?
+                nodes.extend(parent.get_children())
+            elif scope_spec == 'uncles' and parent.parent:
+                nodes.extend([uncle for uncle in parent.parent.get_children() if uncle != parent])
+        return nodes
+
+    @staticmethod
+    def same_as_current(node, parent, scope_func, attrib):
+        """Return the number of nodes in the given scope that have the same value
+        of the given attribute as the current node.
+
+        @rtype: dict
+        @return: dictionary with one key ('') and the number of matching values as a value
+        """
+        value = node[['formeme', 't_lemma', 'right'].index(attrib)]  # TODO more attributes / more flexible ?
+        num_matching = 0
+        for node in scope_func(parent):
+            if attrib == 'right':  # special handling for 'right'
+                if node.parent and (node > node.parent) == value:
+                    num_matching += 1
+            elif node.get_attr(attrib) == value:  # any other attribute
+                num_matching += 1
+        return {'': num_matching}
+
+    @staticmethod
+    def value(node, parent, scope_func, attrib):
+        """Return the number of nodes holding the individual values of the given attribute
+        in the given scope.
+
+        @rtype dict
+        @return: dictionary with keys for values of the attribute, values for counts of matching nodes
+        """
+        ret = defaultdict(int)
+        for node in scope_func(parent):
+            if attrib == 'right':
+                if node.parent and node > node.parent:
+                    ret['True'] += 1
+                elif node.parent:
+                    ret['False'] += 1
+            else:
+                ret[unicode(node.get_attr(attrib))] += 1
+        return ret
 
 
 class LogisticRegressionRanker(Ranker):
