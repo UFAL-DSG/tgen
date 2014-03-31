@@ -18,16 +18,8 @@ from flect.logf import log_info
 
 from futil import read_das
 from randgen import RandomGenerator
-
-
-class CandidateGenerator(object):
-    pass
-
-
-class Ranker(object):
-
-    def get_best_child(self, parent, cdf):
-        raise NotImplementedError
+from logreg_rank import LogisticRegressionRanker
+from flect.config import Config
 
 
 class TTreeGenerator(object):
@@ -96,15 +88,39 @@ if __name__ == '__main__':
     action = sys.argv[1]
     args = sys.argv[2:]
 
-    if action == 'train':
+    if action == 'candgen_train':
         if len(args) != 3:
             sys.exit(__doc__)
         fname_da_train, fname_ttrees_train, fname_cand_model = args
 
-        log_info('Training...')
+        log_info('Training candidate generator...')
         candgen = RandomGenerator()
         candgen.train(fname_da_train, fname_ttrees_train)
         candgen.save_model(fname_cand_model)
+
+    elif action == 'rank_create_data':
+        if len(args) != 5:
+            sys.exit(__doc__)
+        fname_da_train, fname_ttrees_train, fname_cand_model, fname_rank_config, fname_rank_train = args
+
+        log_info('Creating training data for ranker...')
+        candgen = RandomGenerator()
+        candgen.load_model(fname_cand_model)
+        rank_config = Config(fname_rank_config)
+        ranker = LogisticRegressionRanker(rank_config)
+        ranker.create_training_data(fname_ttrees_train, fname_da_train, candgen, fname_rank_train)
+
+    elif action == 'rank_train':
+        if len(args) != 3:
+            sys.exit(__doc__)
+
+        fname_rank_config, fname_rank_train, fname_rank_model = args
+        log_info('Training ranker...')
+
+        rank_config = Config(fname_rank_config)
+        ranker = LogisticRegressionRanker(rank_config)
+        ranker.train(fname_rank_train)
+        ranker.save_model(fname_rank_model)
 
     elif action == 'generate':
         if len(args) != 3:
@@ -126,3 +142,5 @@ if __name__ == '__main__':
         log_info('Writing output...')
         writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
         writer.process_document(doc)
+
+    log_info('Done.')

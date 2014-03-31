@@ -14,7 +14,7 @@ from flect.logf import log_info
 from alex.components.nlg.tectotpl.core.util import file_stream
 
 from futil import read_das, read_ttrees
-from tgen import CandidateGenerator, Ranker
+from interface import CandidateGenerator, Ranker
 
 
 class RandomGenerator(CandidateGenerator, Ranker):
@@ -80,6 +80,8 @@ class RandomGenerator(CandidateGenerator, Ranker):
             for subkey in counts[key]:
                 tot += counts[key][subkey]
                 cdf.append((subkey, tot))
+            # normalize
+            cdf = [(subkey, val / float(tot)) for subkey, val in cdf]
             cdfs[key] = cdf
         return cdfs
 
