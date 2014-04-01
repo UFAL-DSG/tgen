@@ -120,7 +120,7 @@ if __name__ == '__main__':
         rank_config = Config(fname_rank_config)
         ranker = LogisticRegressionRanker(rank_config)
         ranker.train(fname_rank_train)
-        ranker.save_model(fname_rank_model)
+        ranker.save_to_file(fname_rank_model)
 
     elif action == 'generate':
         if len(args) != 3:

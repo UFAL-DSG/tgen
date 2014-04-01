@@ -12,9 +12,9 @@ config = {
                     'class_attr': 'sel',
                     'classifier_class': LogisticRegression,
                     'classifier_params': {
-                                          'penalty': ['l1'],
-                                          'C': [1, 10, 100, 1000],
-                                          'tol': [0.01, 0.001, 0.0001]
+                                          'penalty': 'l1',
+                                          'C': 1,
+                                          'tol': 0.001,
                                           },
                     'unfold_pattern': '^(penalty|C|tol)$'
                     },
