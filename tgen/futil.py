@@ -37,3 +37,10 @@ def read_ttrees(ttree_file):
         fh = file_stream(pickle_file, mode='wb', encoding=None)
         pickle.dump(ttrees, fh, pickle.HIGHEST_PROTOCOL)
     return ttrees
+
+
+def chunk_list(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i + n]

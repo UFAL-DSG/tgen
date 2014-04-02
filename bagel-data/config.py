@@ -16,7 +16,7 @@ config = {
                                           'C': 1,
                                           'tol': 0.001,
                                           },
-                    'unfold_pattern': '^(penalty|C|tol)$'
+                    'unknown_value': 0.0,
                     },
           'features': [
                        'prob: prob',

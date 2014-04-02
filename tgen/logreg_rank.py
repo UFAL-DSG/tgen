@@ -65,21 +65,24 @@ class Features(object):
 
 class LogisticRegressionRanker(Ranker):
 
-    LO_PROB = 1e-4
+    LO_PROB = 1e-4  # probability of unseen children
+    LANG = 'en'  # t-tree file language
+    SELECTOR = ''  # t-tree file selector
+    TARGET_FEAT_NAME = 'sel'  # name of the target feature
 
     def __init__(self, cfg=None):
         self.cfg = cfg
         self.model = None
         if cfg and 'features' in cfg:
             self.features = Features(cfg['features'])
-        self.attrib_types = {'sel': 'numeric'}
-        self.attrib_order = ['sel']
+        self.attrib_types = {self.TARGET_FEAT_NAME: 'numeric'}
+        self.attrib_order = [self.TARGET_FEAT_NAME]
         if 'attrib_types' in cfg:
             self.attrib_types.update(self.cfg['attrib_types'])
         if 'attrib_order' in cfg:
             self.attrib_order.extend(self.cfg['attrib_order'])
 
-    def create_training_data(self, t_file, da_file, candgen, train_arff_fname):
+    def create_training_data(self, t_file, da_file, candgen, train_arff_fname, header_file=None):
         """Create an ARFF file to train the ranker classifier.
 
         @param t_file: training data file with t-trees (YAML/Pickle)
@@ -96,7 +99,7 @@ class LogisticRegressionRanker(Ranker):
         log_info('Generating features')
         train = []
         for ttree, da in zip(ttrees.bundles, das):
-            ttree = ttree.get_zone('en', '').ttree
+            ttree = ttree.get_zone(self.LANG, self.SELECTOR).ttree
             cdfs = candgen.get_merged_cdfs(da)
             for node in ttree.get_descendants():
                 # find true children of the given node
@@ -110,21 +113,27 @@ class LogisticRegressionRanker(Ranker):
                         if cand in true_children_set:
                             continue
                         feats = self.features.get_features((cand, prob), node)
-                        feats['sel'] = 0
+                        feats[self.TARGET_FEAT_NAME] = 0
                         train.append(feats)
                 # generate true instances
                 for true_child in true_children:
                     feats = self.features.get_features((true_child, pdist.get(true_child, self.LO_PROB)), node)
-                    feats['sel'] = 1
+                    feats[self.TARGET_FEAT_NAME] = 1
                     train.append(feats)
-        # save to file
+        # create the ARFF file
         log_info('Writing ' + train_arff_fname)
         train_set = DataSet()
-        train_set.load_from_dict(train,
-                                 attrib_types=self.attrib_types,
-                                 attrib_order=self.attrib_order,
-                                 sparse=True,
-                                 default_val=0.0)
+        if header_file is None:  # create headers on-the-fly
+            train_set.load_from_dict(train,
+                                     attrib_types=self.attrib_types,
+                                     attrib_order=self.attrib_order,
+                                     sparse=True,
+                                     default_val=0.0)
+        else:  # use given headers
+            train_set.load_from_arff(header_file, headers_only=True)
+            train_set.is_sparse = True
+            train_set.append_from_dict(train, add_values=True, default_val=0.0)
+        # save the ARFF file
         train_set.save_to_arff(train_arff_fname)
 
     def train(self, train_arff_fname):
