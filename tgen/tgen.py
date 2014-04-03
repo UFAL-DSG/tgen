@@ -4,7 +4,21 @@
 """
 Generating T-trees from dialogue acts.
 
-Usage: ./tgen train_generator-das train_generator-t-trees test-das output-t-trees
+Usage: ./tgen <action> <argument1 ...>
+
+Actions:
+
+candgen_train -- train candidate generator (probability distributions)
+    - arguments: train-das train-ttrees output-model
+
+rank_create_data -- create training data for logistic regression ranker
+    - arguments: [-h use-headers] train-das train-ttrees candgen-model ranker-config output-train-data
+
+rank_train -- train logistic regression ranker
+    - arguments: ranker-config ranker-train-data output-model
+
+generate -- generate using the given candidate generator and ranker
+    - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 """
 
 from __future__ import unicode_literals
