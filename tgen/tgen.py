@@ -21,6 +21,7 @@ from randgen import RandomGenerator
 from logreg_rank import LogisticRegressionRanker
 from flect.config import Config
 from getopt import getopt
+from eval import tp_fp_fn, f1_from_counts, p_r_f1_from_counts
 
 
 class TTreeGenerator(object):
@@ -136,18 +137,21 @@ if __name__ == '__main__':
         num_to_generate = 1
         ranker_model = None
         oracle_eval_file = None
+        fname_ttrees_out = None
 
         for opt, arg in opts:
-            if opt == 'r':
+            if opt == '-r':
                 ranker_model = arg
-            elif opt == 'n':
+            elif opt == '-n':
                 num_to_generate = int(arg)
-            elif opt == 'o':
+            elif opt == '-o':
                 oracle_eval_file = arg
+            elif opt == '-w':
+                fname_ttrees_out = arg
 
-        if len(args) != 3:
+        if len(files) != 2:
             sys.exit(__doc__)
-        fname_cand_model, fname_da_test, fname_ttrees_out = args
+        fname_cand_model, fname_da_test = files
 
         # load model
         log_info('Initializing...')
@@ -170,13 +174,27 @@ if __name__ == '__main__':
 
         # evaluate if needed
         if oracle_eval_file is not None:
+            log_info('Evaluating oracle F1...')
+            log_info('Loading gold data from ' + oracle_eval_file)
             gold_trees = read_ttrees(oracle_eval_file)
-            for gold_tree, gen_trees in zip(gold_trees.bundles, chunk_list(gen_doc.bundles)):
-                pass
-
+            log_info('Gold data loaded.')
+            correct, predicted, gold = 0, 0, 0
+            for gold_tree, gen_trees in zip(gold_trees.bundles, chunk_list(gen_doc.bundles, num_to_generate)):
+                # find best of predicted trees (in terms of F1)
+                _, tc, tp, tg = max([(f1_from_counts(c, p, g), c, p, g) for c, p, g
+                                     in map(lambda gen_tree: tp_fp_fn(gold_tree.get_zone(tgen.language, tgen.selector).ttree,
+                                                                      gen_tree.get_zone(tgen.language, tgen.selector).ttree),
+                                            gen_trees)],
+                                    key=lambda x: x[0])
+                correct += tc
+                predicted += tp
+                gold += tg
+            # evaluate oracle F1
+            log_info("Oracle Precision: %.6f, Recall: %.6f, F1: %.6f" % p_r_f1_from_counts(correct, gold, predicted))
         # write output
-        log_info('Writing output...')
-        writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
-        writer.process_document(gen_doc)
+        if fname_ttrees_out is not None:
+            log_info('Writing output...')
+            writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
+            writer.process_document(gen_doc)
 
     log_info('Done.')

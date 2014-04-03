@@ -99,5 +99,5 @@ class RandomGenerator(CandidateGenerator, Ranker):
             return 0
         return self.sample(self.child_cdfs[formeme])
 
-    def get_best_child(self, parent, cdf):
+    def get_best_child(self, parent, da, cdf):
         return self.sample(cdf)

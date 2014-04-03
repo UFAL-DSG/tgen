@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # coding=utf-8
-#
-# Feature functions for the ranker (must be top-level functions as they are pickled with the model)
-#
+
+"""
+Feature functions for the ranker (must be top-level functions as they are pickled with the model).
+"""
 
 from collections import defaultdict
 

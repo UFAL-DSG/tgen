@@ -66,13 +66,13 @@ class Features(object):
 class LogisticRegressionRanker(Ranker):
 
     LO_PROB = 1e-4  # probability of unseen children
-    LANG = 'en'  # t-tree file language
-    SELECTOR = ''  # t-tree file selector
     TARGET_FEAT_NAME = 'sel'  # name of the target feature
 
     def __init__(self, cfg=None):
         self.cfg = cfg
         self.model = None
+        self.language = cfg.get('language', 'en')
+        self.selector = cfg.get('selector', '')
         if cfg and 'features' in cfg:
             self.features = Features(cfg['features'])
         self.attrib_types = {self.TARGET_FEAT_NAME: 'numeric'}
@@ -99,7 +99,7 @@ class LogisticRegressionRanker(Ranker):
         log_info('Generating features')
         train = []
         for ttree, da in zip(ttrees.bundles, das):
-            ttree = ttree.get_zone(self.LANG, self.SELECTOR).ttree
+            ttree = ttree.get_zone(self.language, self.selector).ttree
             cdfs = candgen.get_merged_cdfs(da)
             for node in ttree.get_descendants():
                 # find true children of the given node
@@ -144,11 +144,13 @@ class LogisticRegressionRanker(Ranker):
     @staticmethod
     def load_from_file(model_fname):
         """Load a pre-trained model from a file."""
+        log_info("Loading ranker from %s..." % model_fname)
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             return pickle.load(fh)
 
     def save_to_file(self, model_fname):
         """Save the model to a file."""
+        log_info("Saving ranker to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self, fh, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -161,10 +163,14 @@ class LogisticRegressionRanker(Ranker):
             lo_bound = hi_bound
         return dist
 
-    def get_best_child(self, parent, cdf):
+    def get_best_child(self, parent, da, cdf):
         """Predicting the best child of the given node."""
+        log_info('Predicting candidates for %s | %s' % (unicode(da), unicode(parent.t_lemma) + '/' + unicode(parent.formeme)))
         candidates = [self.features.get_features((cand, prob), parent)
                       for cand, prob in self.cdf_to_dist(cdf).iteritems()]
         ranks = [prob[1] for prob in self.model.classify(candidates, pdist=True)]
         best_index, _ = max(enumerate(ranks), key=operator.itemgetter(1))
+        for index, rank in sorted(enumerate(ranks), key=operator.itemgetter(1), reverse=True)[0:10]:
+            log_info('Child: %s, score: %s' % (unicode(cdf[index][0]), unicode(rank)))
+        log_info('Best child: %s, score: %s' % (unicode(cdf[best_index][0]), unicode(ranks[best_index])))
         return cdf[best_index][0]
