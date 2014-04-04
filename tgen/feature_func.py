@@ -22,6 +22,8 @@ def find_nodes(parent, scope):
             nodes.extend(parent.get_children())
         elif scope_spec == 'uncles' and parent.parent:
             nodes.extend([uncle for uncle in parent.parent.get_children() if uncle != parent])
+        elif scope_spec == 'tree':
+            nodes.extend(parent.root.get_descendants())
     return nodes
 
 

@@ -55,11 +55,13 @@ class Features(object):
         return features
 
     def get_features(self, node, parent):
-        feats = {}
+        feats_hier = {}
         for name, func in self.features.iteritems():
-            val = func(node, parent)
+            feats_hier[name] = func(node, parent)
+        feats = {}
+        for name, val in feats_hier.iteritems():
             for subname, subval in val.iteritems():
-                feats[name + '_' + subname] = subval
+                feats[name + '_' + subname if subname else name] = subval
         return feats
 
 
