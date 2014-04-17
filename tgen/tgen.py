@@ -23,75 +23,18 @@ generate -- generate using the given candidate generator and ranker
 
 from __future__ import unicode_literals
 import random
-from collections import deque
 import sys
 
-from alex.components.nlg.tectotpl.core.document import Document
 from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 from flect.logf import log_info
 
 from futil import read_das, read_ttrees, chunk_list
 from randgen import RandomGenerator
 from logreg_rank import LogisticRegressionRanker
+from planner import SamplingPlanner
 from flect.config import Config
 from getopt import getopt
 from eval import tp_fp_fn, f1_from_counts, p_r_f1_from_counts
-
-
-class TTreeGenerator(object):
-    """Random t-tree generator given DAs.
-
-    Trainable from DA distributions
-    """
-
-    MAX_TREE_SIZE = 50
-
-    def __init__(self, cfg):
-        """Initialize the generator (just language and selector, distributions are empty)"""
-        self.language = cfg.get('language', 'en')
-        self.selector = cfg.get('selector', '')
-        # candidate generator
-        self.candgen = cfg['candgen']
-        # ranker (selecting the best candidate)
-        self.ranker = cfg['ranker']
-
-    def generate_tree(self, da, gen_doc=None):
-        """Generate one tree given DA.
-
-        If gen_doc is None, will create a new Treex/TectoTpl document. If gen_doc is set, will
-        add to the end of the given document.
-        """
-        # create a document
-        if gen_doc is None:
-            gen_doc = Document()
-        bundle = gen_doc.create_bundle()
-        zone = bundle.create_zone(self.language, self.selector)
-        # creating a tree
-        root = zone.create_ttree()
-        cdfs = self.candgen.get_merged_cdfs(da)
-        nodes = deque([self.generate_child(root, da, cdfs[root.formeme])])
-        treesize = 1
-        while nodes and treesize < self.MAX_TREE_SIZE:
-            node = nodes.popleft()
-            if node.formeme not in cdfs:  # skip weirdness
-                continue
-            for _ in xrange(self.candgen.get_number_of_children(node.formeme)):
-                child = self.generate_child(node, da, cdfs[node.formeme])
-                nodes.append(child)
-                treesize += 1
-        return gen_doc
-
-    def generate_child(self, parent, da, cdf):
-        """Generate one t-node, given its parent and the CDF for the possible children."""
-        formeme, t_lemma, right = self.ranker.get_best_child(parent, da, cdf)
-        child = parent.create_child()
-        child.t_lemma = t_lemma
-        child.formeme = formeme
-        if right:
-            child.shift_after_subtree(parent)
-        else:
-            child.shift_before_subtree(parent)
-        return child
 
 
 if __name__ == '__main__':
@@ -147,7 +90,7 @@ if __name__ == '__main__':
 
     elif action == 'generate':
 
-        opts, files = getopt(args, 'r:n:o:')
+        opts, files = getopt(args, 'r:n:o:w:')
         num_to_generate = 1
         ranker_model = None
         oracle_eval_file = None
@@ -177,7 +120,7 @@ if __name__ == '__main__':
         else:
             ranker = candgen
 
-        tgen = TTreeGenerator({'candgen': candgen, 'ranker': ranker})
+        tgen = SamplingPlanner({'candgen': candgen, 'ranker': ranker})
         # generate
         log_info('Generating...')
         gen_doc = None
@@ -210,5 +153,8 @@ if __name__ == '__main__':
             log_info('Writing output...')
             writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
             writer.process_document(gen_doc)
+    else:
+        # Unknown action
+        sys.exit('ERROR: Unknown action: %s' % action)
 
     log_info('Done.')
