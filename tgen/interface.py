@@ -14,11 +14,3 @@ class Ranker(object):
         raise NotImplementedError
 
 
-class SentencePlanner(object):
-    """Abstract interface for sentence planners."""
-
-    def generate_tree(self, da, gen_doc=None):
-        """Generate a tree given input DA.
-        @param gen_doc: if this is None, return the tree in a new Document object, otherwise append
-        """
-        raise NotImplementedError

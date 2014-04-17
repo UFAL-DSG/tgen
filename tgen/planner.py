@@ -6,6 +6,7 @@ Sentence planning: Generating T-trees from dialogue acts.
 """
 
 from alex.components.nlg.tectotpl.core.document import Document
+from alex.components.nlg.tectotpl.core.node import T
 from collections import deque
 
 
@@ -84,4 +85,17 @@ class ASearchPlanner(SentencePlanner):
         super(ASearchPlanner, self).__init__(cfg)
 
     def generate_tree(self, da, gen_doc=None):
-        pass
+        # TODO tree hashing
+        # TODO TreeList – search by hash + some queue sorted according to scores
+        # TODO add scoring
+        # TODO add future cost ?
+        # initialization
+        open_list, close_list = deque([T()]), deque()
+        # main search loop
+        while open_list:
+            cand = open_list.popleft()
+            successors = self.candgen.get_all_successors(open)
+            open_list.append([s for s in successors
+                              if not s in open_list and not s in close_list])
+        # return the result
+        return close_list.popleft()
