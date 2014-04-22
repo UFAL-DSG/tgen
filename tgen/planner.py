@@ -5,16 +5,110 @@
 Sentence planning: Generating T-trees from dialogue acts.
 """
 
+import heapq
+
 from alex.components.nlg.tectotpl.core.document import Document
-from alex.components.nlg.tectotpl.core.node import T
+import alex.components.nlg.tectotpl.core.node 
 from collections import deque
+from UserDict import DictMixin
+
+
+class T(alex.components.nlg.tectotpl.core.node.T):
+    """Just a copy the T class from Alex with my override for __hash__
+    that works with the sentence planner
+
+    TODO make this work well for subtrees and not-so-nice trees (the parent
+    orders should be relative to their position in the array).
+    """
+
+    def __eq__(self, other):
+        """Return true if t-lemmas, formemes, and parent orders in the whole
+        tree are equal."""
+        self_desc = self.get_descendants(add_self=1, ordered=1)
+        other_desc = self.get_descendants(add_self=1, ordered=1)
+        if len(self_desc) != len(other_desc):
+            return False
+        for self_node, other_node in zip(self_desc, other_desc):
+            if (self_node.t_lemma != other_node.t_lemma or
+                    self_node.formeme != other_node.formeme or
+                    self_node.parent.ord != other_node.parent.ord):
+                return False
+        return True
+
+    def __hash__(self):
+        """Return hash of the tree that is composed of t-lemmas, formemes,
+        and parent orders of all nodes in the tree (ordered)."""
+        desc = self.get_descendants(add_self=1, ordered=1)
+        return hash('\n'.join([str(n.parent.ord) + ' ' + n.t_lemma + ' ' + n.formeme
+                               for n in desc]))
+
+
+class CandidateList(DictMixin):
+    """List of candidate trees that can be quickly checked for membership and
+    is sorted according to scores."""
+
+    def __init__(self):
+        self.queue = []
+        self.members = {}
+        pass
+
+    def __nonzero__(self):
+        return len(self.members) > 0
+
+    def __contains__(self, key):
+        return key in self.members
+
+    def __getitem__(self, key):
+        return self.members[key]
+
+    def __setitem__(self, key, value):
+        # slow if key is in list
+        if key in self:
+            if value == self[key]:
+                return
+            queue_index = (i for i, v in enumerate(self.queue) if i[1] == key).next()
+            self.queue[queue_index] = (value, key)
+            self.__fix_queue(queue_index)
+        else:
+            heapq.heappush(self.queue, (value, key))
+        self.members[key] = value
+
+    def __delitem__(self, key):
+        del self.members[key]  # this will raise an exception if the key is not there
+        queue_index = (i for i, v in enumerate(self.queue) if i[1] == key).next()
+        self.queue[queue_index] = self.queue[-1]
+        del self.queue[-1]
+        self.__fix_queue(queue_index)
+
+    def keys(self):
+        return self.members.keys()
+
+    def pop(self):
+        value, key = heapq.heappop(self.queue)
+        del self.members[key]
+        return key, value
+
+    def push(self, key, value):
+        self[key] = value  # calling __setitem__; it will test for membership
+
+    def __fix_queue(self, index):
+        """Fixing a heap after change in one element (swapping elements until heap
+        condition is satisfied.)"""
+        down = index / 2 - 1
+        up = index * 2 + 1
+        if index > 0 and self.queue[index][0] < self.queue[down][0]:
+            self.queue[index], self.queue[down] = self.queue[down], self.queue[index]
+            self.__fix_queue(down)
+        elif up < len(self.queue) and self.queue[index][0] > self.queue[up][0]:
+            self.queue[index], self.queue[up] = self.queue[up], self.queue[index]
+            self.__fix_queue(up)
 
 
 class SentencePlanner(object):
     """Common ancestor of sentence planners."""
 
     def __init__(self, cfg):
-        """Initialize, setting language, selector, and successor generator"""        
+        """Initialize, setting language, selector, and successor generator"""
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
         # candidate generator
@@ -85,8 +179,7 @@ class ASearchPlanner(SentencePlanner):
         super(ASearchPlanner, self).__init__(cfg)
 
     def generate_tree(self, da, gen_doc=None):
-        # TODO tree hashing
-        # TODO TreeList – search by hash + some queue sorted according to scores
+        # TODO TreeList – integrate, replace the deques()
         # TODO add scoring
         # TODO add future cost ?
         # initialization
