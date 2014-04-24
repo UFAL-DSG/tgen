@@ -19,6 +19,9 @@ rank_train -- train logistic regression ranker
 
 generate -- generate using the given candidate generator and ranker
     - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
+
+asearch_gen -- generate using the A*search sentence planner
+    - arguments: [-o oracle-eval-ttrees] candgen-model test-das
 """
 
 from __future__ import unicode_literals
@@ -31,10 +34,11 @@ from flect.logf import log_info
 from futil import read_das, read_ttrees, chunk_list
 from randgen import RandomGenerator
 from logreg_rank import LogisticRegressionRanker
-from planner import SamplingPlanner
+from planner import SamplingPlanner, ASearchPlanner
 from flect.config import Config
 from getopt import getopt
 from eval import tp_fp_fn, f1_from_counts, p_r_f1_from_counts
+from alex.components.nlg.tectotpl.core.util import file_stream
 
 
 if __name__ == '__main__':
@@ -153,6 +157,37 @@ if __name__ == '__main__':
             log_info('Writing output...')
             writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
             writer.process_document(gen_doc)
+
+    elif action == 'asearch_gen':
+
+        opts, files = getopt(args, 'e:d:')
+        eval_file = None
+        debug_out = None
+
+        for opt, arg in opts:
+            if opt == '-e':
+                eval_file = arg
+            elif opt == '-d':
+                debug_out = file_stream(arg, mode='w')
+
+        if len(files) != 2:
+            sys.exit(__doc__)
+        fname_cand_model, fname_da_test = files
+
+        log_info('Initializing...')
+        candgen = RandomGenerator()
+        candgen.load_model(fname_cand_model)
+        tgen = ASearchPlanner({'candgen': candgen, 'debug_out': debug_out})
+
+        log_info('Generating...')
+        gen_doc = None
+        das = read_das(fname_da_test)
+        eval_ttrees = [None] * len(das)
+        if eval_file:
+            eval_ttrees = read_ttrees(eval_file)
+        for da, eval_ttree in das, eval_ttrees:
+                gen_doc = tgen.generate_tree(da, gen_doc, eval_ttree)
+
     else:
         # Unknown action
         sys.exit('ERROR: Unknown action: %s' % action)

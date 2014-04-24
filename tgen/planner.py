@@ -39,8 +39,12 @@ class T(alex.components.nlg.tectotpl.core.node.T):
         """Return hash of the tree that is composed of t-lemmas, formemes,
         and parent orders of all nodes in the tree (ordered)."""
         desc = self.get_descendants(add_self=1, ordered=1)
-        return hash('\n'.join([str(n.parent.ord) + ' ' + n.t_lemma + ' ' + n.formeme
-                               for n in desc]))
+        return hash(unicode(self))
+
+    def __unicode__(self):
+        desc = self.get_descendants(add_self=1, ordered=1)
+        return ' '.join([n.t_lemma + '|' + n.formeme + '|' + str(n.parent.ord)
+                         for n in desc])
 
 
 class CandidateList(DictMixin):
@@ -133,12 +137,12 @@ class SentencePlanner(object):
 
     def get_target_zone(self, gen_doc):
         """Create a document if necessary, add a new bundle and a new zone into it,
-        and return the newly created zone."""
+        and return the newly created zone and the document (original or new)."""
         if gen_doc is None:
             gen_doc = Document()
         bundle = gen_doc.create_bundle()
         zone = bundle.create_zone(self.language, self.selector)
-        return zone
+        return zone, gen_doc
 
 
 class SamplingPlanner(SentencePlanner):
@@ -155,7 +159,7 @@ class SamplingPlanner(SentencePlanner):
         self.ranker = cfg['ranker']
 
     def generate_tree(self, da, gen_doc=None):
-        zone = self.get_target_zone(gen_doc)
+        zone, gen_doc = self.get_target_zone(gen_doc)
         root = zone.create_ttree()
         cdfs = self.candgen.get_merged_cdfs(da)
         nodes = deque([self.generate_child(root, da, cdfs[root.formeme])])
@@ -186,18 +190,33 @@ class SamplingPlanner(SentencePlanner):
 class ASearchPlanner(SentencePlanner):
     """Sentence planner using A*-search."""
 
+    MAX_ITER = 10000
+
     def __init__(self, cfg):
         super(ASearchPlanner, self).__init__(cfg)
+        self.debug_out = None
+        if 'debug_out' in cfg:
+            self.debug_out = cfg['debug_out']
 
-    def generate_tree(self, da, gen_doc=None):
+    def generate_tree(self, da, gen_doc=None, gold_ttree=None):
         # TODO add future cost ?
         # initialization
         open_list, close_list = CandidateList({T(): 0.0}), CandidateList()
+        num_iter = 0
         # main search loop
-        while open_list:
+        while open_list and num_iter < self.MAX_ITER:
             cand = open_list.pop()
+            score = 0.0
+            if gold_ttree and cand == gold_ttree:
+                score = 1.0
+            close_list.push(cand, score)
+            if self.debug_out:
+                print >> self.debug_out, "IT %05d:" % num_iter, cand
             successors = self.candgen.get_all_successors(cand)
-            # TODO add scoring here
+            # TODO add real scoring here
             open_list.pushall({s: 0.0 for s in successors if not s in close_list})
+            num_iter += 1
         # return the result
-        return close_list.pop()
+        zone, gen_doc = self.get_target_zone(gen_doc)
+        zone.ttree = close_list.pop()
+        return gen_doc
