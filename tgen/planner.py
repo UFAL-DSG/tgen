@@ -8,7 +8,7 @@ Sentence planning: Generating T-trees from dialogue acts.
 import heapq
 
 from alex.components.nlg.tectotpl.core.document import Document
-import alex.components.nlg.tectotpl.core.node 
+import alex.components.nlg.tectotpl.core.node
 from collections import deque
 from UserDict import DictMixin
 
@@ -47,9 +47,12 @@ class CandidateList(DictMixin):
     """List of candidate trees that can be quickly checked for membership and
     is sorted according to scores."""
 
-    def __init__(self):
+    def __init__(self, members=None):
         self.queue = []
         self.members = {}
+        if members:
+            for key, value in members.iteritems():
+                self.push(key, value)
         pass
 
     def __nonzero__(self):
@@ -91,6 +94,10 @@ class CandidateList(DictMixin):
     def push(self, key, value):
         self[key] = value  # calling __setitem__; it will test for membership
 
+    def pushall(self, members):
+        for key, value in members.iteritems():
+            self[key] = value
+
     def __fix_queue(self, index):
         """Fixing a heap after change in one element (swapping elements until heap
         condition is satisfied.)"""
@@ -99,9 +106,13 @@ class CandidateList(DictMixin):
         if index > 0 and self.queue[index][0] < self.queue[down][0]:
             self.queue[index], self.queue[down] = self.queue[down], self.queue[index]
             self.__fix_queue(down)
-        elif up < len(self.queue) and self.queue[index][0] > self.queue[up][0]:
-            self.queue[index], self.queue[up] = self.queue[up], self.queue[index]
-            self.__fix_queue(up)
+        elif up < len(self.queue):
+            if self.queue[index][0] > self.queue[up][0]:
+                self.queue[index], self.queue[up] = self.queue[up], self.queue[index]
+                self.__fix_queue(up)
+            elif self.queue[index][0] > self.queue[up + 1][0]:
+                self.queue[index], self.queue[up + 1] = self.queue[up + 1], self.queue[index]
+                self.__fix_queue(up + 1)
 
 
 class SentencePlanner(object):
@@ -179,16 +190,14 @@ class ASearchPlanner(SentencePlanner):
         super(ASearchPlanner, self).__init__(cfg)
 
     def generate_tree(self, da, gen_doc=None):
-        # TODO TreeList – integrate, replace the deques()
-        # TODO add scoring
         # TODO add future cost ?
         # initialization
-        open_list, close_list = deque([T()]), deque()
+        open_list, close_list = CandidateList({T(): 0.0}), CandidateList()
         # main search loop
         while open_list:
-            cand = open_list.popleft()
-            successors = self.candgen.get_all_successors(open)
-            open_list.append([s for s in successors
-                              if not s in open_list and not s in close_list])
+            cand = open_list.pop()
+            successors = self.candgen.get_all_successors(cand)
+            # TODO add scoring here
+            open_list.pushall({s: 0.0 for s in successors if not s in close_list})
         # return the result
-        return close_list.popleft()
+        return close_list.pop()

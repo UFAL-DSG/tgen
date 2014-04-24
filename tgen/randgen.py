@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 from collections import defaultdict, Counter
 import cPickle as pickle
 import random
+import copy
 
 from flect.logf import log_info
 from alex.components.nlg.tectotpl.core.util import file_stream
@@ -22,18 +23,21 @@ class RandomGenerator(CandidateGenerator, Ranker):
     def __init__(self):
         self.form_counts = None
         self.child_cdfs = None
+        self.max_children = None
 
     def load_model(self, fname):
         log_info('Loading model from ' + fname)
         with file_stream(fname, mode='rb', encoding=None) as fh:
             self.form_counts = pickle.load(fh)
             self.child_cdfs = pickle.load(fh)
+            self.max_children = pickle.load(fh)
 
     def save_model(self, fname):
         log_info('Saving model to ' + fname)
         with file_stream(fname, mode='wb', encoding=None) as fh:
             pickle.dump(self.form_counts, fh, pickle.HIGHEST_PROTOCOL)
             pickle.dump(self.child_cdfs, fh, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.max_children, fh, pickle.HIGHEST_PROTOCOL)
 
     def train(self, da_file, t_file):
         """``Train'' the generator (collect counts of DAs and corresponding t-nodes).
@@ -62,6 +66,8 @@ class RandomGenerator(CandidateGenerator, Ranker):
                 child_counts[tnode.formeme][len(tnode.get_children())] += 1
         self.form_counts = form_counts
         self.child_cdfs = self.cdfs_from_counts(child_counts)
+        self.max_children = {formeme: max(child_counts[formeme].keys())
+                             for formeme in child_counts.keys()}
 
     def get_merged_cdfs(self, da):
         """Get merged CDFs for the DAIs in the given DA."""
@@ -101,3 +107,25 @@ class RandomGenerator(CandidateGenerator, Ranker):
 
     def get_best_child(self, parent, da, cdf):
         return self.sample(cdf)
+
+    def get_all_sucessors(self, cand, da, cdfs):
+        """Get all possible successors of a candidate tree."""
+        # always try adding one node to all possible places
+        tnodes = cand.get_descendants(add_self=1, ordered=1)
+        res = []
+        for node_num, tnode in enumerate(tnodes):
+            # skip nodes that can't have more children
+            if len(tnode.get_children()) > self.max_children[tnode.formeme]:
+                continue
+            # try all formeme/t-lemma/direction variants of the children at the given spot
+            for formeme, t_lemma, right in cdfs[tnode.formeme].keys():
+                succ = copy.deepcopy(cand)
+                attach_node = succ.get_descendants(add_self=1, ordered=1)[node_num]
+                new_node = attach_node.create_child({'t_lemma': t_lemma, 'formeme': formeme})
+                if right:
+                    new_node.shift_after_node(attach_node)
+                else:
+                    new_node.shift_before_node(attach_node)
+                res.append(succ)
+        # return all successors
+        return res
