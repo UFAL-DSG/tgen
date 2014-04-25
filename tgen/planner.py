@@ -5,12 +5,13 @@
 Sentence planning: Generating T-trees from dialogue acts.
 """
 
+from __future__ import unicode_literals
 import heapq
+from collections import deque
+from UserDict import DictMixin
 
 from alex.components.nlg.tectotpl.core.document import Document
 import alex.components.nlg.tectotpl.core.node
-from collections import deque
-from UserDict import DictMixin
 
 
 class T(alex.components.nlg.tectotpl.core.node.T):
@@ -20,6 +21,9 @@ class T(alex.components.nlg.tectotpl.core.node.T):
     TODO make this work well for subtrees and not-so-nice trees (the parent
     orders should be relative to their position in the array).
     """
+
+    def __init__(self, data=None, parent=None, zone=None):
+        super(T, self).__init__(data, parent, zone)
 
     def __eq__(self, other):
         """Return true if t-lemmas, formemes, and parent orders in the whole
@@ -31,19 +35,19 @@ class T(alex.components.nlg.tectotpl.core.node.T):
         for self_node, other_node in zip(self_desc, other_desc):
             if (self_node.t_lemma != other_node.t_lemma or
                     self_node.formeme != other_node.formeme or
-                    self_node.parent.ord != other_node.parent.ord):
+                    self_node.is_root != other_node.is_root or
+                    (not self_node.is_root and self_node.parent.ord != other_node.parent.ord)):
                 return False
         return True
 
     def __hash__(self):
         """Return hash of the tree that is composed of t-lemmas, formemes,
         and parent orders of all nodes in the tree (ordered)."""
-        desc = self.get_descendants(add_self=1, ordered=1)
         return hash(unicode(self))
 
     def __unicode__(self):
         desc = self.get_descendants(add_self=1, ordered=1)
-        return ' '.join([n.t_lemma + '|' + n.formeme + '|' + str(n.parent.ord)
+        return ' '.join(['%s|%s|%d' % (n.t_lemma, n.formeme, n.parent.ord if n.parent else -1)
                          for n in desc])
 
 
@@ -201,18 +205,18 @@ class ASearchPlanner(SentencePlanner):
     def generate_tree(self, da, gen_doc=None, gold_ttree=None):
         # TODO add future cost ?
         # initialization
-        open_list, close_list = CandidateList({T(): 0.0}), CandidateList()
+        open_list, close_list = CandidateList({T(data={'ord': 0}): 0.0}), CandidateList()
         num_iter = 0
+        cdfs = self.candgen.get_merged_cdfs(da)
         # main search loop
         while open_list and num_iter < self.MAX_ITER:
-            cand = open_list.pop()
-            score = 0.0
+            cand, score = open_list.pop()
             if gold_ttree and cand == gold_ttree:
                 score = 1.0
             close_list.push(cand, score)
             if self.debug_out:
-                print >> self.debug_out, "IT %05d:" % num_iter, cand
-            successors = self.candgen.get_all_successors(cand)
+                print >> self.debug_out, "IT %05d: %s" % (num_iter, unicode(cand))
+            successors = self.candgen.get_all_successors(cand, cdfs)
             # TODO add real scoring here
             open_list.pushall({s: 0.0 for s in successors if not s in close_list})
             num_iter += 1

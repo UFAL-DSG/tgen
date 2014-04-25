@@ -21,7 +21,7 @@ generate -- generate using the given candidate generator and ranker
     - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 
 asearch_gen -- generate using the A*search sentence planner
-    - arguments: [-o oracle-eval-ttrees] candgen-model test-das
+    - arguments: [-e oracle-eval-ttrees] [-d debug-output] candgen-model test-das
 """
 
 from __future__ import unicode_literals
@@ -185,8 +185,9 @@ if __name__ == '__main__':
         eval_ttrees = [None] * len(das)
         if eval_file:
             eval_ttrees = read_ttrees(eval_file)
-        for da, eval_ttree in das, eval_ttrees:
-                gen_doc = tgen.generate_tree(da, gen_doc, eval_ttree)
+        for da, eval_ttree in zip(das, eval_ttrees.bundles):
+                gen_doc = tgen.generate_tree(da, gen_doc,
+                                             eval_ttree.get_zone(tgen.language, tgen.selector).ttree)
 
     else:
         # Unknown action

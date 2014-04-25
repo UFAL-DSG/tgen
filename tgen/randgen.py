@@ -62,7 +62,7 @@ class RandomGenerator(CandidateGenerator, Ranker):
                         form_counts[dai] = defaultdict(Counter)
                     form_counts[dai][tnode.parent.formeme][(tnode.formeme, tnode.t_lemma, tnode > tnode.parent)] += 1
             # counts for number of children
-            for tnode in ttree.get_descendants():
+            for tnode in ttree.get_descendants(add_self=1):
                 child_counts[tnode.formeme][len(tnode.get_children())] += 1
         self.form_counts = form_counts
         self.child_cdfs = self.cdfs_from_counts(child_counts)
@@ -108,20 +108,21 @@ class RandomGenerator(CandidateGenerator, Ranker):
     def get_best_child(self, parent, da, cdf):
         return self.sample(cdf)
 
-    def get_all_sucessors(self, cand, da, cdfs):
+    def get_all_successors(self, cand, cdfs):
         """Get all possible successors of a candidate tree."""
         # always try adding one node to all possible places
         tnodes = cand.get_descendants(add_self=1, ordered=1)
         res = []
         for node_num, tnode in enumerate(tnodes):
             # skip nodes that can't have more children
-            if len(tnode.get_children()) > self.max_children[tnode.formeme]:
+            if (len(tnode.get_children()) > self.max_children.get(tnode.formeme, 0) or
+                    tnode.formeme not in cdfs):
                 continue
             # try all formeme/t-lemma/direction variants of the children at the given spot
-            for formeme, t_lemma, right in cdfs[tnode.formeme].keys():
+            for formeme, t_lemma, right in map(lambda item: item[0], cdfs[tnode.formeme]):
                 succ = copy.deepcopy(cand)
                 attach_node = succ.get_descendants(add_self=1, ordered=1)[node_num]
-                new_node = attach_node.create_child({'t_lemma': t_lemma, 'formeme': formeme})
+                new_node = attach_node.create_child(data={'t_lemma': t_lemma, 'formeme': formeme})
                 if right:
                     new_node.shift_after_node(attach_node)
                 else:
