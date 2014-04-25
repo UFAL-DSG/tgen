@@ -25,21 +25,6 @@ class T(alex.components.nlg.tectotpl.core.node.T):
     def __init__(self, data=None, parent=None, zone=None):
         super(T, self).__init__(data, parent, zone)
 
-    def __eq__(self, other):
-        """Return true if t-lemmas, formemes, and parent orders in the whole
-        tree are equal."""
-        self_desc = self.get_descendants(add_self=1, ordered=1)
-        other_desc = self.get_descendants(add_self=1, ordered=1)
-        if len(self_desc) != len(other_desc):
-            return False
-        for self_node, other_node in zip(self_desc, other_desc):
-            if (self_node.t_lemma != other_node.t_lemma or
-                    self_node.formeme != other_node.formeme or
-                    self_node.is_root != other_node.is_root or
-                    (not self_node.is_root and self_node.parent.ord != other_node.parent.ord)):
-                return False
-        return True
-
     def __hash__(self):
         """Return hash of the tree that is composed of t-lemmas, formemes,
         and parent orders of all nodes in the tree (ordered)."""
@@ -47,7 +32,10 @@ class T(alex.components.nlg.tectotpl.core.node.T):
 
     def __unicode__(self):
         desc = self.get_descendants(add_self=1, ordered=1)
-        return ' '.join(['%s|%s|%d' % (n.t_lemma, n.formeme, n.parent.ord if n.parent else -1)
+        return ' '.join(['%d|%d|%s|%s' % (n.ord if n.ord is not None else -1,
+                                          n.parent.ord if n.parent else -1,
+                                          n.t_lemma,
+                                          n.formeme)
                          for n in desc])
 
 
@@ -212,14 +200,19 @@ class ASearchPlanner(SentencePlanner):
         while open_list and num_iter < self.MAX_ITER:
             cand, score = open_list.pop()
             if gold_ttree and cand == gold_ttree:
+                print >> self.debug_out, "IT %05d: CANDIDATE MATCHES GOLD" % num_iter
                 score = 1.0
             close_list.push(cand, score)
             if self.debug_out:
-                print >> self.debug_out, "IT %05d: %s" % (num_iter, unicode(cand))
+                print >> self.debug_out, "\n***\nIT %05d:%s\n***" % (num_iter, unicode(cand))
             successors = self.candgen.get_all_successors(cand, cdfs)
             # TODO add real scoring here
             open_list.pushall({s: 0.0 for s in successors if not s in close_list})
+#             if self.debug_out:
+#                 print >> self.debug_out, "\n".join(map(unicode, successors))
             num_iter += 1
+        if num_iter == 'MAX_ITER':
+            print >> self.debug_out, "ITERATION_LIMIT_REACHED"
         # return the result
         zone, gen_doc = self.get_target_zone(gen_doc)
         zone.ttree = close_list.pop()
