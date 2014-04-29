@@ -7,8 +7,6 @@ Ranker based on logistic regression.
 
 from __future__ import unicode_literals
 import cPickle as pickle
-import re
-from functools import partial
 
 from flect.logf import log_info
 from flect.model import Model
@@ -18,51 +16,7 @@ from futil import read_das, read_ttrees
 from interface import Ranker
 import operator
 from flect.dataset import DataSet
-from feature_func import find_nodes, value, same_as_current, prob
-
-
-class Features(object):
-
-    def __init__(self, cfg):
-        self.features = self.parse_feature_spec(cfg)
-
-    def parse_feature_spec(self, spec):
-        """Prepares feature feature function from specifications in the following format:
-
-        Label: value/same_as_current scope param1, ...
-
-        Scope may be: parent, siblings, grandpa, uncles, or their combinations (connected
-        with '+', no spaces). Always applies only to the part of the tree that is already
-        built (i.e. to the top/left only).
-        """
-        features = {}
-        for feat in spec:
-            label, func_name = re.split(r'[:\s]+', feat, 1)
-            if func_name == 'prob':
-                features[label] = prob
-            else:
-                func_name, func_scope, func_params = re.split(r'[:\s]+', func_name, 2)
-                func_params = re.split(r'[,\s]+', func_params)
-                feat_func = None
-                scope_func = partial(find_nodes, scope=func_scope.split('+'))
-                if func_name.lower() == 'same_as_current':
-                    feat_func = partial(same_as_current, scope_func=scope_func, attrib=func_params[0])
-                elif func_name.lower() == 'value':
-                    feat_func = partial(value, scope_func=scope_func, attrib=func_params[0])
-                else:
-                    raise Exception('Unknown feature function:' + feat)
-                features[label] = feat_func
-        return features
-
-    def get_features(self, node, parent):
-        feats_hier = {}
-        for name, func in self.features.iteritems():
-            feats_hier[name] = func(node, parent)
-        feats = {}
-        for name, val in feats_hier.iteritems():
-            for subname, subval in val.iteritems():
-                feats[name + '_' + subname if subname else name] = subval
-        return feats
+from features import Features
 
 
 class LogisticRegressionRanker(Ranker):
