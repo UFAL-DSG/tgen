@@ -11,32 +11,7 @@ from collections import deque
 from UserDict import DictMixin
 
 from alex.components.nlg.tectotpl.core.document import Document
-import alex.components.nlg.tectotpl.core.node
-
-
-class T(alex.components.nlg.tectotpl.core.node.T):
-    """Just a copy the T class from Alex with my override for __hash__
-    that works with the sentence planner
-
-    TODO make this work well for subtrees and not-so-nice trees (the parent
-    orders should be relative to their position in the array).
-    """
-
-    def __init__(self, data=None, parent=None, zone=None):
-        super(T, self).__init__(data, parent, zone)
-
-    def __hash__(self):
-        """Return hash of the tree that is composed of t-lemmas, formemes,
-        and parent orders of all nodes in the tree (ordered)."""
-        return hash(unicode(self))
-
-    def __unicode__(self):
-        desc = self.get_descendants(add_self=1, ordered=1)
-        return ' '.join(['%d|%d|%s|%s' % (n.ord if n.ord is not None else -1,
-                                          n.parent.ord if n.parent else -1,
-                                          n.t_lemma,
-                                          n.formeme)
-                         for n in desc])
+from alex.components.nlg.tectotpl.core.node import T
 
 
 class CandidateList(DictMixin):
