@@ -20,10 +20,11 @@ from interface import CandidateGenerator, Ranker
 
 class RandomGenerator(CandidateGenerator, Ranker):
 
-    def __init__(self):
+    def __init__(self, cfg):
         self.form_counts = None
         self.child_cdfs = None
         self.max_children = None
+        self.prune_threshold = cfg.get('prune_threshold', 1)
 
     def load_model(self, fname):
         log_info('Loading model from ' + fname)
@@ -64,10 +65,28 @@ class RandomGenerator(CandidateGenerator, Ranker):
             # counts for number of children
             for tnode in ttree.get_descendants(add_self=1):
                 child_counts[tnode.formeme][len(tnode.get_children())] += 1
+        # prune counts
+        if self.prune_threshold > 1:
+            for dai, forms in form_counts.items():
+                self.prune(forms)
+                if not forms:
+                    del form_counts[dai]
+            self.prune(child_counts)
+        # transform counts
         self.form_counts = form_counts
         self.child_cdfs = self.cdfs_from_counts(child_counts)
         self.max_children = {formeme: max(child_counts[formeme].keys())
                              for formeme in child_counts.keys()}
+
+    def prune(self, counts):
+        """Prune a counts dictionary, keeping only items with counts above
+        the prune_threshold given in the constructor."""
+        for parent_type, child_types in counts.items():
+            for child_form, child_count in child_types.items():
+                if child_count < self.prune_threshold:
+                    del child_types[child_form]
+            if not counts[parent_type]:
+                del counts[parent_type]
 
     def get_merged_cdfs(self, da):
         """Get merged CDFs for the DAIs in the given DA."""

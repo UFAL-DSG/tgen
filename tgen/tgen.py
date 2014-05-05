@@ -9,7 +9,7 @@ Usage: ./tgen <action> <argument1 ...>
 Actions:
 
 candgen_train -- train candidate generator (probability distributions)
-    - arguments: train-das train-ttrees output-model
+    - arguments: [-p prune_threshold] train-das train-ttrees output-model
 
 rank_create_data -- create training data for logistic regression ranker
     - arguments: [-h use-headers] train-das train-ttrees candgen-model ranker-config output-train-data
@@ -52,12 +52,19 @@ if __name__ == '__main__':
     args = sys.argv[2:]
 
     if action == 'candgen_train':
-        if len(args) != 3:
+
+        opts, files = getopt(args, 'p:')
+        prune_threshold = 1
+        for opt, arg in opts:
+            if opt == '-p':
+                prune_threshold = int(arg)
+
+        if len(files) != 3:
             sys.exit(__doc__)
-        fname_da_train, fname_ttrees_train, fname_cand_model = args
+        fname_da_train, fname_ttrees_train, fname_cand_model = files
 
         log_info('Training candidate generator...')
-        candgen = RandomGenerator()
+        candgen = RandomGenerator({'prune_threshold': prune_threshold})
         candgen.train(fname_da_train, fname_ttrees_train)
         candgen.save_model(fname_cand_model)
 
@@ -73,7 +80,7 @@ if __name__ == '__main__':
         fname_da_train, fname_ttrees_train, fname_cand_model, fname_rank_config, fname_rank_train = files
 
         log_info('Creating data for ranker...')
-        candgen = RandomGenerator()
+        candgen = RandomGenerator({})
         candgen.load_model(fname_cand_model)
         rank_config = Config(fname_rank_config)
         ranker = LogisticRegressionRanker(rank_config)
@@ -116,7 +123,7 @@ if __name__ == '__main__':
 
         # load model
         log_info('Initializing...')
-        candgen = RandomGenerator()
+        candgen = RandomGenerator({})
         candgen.load_model(fname_cand_model)
 
         if ranker_model is not None:
@@ -175,7 +182,7 @@ if __name__ == '__main__':
         fname_cand_model, fname_da_test = files
 
         log_info('Initializing...')
-        candgen = RandomGenerator()
+        candgen = RandomGenerator({})
         candgen.load_model(fname_cand_model)
         tgen = ASearchPlanner({'candgen': candgen, 'debug_out': debug_out})
 

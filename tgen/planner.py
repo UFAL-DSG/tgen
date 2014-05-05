@@ -182,7 +182,7 @@ class SamplingPlanner(SentencePlanner):
 class ASearchPlanner(SentencePlanner):
     """Sentence planner using A*-search."""
 
-    MAX_ITER = 10000
+    MAX_ITER = 11000
 
     def __init__(self, cfg):
         super(ASearchPlanner, self).__init__(cfg)
@@ -201,17 +201,20 @@ class ASearchPlanner(SentencePlanner):
             cand, score = open_list.pop()
             if gold_ttree and cand == gold_ttree:
                 print >> self.debug_out, "IT %05d: CANDIDATE MATCHES GOLD" % num_iter
-                score = 1.0
+                score = -1.0
             close_list.push(cand, score)
             if self.debug_out:
-                print >> self.debug_out, "\n***\nIT %05d:%s\n***" % (num_iter, unicode(cand))
+                print >> self.debug_out, ("\n***\nIT %05d:%s\nO: %d C: %d\n***" %
+                                          (num_iter, unicode(cand), len(open_list), len(close_list)))
+                self.debug_out.flush()
             successors = self.candgen.get_all_successors(cand, cdfs)
             # TODO add real scoring here
-            open_list.pushall({s: 0.0 for s in successors if not s in close_list})
+            open_list.pushall({s: float(len(s.get_descendants()))
+                               for s in successors if not s in close_list})
 #             if self.debug_out:
-#                 print >> self.debug_out, "\n".join(map(unicode, successors))
+#                 print >> self.debug_out, "\n".join(map(unicode, self.open_list.members.keys()))
             num_iter += 1
-        if num_iter == 'MAX_ITER':
+        if num_iter == self.MAX_ITER:
             print >> self.debug_out, "ITERATION_LIMIT_REACHED"
         # return the result
         zone, gen_doc = self.get_target_zone(gen_doc)
