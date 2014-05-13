@@ -39,7 +39,7 @@ def depth(cur_node, context, scope_func, incremental=False):
     @rtype: dict
     @return: dictionary with one key ('') and the number of matching values as a value
     """
-    return max(node.depth for node in scope_func(cur_node, incremental=incremental))
+    return {'': max(node.get_depth() for node in scope_func(cur_node, incremental=incremental))}
 
 
 def same_as_current(cur_node, context, scope_func, attrib, incremental=False):
@@ -114,8 +114,10 @@ class Features(object):
             elif func_name == 'bias':
                 features[label] = bias
             else:
-                func_name, func_scope, func_params = re.split(r'[:\s]+', func_name, 2)
+                func_name, func_params = re.split(r'[:\s]+', func_name, 1)
                 func_params = re.split(r'[,\s]+', func_params)
+                func_scope = func_params[0]
+                func_params = func_params[1:]
                 feat_func = None
                 scope_func = partial(find_nodes, scope=func_scope.split('+'))
                 if func_name.lower() == 'same_as_current':

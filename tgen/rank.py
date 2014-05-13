@@ -140,12 +140,18 @@ class PerceptronRanker(Ranker):
 
     def __init__(self, cfg):
         self.w = None
-        self.features = ['bias']
+        self.features = ['bias: bias']
         self.vectorizer = None
         self.alpha = 1
         self.passes = 5
         self.train_cands = 10
+        self.language = 'en'
+        self.selector = ''
         if cfg:
+            if 'language' in cfg:
+                self.language = cfg['language']
+            if 'selector' in cfg:
+                self.selector = cfg['selector']
             if 'features' in cfg:
                 self.features.extend(cfg['features'])
             if 'alpha' in cfg:
@@ -175,9 +181,9 @@ class PerceptronRanker(Ranker):
             X.append(self.features.get_features(ttree, {'da': da}))
         # vectorize
         self.vectorizer = DictVectorizer()
-        X = self.vectorizer.fit_transform(X, sparse=True)
+        X = self.vectorizer.fit_transform(X)
         # initialize weights
-        self.w = np.zeros(X.get_shape[1])  # number of columns
+        self.w = np.zeros(X.get_shape()[1])  # number of columns
         # 1st pass over training data -- just add weights
         for inst in X:
             self.w += self.alpha * inst.toarray()[0]
