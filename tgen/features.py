@@ -33,7 +33,16 @@ def find_nodes(node, scope, incremental=False):
     return nodes
 
 
-def same_as_current(node, context, scope_func, attrib, incremental=False):
+def depth(cur_node, context, scope_func, incremental=False):
+    """Return the maximum tree depth in the given scope.
+
+    @rtype: dict
+    @return: dictionary with one key ('') and the number of matching values as a value
+    """
+    return max(node.depth for node in scope_func(cur_node, incremental=incremental))
+
+
+def same_as_current(cur_node, context, scope_func, attrib, incremental=False):
     """Return the number of nodes in the given scope that have the same value
     of the given attribute as the current node.
 
@@ -41,11 +50,11 @@ def same_as_current(node, context, scope_func, attrib, incremental=False):
     @return: dictionary with one key ('') and the number of matching values as a value
     """
     if attrib == 'right':
-        value = True if node.parent and node > node.parent else False
+        value = True if cur_node.parent and cur_node > cur_node.parent else False
     else:
-        value = getattr(node, attrib)
+        value = getattr(cur_node, attrib)
     num_matching = 0.0
-    for node in scope_func(node):
+    for node in scope_func(cur_node, incremental=incremental):
         if attrib == 'right':  # special handling for 'right'
             if node.parent and (node > node.parent) == value:
                 num_matching += 1
@@ -54,7 +63,7 @@ def same_as_current(node, context, scope_func, attrib, incremental=False):
     return {'': num_matching}
 
 
-def value(node, context, scope_func, attrib, incremental=False):
+def value(cur_node, context, scope_func, attrib, incremental=False):
     """Return the number of nodes holding the individual values of the given attribute
     in the given scope.
 
@@ -62,7 +71,7 @@ def value(node, context, scope_func, attrib, incremental=False):
     @return: dictionary with keys for values of the attribute, values for counts of matching nodes
     """
     ret = defaultdict(float)
-    for node in scope_func(node):
+    for node in scope_func(cur_node, incremental=incremental):
         if attrib == 'right':
             if node.parent and node > node.parent:
                 ret['True'] += 1
@@ -73,12 +82,12 @@ def value(node, context, scope_func, attrib, incremental=False):
     return ret
 
 
-def prob(node, context):
+def prob(cur_node, context):
     # TODO this won't work. Use wild attributes? Or some other structure?
     return {'': context['node_prob']}
 
 
-def bias(node):
+def bias(cur_node, context):
     """A constant feature function, always returning 1"""
     return {'': 1}
 
@@ -113,6 +122,8 @@ class Features(object):
                     feat_func = partial(same_as_current, scope_func=scope_func, attrib=func_params[0])
                 elif func_name.lower() == 'value':
                     feat_func = partial(value, scope_func=scope_func, attrib=func_params[0])
+                elif func_name.lower() == 'depth':
+                    feat_func = partial(depth, scope_func=scope_func)
                 else:
                     raise Exception('Unknown feature function:' + feat)
                 features[label] = feat_func
