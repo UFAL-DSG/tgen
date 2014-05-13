@@ -164,6 +164,7 @@ class ASearchPlanner(SentencePlanner):
         self.debug_out = None
         if 'debug_out' in cfg:
             self.debug_out = cfg['debug_out']
+        self.ranker = cfg['ranker']
 
     def generate_tree(self, da, gen_doc=None, gold_ttree=None):
         # TODO add future cost ?
@@ -176,15 +177,15 @@ class ASearchPlanner(SentencePlanner):
             cand, score = open_list.pop()
             if gold_ttree and cand == gold_ttree:
                 print >> self.debug_out, "IT %05d: CANDIDATE MATCHES GOLD" % num_iter
-                score = -1.0
+                # score = -1.0
             close_list.push(cand, score)
             if self.debug_out:
                 print >> self.debug_out, ("\n***\nIT %05d:%s\nO: %d C: %d\n***" %
                                           (num_iter, unicode(cand), len(open_list), len(close_list)))
                 self.debug_out.flush()
             successors = self.candgen.get_all_successors(cand, cdfs)
-            # TODO add real scoring here
-            open_list.pushall({s: float(len(s.get_descendants()))
+            # add candidates with score
+            open_list.pushall({s: self.ranker.score(s, da) * -1
                                for s in successors if not s in close_list})
 #             if self.debug_out:
 #                 print >> self.debug_out, "\n".join(map(unicode, self.open_list.members.keys()))

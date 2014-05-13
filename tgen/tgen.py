@@ -14,7 +14,10 @@ candgen_train -- train candidate generator (probability distributions)
 rank_create_data -- create training data for logistic regression ranker
     - arguments: [-h use-headers] train-das train-ttrees candgen-model ranker-config output-train-data
 
-rank_train -- train logistic regression ranker
+logregrank_train -- train logistic regression local ranker
+    - arguments: ranker-config ranker-train-data output-model
+
+percrank_train -- train perceptron global ranker
     - arguments: ranker-config ranker-train-data output-model
 
 generate -- generate using the given candidate generator and ranker
@@ -39,6 +42,7 @@ from flect.config import Config
 from getopt import getopt
 from eval import tp_fp_fn, f1_from_counts, p_r_f1_from_counts
 from alex.components.nlg.tectotpl.core.util import file_stream
+from percrank import PerceptronRanker
 
 
 if __name__ == '__main__':
@@ -87,7 +91,7 @@ if __name__ == '__main__':
         ranker.create_training_data(fname_ttrees_train, fname_da_train, candgen, fname_rank_train,
                                     header_file=header_file)
 
-    elif action == 'rank_train':
+    elif action == 'logregrank_train':
         if len(args) != 3:
             sys.exit(__doc__)
 
@@ -96,6 +100,16 @@ if __name__ == '__main__':
 
         rank_config = Config(fname_rank_config)
         ranker = LogisticRegressionRanker(rank_config)
+        ranker.train(fname_rank_train)
+        ranker.save_to_file(fname_rank_model)
+
+    elif action == 'percrank_train':
+
+        fname_rank_config, fname_rank_train, fname_rank_model = args
+        log_info('Training ranker...')
+
+        rank_config = Config(fname_rank_config)
+        ranker = PerceptronRanker(rank_config)
         ranker.train(fname_rank_train)
         ranker.save_to_file(fname_rank_model)
 

@@ -10,13 +10,13 @@ import re
 from functools import partial
 
 
-def find_nodes(node, scope):
+def find_nodes(node, scope, incremental=False):
     """Given a parent node and scope specifications (in a list), this returns the
     corresponding nodes.
     """
     nodes = []
     for scope_spec in scope:
-        if scope_spec == 'node':
+        if scope_spec == 'node' or incremental:
             nodes.apppend(node)
         elif scope_spec == 'tree':
             nodes.extend(node.root.get_descendants())
@@ -33,7 +33,7 @@ def find_nodes(node, scope):
     return nodes
 
 
-def same_as_current(cur_node, scope_func, attrib):
+def same_as_current(node, context, scope_func, attrib, incremental=False):
     """Return the number of nodes in the given scope that have the same value
     of the given attribute as the current node.
 
@@ -41,11 +41,11 @@ def same_as_current(cur_node, scope_func, attrib):
     @return: dictionary with one key ('') and the number of matching values as a value
     """
     if attrib == 'right':
-        value = True if cur_node.parent and cur_node > cur_node.parent else False
+        value = True if node.parent and node > node.parent else False
     else:
-        value = getattr(cur_node, attrib)
+        value = getattr(node, attrib)
     num_matching = 0.0
-    for node in scope_func(cur_node):
+    for node in scope_func(node):
         if attrib == 'right':  # special handling for 'right'
             if node.parent and (node > node.parent) == value:
                 num_matching += 1
@@ -54,7 +54,7 @@ def same_as_current(cur_node, scope_func, attrib):
     return {'': num_matching}
 
 
-def value(cur_node, scope_func, attrib):
+def value(node, context, scope_func, attrib, incremental=False):
     """Return the number of nodes holding the individual values of the given attribute
     in the given scope.
 
@@ -62,7 +62,7 @@ def value(cur_node, scope_func, attrib):
     @return: dictionary with keys for values of the attribute, values for counts of matching nodes
     """
     ret = defaultdict(float)
-    for node in scope_func(cur_node):
+    for node in scope_func(node):
         if attrib == 'right':
             if node.parent and node > node.parent:
                 ret['True'] += 1
@@ -73,8 +73,14 @@ def value(cur_node, scope_func, attrib):
     return ret
 
 
-def prob(node, parent):
-    return {'': node[1]}
+def prob(node, context):
+    # TODO this won't work. Use wild attributes? Or some other structure?
+    return {'': context['node_prob']}
+
+
+def bias(node):
+    """A constant feature function, always returning 1"""
+    return {'': 1}
 
 
 class Features(object):
@@ -83,7 +89,7 @@ class Features(object):
         self.features = self.parse_feature_spec(cfg)
 
     def parse_feature_spec(self, spec):
-        """Prepares feature feature function from specifications in the following format:
+        """Prepares feature functions from specifications in the following format:
 
         Label: value/same_as_current scope param1, ...
 
@@ -96,6 +102,8 @@ class Features(object):
             label, func_name = re.split(r'[:\s]+', feat, 1)
             if func_name == 'prob':
                 features[label] = prob
+            elif func_name == 'bias':
+                features[label] = bias
             else:
                 func_name, func_scope, func_params = re.split(r'[:\s]+', func_name, 2)
                 func_params = re.split(r'[,\s]+', func_params)
@@ -110,7 +118,7 @@ class Features(object):
                 features[label] = feat_func
         return features
 
-    def get_features(self, node, feats=defaultdict(float)):
+    def get_features(self, node, context, feats=defaultdict(float)):
         """Return features for the given node. Accumulates features from other nodes
         if given in the feats parameter.
 
@@ -119,7 +127,7 @@ class Features(object):
         """
         feats_hier = {}
         for name, func in self.features.iteritems():
-            feats_hier[name] = func(node)
+            feats_hier[name] = func(node, context)
         for name, val in feats_hier.iteritems():
             for subname, subval in val.iteritems():
                 feats[name + '_' + subname if subname else name] += subval
