@@ -15,10 +15,9 @@ from flect.logf import log_info
 from alex.components.nlg.tectotpl.core.util import file_stream
 
 from futil import read_das, read_ttrees
-from interface import CandidateGenerator, Ranker
 
 
-class RandomGenerator(CandidateGenerator, Ranker):
+class RandomCandidateGenerator(object):
 
     def __init__(self, cfg):
         self.form_counts = None

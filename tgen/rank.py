@@ -19,6 +19,7 @@ from flect.dataset import DataSet
 from features import Features
 from futil import read_das, read_ttrees
 
+
 class Ranker(object):
 
     @staticmethod

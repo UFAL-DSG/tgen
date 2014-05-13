@@ -11,7 +11,7 @@ Actions:
 candgen_train -- train candidate generator (probability distributions)
     - arguments: [-p prune_threshold] train-das train-ttrees output-model
 
-rank_create_data -- create training data for logistic regression ranker
+logregrank_create_data -- create training data for logistic regression ranker
     - arguments: [-h use-headers] train-das train-ttrees candgen-model ranker-config output-train-data
 
 logregrank_train -- train logistic regression local ranker
@@ -35,14 +35,13 @@ from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 from flect.logf import log_info
 
 from futil import read_das, read_ttrees, chunk_list
-from randgen import RandomGenerator
-from logreg_rank import LogisticRegressionRanker
+from candgen import RandomCandidateGenerator
+from rank import LogisticRegressionRanker, PerceptronRanker
 from planner import SamplingPlanner, ASearchPlanner
 from flect.config import Config
 from getopt import getopt
 from eval import tp_fp_fn, f1_from_counts, p_r_f1_from_counts
 from alex.components.nlg.tectotpl.core.util import file_stream
-from percrank import PerceptronRanker
 
 
 if __name__ == '__main__':
@@ -68,11 +67,11 @@ if __name__ == '__main__':
         fname_da_train, fname_ttrees_train, fname_cand_model = files
 
         log_info('Training candidate generator...')
-        candgen = RandomGenerator({'prune_threshold': prune_threshold})
+        candgen = RandomCandidateGenerator({'prune_threshold': prune_threshold})
         candgen.train(fname_da_train, fname_ttrees_train)
         candgen.save_model(fname_cand_model)
 
-    elif action == 'rank_create_data':
+    elif action == 'logregrank_create_data':
 
         opts, files = getopt(args, 'h:')
         header_file = None
@@ -84,7 +83,7 @@ if __name__ == '__main__':
         fname_da_train, fname_ttrees_train, fname_cand_model, fname_rank_config, fname_rank_train = files
 
         log_info('Creating data for ranker...')
-        candgen = RandomGenerator({})
+        candgen = RandomCandidateGenerator({})
         candgen.load_model(fname_cand_model)
         rank_config = Config(fname_rank_config)
         ranker = LogisticRegressionRanker(rank_config)
@@ -137,7 +136,7 @@ if __name__ == '__main__':
 
         # load model
         log_info('Initializing...')
-        candgen = RandomGenerator({})
+        candgen = RandomCandidateGenerator({})
         candgen.load_model(fname_cand_model)
 
         if ranker_model is not None:
@@ -191,14 +190,15 @@ if __name__ == '__main__':
             elif opt == '-d':
                 debug_out = file_stream(arg, mode='w')
 
-        if len(files) != 2:
+        if len(files) != 3:
             sys.exit(__doc__)
-        fname_cand_model, fname_da_test = files
+        fname_cand_model, fname_ranker_model, fname_da_test = files
 
         log_info('Initializing...')
-        candgen = RandomGenerator({})
+        candgen = RandomCandidateGenerator({})
         candgen.load_model(fname_cand_model)
-        tgen = ASearchPlanner({'candgen': candgen, 'debug_out': debug_out})
+        ranker = PerceptronRanker.load_from_file(fname_rank_model)
+        tgen = ASearchPlanner({'candgen': candgen, 'debug_out': debug_out, 'ranker': ranker})
 
         log_info('Generating...')
         gen_doc = None
