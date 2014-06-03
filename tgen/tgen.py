@@ -103,13 +103,22 @@ if __name__ == '__main__':
         ranker.save_to_file(fname_rank_model)
 
     elif action == 'percrank_train':
-        if len(args) != 4:
+
+        opts, files = getopt(args, 'e:d:')
+        debug_out = None
+
+        for opt, arg in opts:
+            if opt == '-d':
+                debug_out = file_stream(arg, mode='w')
+
+        if len(files) != 4:
             sys.exit(__doc__)
 
-        fname_rank_config, fname_train_das, fname_train_ttrees, fname_rank_model = args
+        fname_rank_config, fname_train_das, fname_train_ttrees, fname_rank_model = files
         log_info('Training perceptron ranker...')
 
         rank_config = Config(fname_rank_config)
+        rank_config['debug_out'] = debug_out
         ranker = PerceptronRanker(rank_config)
         ranker.train(fname_train_das, fname_train_ttrees)
         ranker.save_to_file(fname_rank_model)

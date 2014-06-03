@@ -147,6 +147,7 @@ class PerceptronRanker(Ranker):
         self.train_cands = 10
         self.language = 'en'
         self.selector = ''
+        self.debug_out = None
         if cfg:
             if 'language' in cfg:
                 self.language = cfg['language']
@@ -160,6 +161,8 @@ class PerceptronRanker(Ranker):
                 self.passes = cfg['passes']
             if 'train_cands' in cfg:
                 self.train_cands = cfg['train_cands']
+            if 'debug_out' in cfg:
+                self.debug_out = cfg['debug_out']
         # initialize feature functions
         self.features = Features(self.features)
 
@@ -187,8 +190,10 @@ class PerceptronRanker(Ranker):
         # 1st pass over training data -- just add weights
         for inst in X:
             self.w += self.alpha * inst.toarray()[0]
+        if self.debug_out:
+            print >> self.debug_out, '\n***\nTR %05d: w = %s' % (0, self.w)
         # further passes over training data -- compare the right instance to other, wrong ones
-        for _ in xrange(self.passes):
+        for iter_no in xrange(1, self.passes + 1):
             for inst in X:
                 # get some random 'other' candidates and score them along with the right one
                 cands = [X[num] for num in np.random.choice(X.get_shape()[0], self.train_cands)]
@@ -200,3 +205,11 @@ class PerceptronRanker(Ranker):
                 if top_cand_idx != 0:
                     self.w += (self.alpha * inst.toarray()[0] -
                                self.alpha * cands[top_cand_idx].toarray()[0])
+            if self.debug_out:
+                print >> self.debug_out, '\n***\nTR %05d: w = %s' % (iter_no, self.w)
+
+    def __getstate__(self):
+        """Avoid pickling debug_out, which would result in an error on loading."""
+        d = dict(self.__dict__)
+        del d['debug_out']
+        return d

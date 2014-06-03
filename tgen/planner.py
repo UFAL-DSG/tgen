@@ -180,8 +180,8 @@ class ASearchPlanner(SentencePlanner):
                 # score = -1.0
             close_list.push(cand, score)
             if self.debug_out:
-                print >> self.debug_out, ("\n***\nIT %05d:%s\nO: %d C: %d\n***" %
-                                          (num_iter, unicode(cand), len(open_list), len(close_list)))
+                print >> self.debug_out, ("\n***\nIT %05d:%s\n[%6.4f]\nO: %d C: %d\n***" %
+                                          (num_iter, unicode(cand), score, len(open_list), len(close_list)))
                 self.debug_out.flush()
             successors = self.candgen.get_all_successors(cand, cdfs)
             # add candidates with score

@@ -131,13 +131,15 @@ class Features(object):
                 features[label] = feat_func
         return features
 
-    def get_features(self, node, context, feats=defaultdict(float)):
+    def get_features(self, node, context, feats=None):
         """Return features for the given node. Accumulates features from other nodes
         if given in the feats parameter.
 
         @param node: The current node w.r.t. to which the features should be computed
         @param feats: Previous feature values, for incremental computation.
         """
+        if feats is None:
+            feats = defaultdict(float)
         feats_hier = {}
         for name, func in self.features.iteritems():
             feats_hier[name] = func(node, context)
