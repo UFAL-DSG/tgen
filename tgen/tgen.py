@@ -24,7 +24,7 @@ generate -- generate using the given candidate generator and ranker
     - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 
 asearch_gen -- generate using the A*search sentence planner
-    - arguments: [-e oracle-eval-ttrees] [-d debug-output] candgen-model test-das
+    - arguments: [-e oracle-eval-ttrees] [-d debug-output] candgen-model percrank-model test-das
 """
 
 from __future__ import unicode_literals
@@ -193,8 +193,8 @@ if __name__ == '__main__':
                 debug_out = file_stream(arg, mode='w')
 
         if len(files) != 3:
-            sys.exit(__doc__)
-        fname_cand_model, fname_ranker_model, fname_da_test = files
+            sys.exit('Invalid arguments.\n' + __doc__)
+        fname_cand_model, fname_rank_model, fname_da_test = files
 
         log_info('Initializing...')
         candgen = RandomCandidateGenerator({})
@@ -205,15 +205,16 @@ if __name__ == '__main__':
         log_info('Generating...')
         gen_doc = None
         das = read_das(fname_da_test)
-        eval_ttrees = [None] * len(das)
         if eval_file:
             eval_ttrees = read_ttrees(eval_file)
-        for da, eval_ttree in zip(das, eval_ttrees.bundles):
+            for da, eval_ttree in zip(das, eval_ttrees.bundles):
                 gen_doc = tgen.generate_tree(da, gen_doc,
                                              eval_ttree.get_zone(tgen.language, tgen.selector).ttree)
-
+        else:
+            for da in das:
+                gen_doc = tgen.generate_tree(da, gen_doc, None)
     else:
         # Unknown action
-        sys.exit('ERROR: Unknown action: %s' % action)
+        sys.exit(('ERROR: Unknown action: %s' % action) + __doc__)
 
     log_info('Done.')

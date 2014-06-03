@@ -168,7 +168,7 @@ class PerceptronRanker(Ranker):
         return self._score(feats)
 
     def _score(self, cand_feats):
-        return self.w * cand_feats.toarray()[0]
+        return np.dot(self.w, cand_feats.toarray()[0])
 
     def train(self, das_file, ttree_file):
         # read input
@@ -191,9 +191,10 @@ class PerceptronRanker(Ranker):
         for _ in xrange(self.passes):
             for inst in X:
                 # get some random 'other' candidates and score them along with the right one
-                cands = [inst] + [cand for cand in np.random.choice(X, self.train_cands)
+                cands = [X[num] for num in np.random.choice(X.get_shape()[0], self.train_cands)]
+                cands = [inst] + [cand for cand in cands
                                   if not np.array_equal(cand.toarray(), inst.toarray())]
-                scores = [self.score(cand) for cand in cands]
+                scores = [self._score(cand) for cand in cands]
                 top_cand_idx = scores.index(max(scores))
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
