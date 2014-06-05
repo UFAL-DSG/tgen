@@ -12,8 +12,12 @@ config = {
           'passes': 5,
           'train_cands': 10,
           'features': [
-                       'lemmas: value tree t_lemma',
-                       'formemes: value tree formeme',
+                       'lemma-count: value tree t_lemma',
+                       'formeme-count: value tree formeme',
+                       'lemma-present: presence tree t_lemma',
+                       'formeme-present: presence tree formeme',
+                       'lemma-dai: dai_cooc tree t_lemma',
+                       'formeme-dai: dai_cooc tree formeme',
                        'depth: depth tree',
                        ],
           }

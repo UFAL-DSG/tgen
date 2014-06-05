@@ -10,6 +10,8 @@ import re
 from functools import partial
 
 
+# TODO allow multiple attributes (as conjunction)
+
 def find_nodes(node, scope, incremental=False):
     """Given a parent node and scope specifications (in a list), this returns the
     corresponding nodes.
@@ -67,7 +69,7 @@ def value(cur_node, context, scope_func, attrib, incremental=False):
     """Return the number of nodes holding the individual values of the given attribute
     in the given scope.
 
-    @rtype dict
+    @rtype: dict
     @return: dictionary with keys for values of the attribute, values for counts of matching nodes
     """
     ret = defaultdict(float)
@@ -79,6 +81,36 @@ def value(cur_node, context, scope_func, attrib, incremental=False):
                 ret['False'] += 1
         else:
             ret[unicode(node.get_attr(attrib))] += 1
+    return ret
+
+
+def presence(cur_node, context, scope_func, attrib, incremental=False):
+    """
+    @rtype dict
+    """
+    ret = defaultdict(float)
+    for node in scope_func(cur_node, incremental=incremental):
+        if attrib == 'right':
+            if node.parent and node > node.parent:
+                ret['True'] += 1
+            elif node.parent:
+                ret['False'] += 1
+        else:
+            ret[unicode(node.get_attr(attrib))] += 1
+    return ret
+
+
+def dai_cooc(cur_node, context, scope_func, attrib, incremental=False):
+    ret = defaultdict(float)
+    for dai in context['da']:
+        for node in scope_func(cur_node, incremental=incremental):
+            if attrib == 'right':
+                if node.parent and node > node.parent:
+                    ret[unicode(dai) + '+True'] = 1
+                elif node.parent:
+                    ret[unicode(dai) + '+False'] = 1
+            else:
+                ret[unicode(dai) + '+' + unicode(node.get_attr(attrib))] = 1
     return ret
 
 
@@ -124,6 +156,10 @@ class Features(object):
                     feat_func = partial(same_as_current, scope_func=scope_func, attrib=func_params[0])
                 elif func_name.lower() == 'value':
                     feat_func = partial(value, scope_func=scope_func, attrib=func_params[0])
+                elif func_name.lower() == 'presence':
+                    feat_func = partial(presence, scope_func=scope_func, attrib=func_params[0])
+                elif func_name.lower() == 'dai_cooc':
+                    feat_func = partial(dai_cooc, scope_func=scope_func, attrib=func_params[0])
                 elif func_name.lower() == 'depth':
                     feat_func = partial(depth, scope_func=scope_func)
                 else:
