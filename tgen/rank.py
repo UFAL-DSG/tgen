@@ -17,7 +17,9 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 from flect.dataset import DataSet
 
 from features import Features
-from futil import read_das, read_ttrees
+from futil import read_das, read_ttrees, ttrees_from_doc
+from planner import SamplingPlanner
+from candgen import RandomCandidateGenerator
 
 
 class Ranker(object):
@@ -148,6 +150,7 @@ class PerceptronRanker(Ranker):
         self.language = 'en'
         self.selector = ''
         self.debug_out = None
+        self.sampling_planner = None
         if cfg:
             if 'language' in cfg:
                 self.language = cfg['language']
@@ -163,6 +166,12 @@ class PerceptronRanker(Ranker):
                 self.train_cands = cfg['train_cands']
             if 'debug_out' in cfg:
                 self.debug_out = cfg['debug_out']
+            if 'candgen_model' in cfg:
+                candgen = RandomCandidateGenerator({})
+                candgen.load_model(cfg['candgen_model'])
+                self.random_candgen = SamplingPlanner({'langugage': self.language,
+                                                       'selector': self.selector,
+                                                       'candgen': candgen})
         # initialize feature functions
         self.features = Features(self.features)
 
@@ -176,37 +185,61 @@ class PerceptronRanker(Ranker):
     def train(self, das_file, ttree_file):
         # read input
         das = read_das(das_file)
-        ttrees = read_ttrees(ttree_file)
+        ttrees = ttrees_from_doc(read_ttrees(ttree_file), self.language, self.selector)
         # compute features for trees
         X = []
-        for da, ttree in zip(das, ttrees.bundles):
-            ttree = ttree.get_zone(self.language, self.selector).ttree
+        for da, ttree in zip(das, ttrees):
             X.append(self.features.get_features(ttree, {'da': da}))
         # vectorize
         self.vectorizer = DictVectorizer()
         X = self.vectorizer.fit_transform(X)
         # initialize weights
         self.w = np.zeros(X.get_shape()[1])  # number of columns
+
         # 1st pass over training data -- just add weights
         for inst in X:
             self.w += self.alpha * inst.toarray()[0]
         if self.debug_out:
-            print >> self.debug_out, '\n***\nTR %05d: w = %s' % (0, self.w)
+                print >> self.debug_out, '\n***\nTR %05d:' % 0
+                print >> self.debug_out, '\n'.join(['%s: %f' % (name, weight)
+                                                    for name, weight
+                                                    in zip(self.vectorizer.get_feature_names(),
+                                                           self.w)])
+
         # further passes over training data -- compare the right instance to other, wrong ones
         for iter_no in xrange(1, self.passes + 1):
-            for inst in X:
+            if self.debug_out:
+                print >> self.debug_out, '\n***\nTR %05d:' % iter_no
+            for ttree_no, da in enumerate(das):
                 # get some random 'other' candidates and score them along with the right one
-                cands = [X[num] for num in np.random.choice(X.get_shape()[0], self.train_cands)]
-                cands = [inst] + [cand for cand in cands
-                                  if not np.array_equal(cand.toarray(), inst.toarray())]
+                # -- always use current DA but change trees when computing features
+                other_trees = [self.vectorizer.transform(self.features.get_features(ttrees[num], {'da': da}))
+                         for num in np.random.choice(len(ttrees), self.train_cands)]
+                # -- add in some candidates generated using the random planner
+                # (use the current DA)
+                if self.random_candgen:
+                    random_doc = self.random_candgen.generate_tree(da)
+                    for _ in xrange(self.train_cands - 1):
+                        self.random_candgen.generate_tree(da, random_doc)
+                    other_trees.extend([self.vectorizer.transform(self.features.get_features(rand_ttree, {'da': da}))
+                                        for rand_ttree in ttrees_from_doc(random_doc, self.language,
+                                                                          self.selector)])
+                cands = [X[ttree_no]] + [cand for cand in other_trees
+                                         if not np.array_equal(cand.toarray(),
+                                                               X[ttree_no].toarray())]
                 scores = [self._score(cand) for cand in cands]
                 top_cand_idx = scores.index(max(scores))
+                if self.debug_out:
+                    print >> self.debug_out, ('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
-                    self.w += (self.alpha * inst.toarray()[0] -
+                    self.w += (self.alpha * X[ttree_no].toarray()[0] -
                                self.alpha * cands[top_cand_idx].toarray()[0])
             if self.debug_out:
-                print >> self.debug_out, '\n***\nTR %05d: w = %s' % (iter_no, self.w)
+                print >> self.debug_out, '\n'.join(['%s: %f' % (name, weight)
+                                                    for name, weight
+                                                    in zip(self.vectorizer.get_feature_names(),
+                                                           self.w)])
 
     def __getstate__(self):
         """Avoid pickling debug_out, which would result in an error on loading."""

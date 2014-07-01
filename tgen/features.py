@@ -11,6 +11,7 @@ from functools import partial
 
 
 # TODO allow multiple attributes (as conjunction)
+# TODO tree to DA size ratio
 
 def find_nodes(node, scope, incremental=False):
     """Given a parent node and scope specifications (in a list), this returns the
@@ -39,9 +40,46 @@ def depth(cur_node, context, scope_func, incremental=False):
     """Return the maximum tree depth in the given scope.
 
     @rtype: dict
-    @return: dictionary with one key ('') and the number of matching values as a value
+    @return: dictionary with one key ('') and the target number as a value
     """
     return {'': max(node.get_depth() for node in scope_func(cur_node, incremental=incremental))}
+
+
+def max_children(cur_node, context, scope_func, incremental=False):
+    """Return the maximum number of children in nodes in the given scope.
+
+    @rtype: dict
+    @return: dictionary with one key ('') and the target number as a value
+    """
+    return {'': max(len(node.get_children())
+                    for node in scope_func(cur_node, incremental=incremental))}
+
+
+def nodes_per_dai(cur_node, context, scope_func, incremental=False):
+    """Return the ratio of the number of nodes to the number of original DAIs.
+
+    @rtype: dict
+    @return: dictionary with one key ('') and the target number as a value
+    """
+    return {'': len(scope_func(cur_node, incremental=incremental)) / float(len(context['da']))}
+
+
+def rep_nodes_per_rep_dai(cur_node, context, scope_func, incremental=False):
+    """Return the ratio of the number of repeated nodes to the number of repeated DAIs.
+
+    @rtype: dict
+    @return: dictionary with one key ('') and the target number as a value
+    """
+    node_count = defaultdict(int)
+    for node in scope_func(cur_node, incremental=incremental):
+        node_count[node.t_lemma + "\n" + node.formeme] += 1
+    dai_count = defaultdict(int)
+    for dai in context['da']:
+        dai_count[dai] += 1
+    rep_nodes = sum(count for count in node_count.itervalues() if count > 1)
+    # avoid division by zero + penalize repeated nodes for non-repeated DAIs
+    rep_dais = sum(count for count in dai_count.itervalues() if count > 1) + 0.5
+    return {'': rep_nodes / rep_dais}
 
 
 def same_as_current(cur_node, context, scope_func, attrib, incremental=False):
@@ -152,6 +190,7 @@ class Features(object):
                 func_params = func_params[1:]
                 feat_func = None
                 scope_func = partial(find_nodes, scope=func_scope.split('+'))
+                # node features
                 if func_name.lower() == 'same_as_current':
                     feat_func = partial(same_as_current, scope_func=scope_func, attrib=func_params[0])
                 elif func_name.lower() == 'value':
@@ -160,8 +199,15 @@ class Features(object):
                     feat_func = partial(presence, scope_func=scope_func, attrib=func_params[0])
                 elif func_name.lower() == 'dai_cooc':
                     feat_func = partial(dai_cooc, scope_func=scope_func, attrib=func_params[0])
+                # tree shape features
                 elif func_name.lower() == 'depth':
                     feat_func = partial(depth, scope_func=scope_func)
+                elif func_name.lower() == 'max_children':
+                    feat_func = partial(max_children, scope_func=scope_func)
+                elif func_name.lower() == 'nodes_per_dai':
+                    feat_func = partial(nodes_per_dai, scope_func=scope_func)
+                elif func_name.lower() == 'rep_nodes_per_rep_dai':
+                    feat_func = partial(rep_nodes_per_rep_dai, scope_func=scope_func)
                 else:
                     raise Exception('Unknown feature function:' + feat)
                 features[label] = feat_func

@@ -44,3 +44,8 @@ def chunk_list(l, n):
     """
     for i in xrange(0, len(l), n):
         yield l[i:i + n]
+
+
+def ttrees_from_doc(ttree_doc, language, selector):
+    return map(lambda bundle: bundle.get_zone(language, selector).ttree,
+               ttree_doc.bundles)

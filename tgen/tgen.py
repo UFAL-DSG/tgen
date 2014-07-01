@@ -18,7 +18,7 @@ logregrank_train -- train logistic regression local ranker
     - arguments: ranker-config ranker-train-data output-model
 
 percrank_train -- train perceptron global ranker
-    - arguments: ranker-config train-das train-ttrees output-model
+    - arguments: [-d debug-output] [-c candgen-model] ranker-config train-das train-ttrees output-model
 
 generate -- generate using the given candidate generator and ranker
     - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
@@ -104,12 +104,15 @@ if __name__ == '__main__':
 
     elif action == 'percrank_train':
 
-        opts, files = getopt(args, 'e:d:')
+        opts, files = getopt(args, 'c:d:')
         debug_out = None
+        candgen_model = None
 
         for opt, arg in opts:
             if opt == '-d':
                 debug_out = file_stream(arg, mode='w')
+            elif opt == '-c':
+                candgen_model = arg
 
         if len(files) != 4:
             sys.exit(__doc__)
@@ -119,6 +122,8 @@ if __name__ == '__main__':
 
         rank_config = Config(fname_rank_config)
         rank_config['debug_out'] = debug_out
+        if candgen_model:
+            rank_config['candgen_model'] = candgen_model
         ranker = PerceptronRanker(rank_config)
         ranker.train(fname_train_das, fname_train_ttrees)
         ranker.save_to_file(fname_rank_model)

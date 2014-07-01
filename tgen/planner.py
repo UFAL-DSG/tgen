@@ -123,7 +123,9 @@ class SamplingPlanner(SentencePlanner):
     def __init__(self, cfg):
         super(SamplingPlanner, self).__init__(cfg)
         # ranker (selecting the best candidate)
-        self.ranker = cfg['ranker']
+        self.ranker = None
+        if 'ranker' in cfg:
+            self.ranker = cfg['ranker']
 
     def generate_tree(self, da, gen_doc=None):
         zone, gen_doc = self.get_target_zone(gen_doc)
@@ -143,7 +145,10 @@ class SamplingPlanner(SentencePlanner):
 
     def generate_child(self, parent, da, cdf):
         """Generate one t-node, given its parent and the CDF for the possible children."""
-        formeme, t_lemma, right = self.ranker.get_best_child(parent, da, cdf)
+        if self.ranker:
+            formeme, t_lemma, right = self.ranker.get_best_child(parent, da, cdf)
+        else:
+            formeme, t_lemma, right = self.candgen.sample(cdf)
         child = parent.create_child()
         child.t_lemma = t_lemma
         child.formeme = formeme
@@ -177,7 +182,6 @@ class ASearchPlanner(SentencePlanner):
             cand, score = open_list.pop()
             if gold_ttree and cand == gold_ttree:
                 print >> self.debug_out, "IT %05d: CANDIDATE MATCHES GOLD" % num_iter
-                # score = -1.0
             close_list.push(cand, score)
             if self.debug_out:
                 print >> self.debug_out, ("\n***\nIT %05d:%s\n[%6.4f]\nO: %d C: %d\n***" %
@@ -187,8 +191,6 @@ class ASearchPlanner(SentencePlanner):
             # add candidates with score
             open_list.pushall({s: self.ranker.score(s, da) * -1
                                for s in successors if not s in close_list})
-#             if self.debug_out:
-#                 print >> self.debug_out, "\n".join(map(unicode, self.open_list.members.keys()))
             num_iter += 1
         if num_iter == self.MAX_ITER:
             print >> self.debug_out, "ITERATION_LIMIT_REACHED"

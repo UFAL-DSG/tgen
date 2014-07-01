@@ -8,8 +8,8 @@ from sklearn.linear_model.logistic import LogisticRegression
 
 
 config = {
-          'alpha': 0.01,
-          'passes': 5,
+          'alpha': 0.1,
+          'passes': 100,
           'train_cands': 10,
           'features': [
                        'lemma-count: value tree t_lemma',
@@ -19,5 +19,8 @@ config = {
                        'lemma-dai: dai_cooc tree t_lemma',
                        'formeme-dai: dai_cooc tree formeme',
                        'depth: depth tree',
+                       'max-children: max_children tree',
+                       'nodes-per-dai: nodes_per_dai tree',
+                       'rep-nodes-per-rep-dai: rep_nodes_per_rep_dai tree',
                        ],
           }
