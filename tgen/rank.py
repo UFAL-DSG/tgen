@@ -201,10 +201,7 @@ class PerceptronRanker(Ranker):
             self.w += self.alpha * inst.toarray()[0]
         if self.debug_out:
                 print >> self.debug_out, '\n***\nTR %05d:' % 0
-                print >> self.debug_out, '\n'.join(['%s: %f' % (name, weight)
-                                                    for name, weight
-                                                    in zip(self.vectorizer.get_feature_names(),
-                                                           self.w)])
+                print >> self.debug_out, self._feat_val_str(self.w)
 
         # further passes over training data -- compare the right instance to other, wrong ones
         for iter_no in xrange(1, self.passes + 1):
@@ -213,8 +210,9 @@ class PerceptronRanker(Ranker):
             for ttree_no, da in enumerate(das):
                 # get some random 'other' candidates and score them along with the right one
                 # -- always use current DA but change trees when computing features
+                other_idxs = np.random.choice(len(ttrees), self.train_cands)
                 other_trees = [self.vectorizer.transform(self.features.get_features(ttrees[num], {'da': da}))
-                         for num in np.random.choice(len(ttrees), self.train_cands)]
+                         for num in other_idxs]
                 # -- add in some candidates generated using the random planner
                 # (use the current DA)
                 if self.random_candgen:
@@ -229,17 +227,29 @@ class PerceptronRanker(Ranker):
                                                                X[ttree_no].toarray())]
                 scores = [self._score(cand) for cand in cands]
                 top_cand_idx = scores.index(max(scores))
+                # import ipdb
+                # ipdb.set_trace()
                 if self.debug_out:
                     print >> self.debug_out, ('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
+                    print >> self.debug_out, 'CAND TTREES:'
+                    for num in other_idxs:
+                        print >> self.debug_out, ttrees[num]
+                    print >> self.debug_out, '---RND---'
+                    for ttree in ttrees_from_doc(random_doc, self.language, self.selector):
+                        print >> self.debug_out, ttree
+                    print >> self.debug_out, 'SCORES:', ', '.join(['%.3f' % s for s in scores])
+                    print >> self.debug_out, 'GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t')
+                    print >> self.debug_out, 'SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t')
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
                     self.w += (self.alpha * X[ttree_no].toarray()[0] -
                                self.alpha * cands[top_cand_idx].toarray()[0])
             if self.debug_out:
-                print >> self.debug_out, '\n'.join(['%s: %f' % (name, weight)
-                                                    for name, weight
-                                                    in zip(self.vectorizer.get_feature_names(),
-                                                           self.w)])
+                print >> self.debug_out, self._feat_val_str(self.w)
+
+    def _feat_val_str(self, vec, sep='\n'):
+        return sep.join(['%s: %.3f' % (name, weight)
+                         for name, weight in zip(self.vectorizer.get_feature_names(), vec)])
 
     def __getstate__(self):
         """Avoid pickling debug_out, which would result in an error on loading."""

@@ -12,8 +12,8 @@ config = {
           'passes': 100,
           'train_cands': 10,
           'features': [
-                       'lemma-count: value tree t_lemma',
-                       'formeme-count: value tree formeme',
+#                        'lemma-count: value tree t_lemma',
+#                        'formeme-count: value tree formeme',
                        'lemma-present: presence tree t_lemma',
                        'formeme-present: presence tree formeme',
                        'lemma-dai: dai_cooc tree t_lemma',
@@ -22,5 +22,6 @@ config = {
                        'max-children: max_children tree',
                        'nodes-per-dai: nodes_per_dai tree',
                        'rep-nodes-per-rep-dai: rep_nodes_per_rep_dai tree',
+                       'rep-nodes: rep_nodes tree',
                        ],
           }

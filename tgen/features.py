@@ -82,6 +82,18 @@ def rep_nodes_per_rep_dai(cur_node, context, scope_func, incremental=False):
     return {'': rep_nodes / rep_dais}
 
 
+def rep_nodes(cur_node, context, scope_func, incremental=False):
+    """Return the number of repeated nodes in the given scope.
+
+    @rtype: dict
+    @return: dictionary with one key ('') and the target number as a value
+    """
+    node_count = defaultdict(int)
+    for node in scope_func(cur_node, incremental=incremental):
+        node_count[node.t_lemma + "\n" + node.formeme] += 1
+    return {'': sum(count for count in node_count.itervalues() if count > 1)}
+
+
 def same_as_current(cur_node, context, scope_func, attrib, incremental=False):
     """Return the number of nodes in the given scope that have the same value
     of the given attribute as the current node.
@@ -123,22 +135,30 @@ def value(cur_node, context, scope_func, attrib, incremental=False):
 
 
 def presence(cur_node, context, scope_func, attrib, incremental=False):
-    """
-    @rtype dict
+    """Return 1 for all values of the given attribute found in the given scope.
+
+    @rtype: dict
+    @return: dictionary with keys for values of the attribute and values equal to 1
     """
     ret = defaultdict(float)
     for node in scope_func(cur_node, incremental=incremental):
         if attrib == 'right':
             if node.parent and node > node.parent:
-                ret['True'] += 1
+                ret['True'] = 1
             elif node.parent:
-                ret['False'] += 1
+                ret['False'] = 1
         else:
-            ret[unicode(node.get_attr(attrib))] += 1
+            ret[unicode(node.get_attr(attrib))] = 1
     return ret
 
 
 def dai_cooc(cur_node, context, scope_func, attrib, incremental=False):
+    """Return 1 for all combinations of DAIs and values of a node.
+
+    @rtype: dict
+    @return: dictionary with keys composed of DAIs and values of the given attribute, \
+        and values equal to 1
+    """
     ret = defaultdict(float)
     for dai in context['da']:
         for node in scope_func(cur_node, incremental=incremental):
@@ -208,6 +228,8 @@ class Features(object):
                     feat_func = partial(nodes_per_dai, scope_func=scope_func)
                 elif func_name.lower() == 'rep_nodes_per_rep_dai':
                     feat_func = partial(rep_nodes_per_rep_dai, scope_func=scope_func)
+                elif func_name.lower() == 'rep_nodes':
+                    feat_func = partial(rep_nodes, scope_func=scope_func)
                 else:
                     raise Exception('Unknown feature function:' + feat)
                 features[label] = feat_func
