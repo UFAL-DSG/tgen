@@ -24,5 +24,5 @@ config = {
                        'rep-nodes-per-rep-dai: rep_nodes_per_rep_dai tree',
                        'rep-nodes: rep_nodes tree',
                        ],
-          'rival_gen_strategy': ['other_inst', 'random'],
+          'rival_gen_strategy': ['gen_cur_weights'],  # ['other_inst', 'random'],
           }

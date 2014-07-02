@@ -172,15 +172,34 @@ class ASearchPlanner(SentencePlanner):
         self.ranker = cfg['ranker']
 
     def generate_tree(self, da, gen_doc=None, gold_ttree=None):
+        # generate and use only 1-best
+        best_ttree = self.get_best_candidates(da, 1, self.MAX_ITER, gold_ttree)[0]
+        # return the result
+        zone, gen_doc = self.get_target_zone(gen_doc)
+        zone.ttree = best_ttree
+        return gen_doc
+
+    def get_best_candidates(self, da, ncands, max_iter=None, gold_ttree=None):
+        """Run the A*-search generation and after it finishes, return N best candidates
+        on the close list.
+
+        @param da: the input dialogue act
+        @param ncands: (maximum) number of candidates to return
+        @param max_iter: maximum number of iterations for generation
+        @param gold_ttree: a gold t-tree to check if it matches the current candidate
+        @rtype: list
+        @return: a list of the best candidates in the close list, sorted by score
+        """
         # TODO add future cost ?
         # initialization
         open_list, close_list = CandidateList({T(data={'ord': 0}): 0.0}), CandidateList()
         num_iter = 0
+        max_iter = self.MAX_ITER if max_iter is None else max_iter
         cdfs = self.candgen.get_merged_cdfs(da)
         # main search loop
-        while open_list and num_iter < self.MAX_ITER:
+        while open_list and num_iter < max_iter:
             cand, score = open_list.pop()
-            if gold_ttree and cand == gold_ttree:
+            if gold_ttree and cand == gold_ttree and self.debug_out:
                 print >> self.debug_out, "IT %05d: CANDIDATE MATCHES GOLD" % num_iter
             close_list.push(cand, score)
             if self.debug_out:
@@ -192,9 +211,10 @@ class ASearchPlanner(SentencePlanner):
             open_list.pushall({s: self.ranker.score(s, da) * -1
                                for s in successors if not s in close_list})
             num_iter += 1
-        if num_iter == self.MAX_ITER:
+        if num_iter == max_iter and self.debug_out:
             print >> self.debug_out, "ITERATION_LIMIT_REACHED"
-        # return the result
-        zone, gen_doc = self.get_target_zone(gen_doc)
-        zone.ttree = close_list.pop()
-        return gen_doc
+        # return the N best candidates on the close list
+        result = []
+        while close_list and len(result) < ncands:
+            result.append(close_list.pop()[0])
+        return result

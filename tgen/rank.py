@@ -18,7 +18,7 @@ from flect.dataset import DataSet
 
 from features import Features
 from futil import read_das, read_ttrees, ttrees_from_doc
-from planner import SamplingPlanner
+from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
 
 
@@ -150,7 +150,9 @@ class PerceptronRanker(Ranker):
         self.language = 'en'
         self.selector = ''
         self.debug_out = None
+        self.asearch_planner = None
         self.sampling_planner = None
+        self.candgen = None
         self.rival_gen_strategy = ['other_inst']
         if cfg:
             if 'language' in cfg:
@@ -168,15 +170,22 @@ class PerceptronRanker(Ranker):
             if 'debug_out' in cfg:
                 self.debug_out = cfg['debug_out']
             if 'candgen_model' in cfg:
-                candgen = RandomCandidateGenerator({})
-                candgen.load_model(cfg['candgen_model'])
-                self.random_candgen = SamplingPlanner({'langugage': self.language,
-                                                       'selector': self.selector,
-                                                       'candgen': candgen})
+                self.candgen = RandomCandidateGenerator({})
+                self.candgen.load_model(cfg['candgen_model'])
+                self.sampling_planner = SamplingPlanner({'langugage': self.language,
+                                                         'selector': self.selector,
+                                                         'candgen': self.candgen})
             if 'rival_gen_strategy' in cfg:
                 self.rival_gen_strategy = cfg['rival_gen_strategy']
         # initialize feature functions
         self.feats = Features(self.feats)
+        # initialize planner if needed
+        if 'gen_cur_weights' in self.rival_gen_strategy:
+            assert self.candgen is not None
+            self.asearch_planner = ASearchPlanner({'candgen': self.candgen,
+                                                   'language': self.language,
+                                                   'selector': self.selector,
+                                                   'ranker': self})
 
     def score(self, cand_ttree, da):
         feats = self.vectorizer.transform(self.feats.get_features(cand_ttree, {'da': da}))
@@ -208,8 +217,11 @@ class PerceptronRanker(Ranker):
 
         # further passes over training data -- compare the right instance to other, wrong ones
         for iter_no in xrange(1, self.passes + 1):
+
+            log_info('Iteration %05d' % iter_no)
             if self.debug_out:
                 print >> self.debug_out, '\n***\nTR %05d:' % iter_no
+
             for ttree_no, da in enumerate(das):
                 # obtain some 'rival', alternative incorrect candidates
                 gold_ttree, gold_feats = ttrees[ttree_no], X[ttree_no]
@@ -271,16 +283,25 @@ class PerceptronRanker(Ranker):
 
         # candidates generated using the random planner (use the current DA)
         if 'random' in self.rival_gen_strategy:
-            random_doc = None
-            while random_doc is None or (len(random_doc.bundles) < self.rival_number):
-                random_doc = self.random_candgen.generate_tree(da, random_doc)
-                if (random_doc.bundles[-1].get_zone(self.language, self.selector).ttree
+            gen_doc = None
+            while gen_doc is None or (len(gen_doc.bundles) < self.rival_number):
+                gen_doc = self.sampling_planner.generate_tree(da, gen_doc)
+                if (gen_doc.bundles[-1].get_zone(self.language, self.selector).ttree
                     == train_ttrees[gold_ttree_no]):  # don't generate trees identical to the gold one
-                    del random_doc.bundles[-1]
-            random_ttrees = ttrees_from_doc(random_doc, self.language, self.selector)
+                    del gen_doc.bundles[-1]
+            random_ttrees = ttrees_from_doc(gen_doc, self.language, self.selector)
             rival_ttrees.extend(random_ttrees)
             rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
                                 for ttree in random_ttrees])
+
+        # candidates generated using the A*search planner, which uses this ranker with current
+        # weights to guide the search, and the current DA as the input
+        if 'gen_cur_weights' in self.rival_gen_strategy:
+            gen_ttrees = [t for t in self.asearch_planner.get_best_candidates(da, self.rival_number + 1, 50)
+                          if t != train_ttrees[gold_ttree_no]]
+            rival_ttrees.extend(gen_ttrees[:self.rival_number])
+            rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
+                                for ttree in gen_ttrees[:self.rival_number]])
 
         # return all resulting candidates
         return rival_ttrees, rival_feats
