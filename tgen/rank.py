@@ -218,7 +218,7 @@ class PerceptronRanker(Ranker):
         # further passes over training data -- compare the right instance to other, wrong ones
         for iter_no in xrange(1, self.passes + 1):
 
-            log_info('Iteration %05d' % iter_no)
+            iter_errs = 0
             if self.debug_out:
                 print >> self.debug_out, '\n***\nTR %05d:' % iter_no
 
@@ -244,8 +244,19 @@ class PerceptronRanker(Ranker):
                 if top_cand_idx != 0:
                     self.w += (self.alpha * X[ttree_no].toarray()[0] -
                                self.alpha * cands[top_cand_idx].toarray()[0])
+                    iter_errs += 1
+
+            iter_acc = (1.0 - (iter_errs / float(len(ttrees))))
             if self.debug_out:
-                print >> self.debug_out, self._feat_val_str(self.w)
+                print >> self.debug_out, self._feat_val_str(self.w), '\n***'
+                print >> self.debug_out, 'ITER ACCURACY: %.3f' % iter_acc
+
+            log_info('Iteration %05d -- accuracy: %.3f' % (iter_no, iter_acc))
+
+            # finish if we have no errors (weights are not updated anymore)
+            # TODO: this might not be true if random candidate generation strategy is used
+            if iter_errs == 0:
+                break
 
     def _feat_val_str(self, vec, sep='\n'):
         return sep.join(['%s: %.3f' % (name, weight)
