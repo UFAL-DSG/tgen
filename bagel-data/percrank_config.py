@@ -10,7 +10,7 @@ from sklearn.linear_model.logistic import LogisticRegression
 config = {
           'alpha': 0.1,
           'passes': 100,
-          'train_cands': 10,
+          'rival_number': 10,
           'features': [
 #                        'lemma-count: value tree t_lemma',
 #                        'formeme-count: value tree formeme',
@@ -24,4 +24,5 @@ config = {
                        'rep-nodes-per-rep-dai: rep_nodes_per_rep_dai tree',
                        'rep-nodes: rep_nodes tree',
                        ],
+          'rival_gen_strategy': ['other_inst', 'random'],
           }

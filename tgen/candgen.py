@@ -133,7 +133,7 @@ class RandomCandidateGenerator(object):
         res = []
         for node_num, tnode in enumerate(tnodes):
             # skip nodes that can't have more children
-            if (len(tnode.get_children()) > self.max_children.get(tnode.formeme, 0) or
+            if (len(tnode.get_children()) >= self.max_children.get(tnode.formeme, 0) or
                     tnode.formeme not in cdfs):
                 continue
             # try all formeme/t-lemma/direction variants of the children at the given spot

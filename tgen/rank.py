@@ -142,28 +142,29 @@ class PerceptronRanker(Ranker):
 
     def __init__(self, cfg):
         self.w = None
-        self.features = ['bias: bias']
+        self.feats = ['bias: bias']
         self.vectorizer = None
         self.alpha = 1
         self.passes = 5
-        self.train_cands = 10
+        self.rival_number = 10
         self.language = 'en'
         self.selector = ''
         self.debug_out = None
         self.sampling_planner = None
+        self.rival_gen_strategy = ['other_inst']
         if cfg:
             if 'language' in cfg:
                 self.language = cfg['language']
             if 'selector' in cfg:
                 self.selector = cfg['selector']
             if 'features' in cfg:
-                self.features.extend(cfg['features'])
+                self.feats.extend(cfg['features'])
             if 'alpha' in cfg:
                 self.alpha = cfg['alpha']
             if 'passes' in cfg:
                 self.passes = cfg['passes']
-            if 'train_cands' in cfg:
-                self.train_cands = cfg['train_cands']
+            if 'rival_number' in cfg:
+                self.rival_number = cfg['rival_number']
             if 'debug_out' in cfg:
                 self.debug_out = cfg['debug_out']
             if 'candgen_model' in cfg:
@@ -172,11 +173,13 @@ class PerceptronRanker(Ranker):
                 self.random_candgen = SamplingPlanner({'langugage': self.language,
                                                        'selector': self.selector,
                                                        'candgen': candgen})
+            if 'rival_gen_strategy' in cfg:
+                self.rival_gen_strategy = cfg['rival_gen_strategy']
         # initialize feature functions
-        self.features = Features(self.features)
+        self.feats = Features(self.feats)
 
     def score(self, cand_ttree, da):
-        feats = self.vectorizer.transform(self.features.get_features(cand_ttree, {'da': da}))
+        feats = self.vectorizer.transform(self.feats.get_features(cand_ttree, {'da': da}))
         return self._score(feats)
 
     def _score(self, cand_feats):
@@ -189,7 +192,7 @@ class PerceptronRanker(Ranker):
         # compute features for trees
         X = []
         for da, ttree in zip(das, ttrees):
-            X.append(self.features.get_features(ttree, {'da': da}))
+            X.append(self.feats.get_features(ttree, {'da': da}))
         # vectorize
         self.vectorizer = DictVectorizer()
         X = self.vectorizer.fit_transform(X)
@@ -208,38 +211,25 @@ class PerceptronRanker(Ranker):
             if self.debug_out:
                 print >> self.debug_out, '\n***\nTR %05d:' % iter_no
             for ttree_no, da in enumerate(das):
-                # get some random 'other' candidates and score them along with the right one
-                # -- always use current DA but change trees when computing features
-                other_idxs = np.random.choice(len(ttrees), self.train_cands)
-                other_trees = [self.vectorizer.transform(self.features.get_features(ttrees[num], {'da': da}))
-                         for num in other_idxs]
-                # -- add in some candidates generated using the random planner
-                # (use the current DA)
-                if self.random_candgen:
-                    random_doc = self.random_candgen.generate_tree(da)
-                    for _ in xrange(self.train_cands - 1):
-                        self.random_candgen.generate_tree(da, random_doc)
-                    other_trees.extend([self.vectorizer.transform(self.features.get_features(rand_ttree, {'da': da}))
-                                        for rand_ttree in ttrees_from_doc(random_doc, self.language,
-                                                                          self.selector)])
-                cands = [X[ttree_no]] + [cand for cand in other_trees
-                                         if not np.array_equal(cand.toarray(),
-                                                               X[ttree_no].toarray())]
+                # obtain some 'rival', alternative incorrect candidates
+                gold_ttree, gold_feats = ttrees[ttree_no], X[ttree_no]
+                rival_ttrees, rival_feats = self._get_rival_candidates(da, ttrees, ttree_no)
+                cands = [gold_feats] + [inst for inst in rival_feats
+                                        if not np.array_equal(inst.toarray(), gold_feats.toarray())]
+
+                # score them along with the right one
                 scores = [self._score(cand) for cand in cands]
                 top_cand_idx = scores.index(max(scores))
-                # import ipdb
-                # ipdb.set_trace()
+
                 if self.debug_out:
                     print >> self.debug_out, ('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
                     print >> self.debug_out, 'CAND TTREES:'
-                    for num in other_idxs:
-                        print >> self.debug_out, ttrees[num]
-                    print >> self.debug_out, '---RND---'
-                    for ttree in ttrees_from_doc(random_doc, self.language, self.selector):
-                        print >> self.debug_out, ttree
+                    for rival_ttree in rival_ttrees:
+                        print >> self.debug_out, rival_ttree
                     print >> self.debug_out, 'SCORES:', ', '.join(['%.3f' % s for s in scores])
                     print >> self.debug_out, 'GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t')
                     print >> self.debug_out, 'SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t')
+
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
                     self.w += (self.alpha * X[ttree_no].toarray()[0] -
@@ -256,3 +246,35 @@ class PerceptronRanker(Ranker):
         d = dict(self.__dict__)
         del d['debug_out']
         return d
+
+    def _get_rival_candidates(self, da, train_ttrees, gold_ttree_no):
+        """Generate some rival candidates for a DA and the correct (gold) t-tree,
+        given the current rival generation strategy (self.rival_gen_strategy).
+
+        @param da: the current input dialogue act
+        @param train_ttrees: training t-trees
+        @param gold_ttree_no: the index of the gold t-tree in train_ttrees
+        @rtype: tuple
+        @return: an array of rival t-trees and an array of the corresponding features
+        """
+        rival_ttrees, rival_feats = [], []
+
+        # use current DA but change trees when computing features
+        if 'other_inst' in self.rival_gen_strategy:
+            # use alternative indexes, avoid the correct one
+            rival_idxs = map(lambda idx: len(train_ttrees) - 1 if idx == gold_ttree_no else idx,
+                             np.random.choice(len(train_ttrees) - 1, self.rival_number))
+            rival_ttrees = [train_ttrees[rival_idx] for rival_idx in rival_idxs]
+            rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
+                                for ttree in rival_ttrees])
+
+        # candidates generated using the random planner (use the current DA)
+        if 'random' in self.rival_gen_strategy:
+            random_doc = self.random_candgen.generate_tree(da)
+            for _ in xrange(self.rival_number - 1):
+                self.random_candgen.generate_tree(da, random_doc)
+            rival_ttrees.extend(ttrees_from_doc(random_doc, self.language, self.selector))
+            rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
+                                for ttree in rival_ttrees])
+
+        return rival_ttrees, rival_feats
