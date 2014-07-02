@@ -214,8 +214,7 @@ class PerceptronRanker(Ranker):
                 # obtain some 'rival', alternative incorrect candidates
                 gold_ttree, gold_feats = ttrees[ttree_no], X[ttree_no]
                 rival_ttrees, rival_feats = self._get_rival_candidates(da, ttrees, ttree_no)
-                cands = [gold_feats] + [inst for inst in rival_feats
-                                        if not np.array_equal(inst.toarray(), gold_feats.toarray())]
+                cands = [gold_feats] + rival_feats
 
                 # score them along with the right one
                 scores = [self._score(cand) for cand in cands]
@@ -223,10 +222,9 @@ class PerceptronRanker(Ranker):
 
                 if self.debug_out:
                     print >> self.debug_out, ('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
-                    print >> self.debug_out, 'CAND TTREES:'
-                    for rival_ttree in rival_ttrees:
-                        print >> self.debug_out, rival_ttree
-                    print >> self.debug_out, 'SCORES:', ', '.join(['%.3f' % s for s in scores])
+                    print >> self.debug_out, 'ALL CAND TTREES:'
+                    for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
+                        print >> self.debug_out, "%.3f" % score, "\t", ttree
                     print >> self.debug_out, 'GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t')
                     print >> self.debug_out, 'SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t')
 
@@ -251,6 +249,8 @@ class PerceptronRanker(Ranker):
         """Generate some rival candidates for a DA and the correct (gold) t-tree,
         given the current rival generation strategy (self.rival_gen_strategy).
 
+        TODO: checking for trees identical to the gold one slows down the process
+
         @param da: the current input dialogue act
         @param train_ttrees: training t-trees
         @param gold_ttree_no: the index of the gold t-tree in train_ttrees
@@ -264,17 +264,23 @@ class PerceptronRanker(Ranker):
             # use alternative indexes, avoid the correct one
             rival_idxs = map(lambda idx: len(train_ttrees) - 1 if idx == gold_ttree_no else idx,
                              np.random.choice(len(train_ttrees) - 1, self.rival_number))
-            rival_ttrees = [train_ttrees[rival_idx] for rival_idx in rival_idxs]
+            other_inst_ttrees = [train_ttrees[rival_idx] for rival_idx in rival_idxs]
+            rival_ttrees.extend(other_inst_ttrees)
             rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
-                                for ttree in rival_ttrees])
+                                for ttree in other_inst_ttrees])
 
         # candidates generated using the random planner (use the current DA)
         if 'random' in self.rival_gen_strategy:
-            random_doc = self.random_candgen.generate_tree(da)
-            for _ in xrange(self.rival_number - 1):
-                self.random_candgen.generate_tree(da, random_doc)
-            rival_ttrees.extend(ttrees_from_doc(random_doc, self.language, self.selector))
+            random_doc = None
+            while random_doc is None or (len(random_doc.bundles) < self.rival_number):
+                random_doc = self.random_candgen.generate_tree(da, random_doc)
+                if (random_doc.bundles[-1].get_zone(self.language, self.selector).ttree
+                    == train_ttrees[gold_ttree_no]):  # don't generate trees identical to the gold one
+                    del random_doc.bundles[-1]
+            random_ttrees = ttrees_from_doc(random_doc, self.language, self.selector)
+            rival_ttrees.extend(random_ttrees)
             rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
-                                for ttree in rival_ttrees])
+                                for ttree in random_ttrees])
 
+        # return all resulting candidates
         return rival_ttrees, rival_feats
