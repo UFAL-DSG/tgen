@@ -227,13 +227,14 @@ def asearch_gen(args):
         gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
 
         log_info('Evaluating...')
-        tc, tp, tg = 0, 0, 0
+        correct, predicted, gold = 0, 0, 0
         for eval_ttree, gen_ttree in zip(eval_ttrees, gen_ttrees):
-            c, p, g = tp_fp_fn(eval_ttree, gen_ttree)
-            tc += c
-            tp += p
-            tg += g
-        log_info("Node precision: %.4f, Recall: %.4f, F1: %.4f" % p_r_f1_from_counts(tc, tg, tp))
+            tc, tp, tg = tp_fp_fn(eval_ttree, gen_ttree)
+            correct += tc
+            predicted += tp
+            gold += tg
+        log_info("Node precision: %.4f, Recall: %.4f, F1: %.4f" %
+                 p_r_f1_from_counts(correct, gold, predicted))
 
     # write output
     if fname_ttrees_out is not None:

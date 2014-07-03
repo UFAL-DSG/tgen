@@ -23,6 +23,16 @@ def collect_counts(ttree, count_type='node'):
 
 
 def tp_fp_fn(gold_ttree, pred_ttree, count_type='node'):
+    """Given a golden tree and a predicted tree, this counts correctly
+    predicted nodes (true positives), all predicted nodes (true + false
+    positives), and all golden nodes (true positives + false negatives).
+
+    @param gold_ttree: a golden t-tree
+    @param pred_ttree: a predicted t-tree
+    @param count_type: reserved for future use
+    @rtype: tuple
+    @return: numbers of correctly predicted, total predicted, and total golden nodes
+    """
     gold_counts = collect_counts(gold_ttree, type)
     pred_counts = collect_counts(pred_ttree, type)
     correct, predicted = 0, 0
@@ -54,6 +64,15 @@ def f1_from_counts(correct, gold, predicted):
 
 
 def p_r_f1_from_counts(correct, gold, predicted):
+    """Return precision, recall, and F1 given counts of true positives (correct),
+    total predicted nodes, and total gold nodes.
+
+    @param correct: true positives (correctly predicted nodes)
+    @param predicted: true + false positives (all predicted nodes)
+    @param gold: true positives + false negatives (all golden nodes)
+    @rtype: tuple
+    @return: precision, recall, F1
+    """
     if correct == 0.0:  # escape division by zero
         return 0.0, 0.0, 0.0
     precision = correct / float(predicted)
