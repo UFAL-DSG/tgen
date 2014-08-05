@@ -12,6 +12,7 @@ from UserDict import DictMixin
 
 from alex.components.nlg.tectotpl.core.document import Document
 from alex.components.nlg.tectotpl.core.node import T
+from flect.logf import log_debug
 
 
 class CandidateList(DictMixin):
@@ -204,21 +205,20 @@ class ASearchPlanner(SentencePlanner):
         # initialization
         open_list, close_list = CandidateList({T(data={'ord': 0}): 0.0}), CandidateList()
         num_iter = 0
-        max_iter = self.max_iter
         defic_iter = 0
         cdfs = self.candgen.get_merged_cdfs(da)
+        if not max_iter:
+            max_iter = self.max_iter
 
         # main search loop
         while open_list and num_iter < max_iter and (max_defic_iter is None
                                                      or defic_iter <= max_defic_iter):
             cand, score = open_list.pop()
-            if gold_ttree and cand == gold_ttree and self.debug_out:
-                print >> self.debug_out, "IT %05d: CANDIDATE MATCHES GOLD" % num_iter
+            if gold_ttree and cand == gold_ttree:
+                log_debug("IT %05d: CANDIDATE MATCHES GOLD" % num_iter)
             close_list.push(cand, score)
-            if self.debug_out:
-                print >> self.debug_out, ("\n***\nIT %05d:%s\n[%6.4f]\nO: %d C: %d\n***" %
-                                          (num_iter, unicode(cand), score, len(open_list), len(close_list)))
-                self.debug_out.flush()
+            log_debug("\n***\nIT %05d:%s\n[%6.4f]\nO: %d C: %d\n***" %
+                      (num_iter, unicode(cand), score, len(open_list), len(close_list)))
             successors = self.candgen.get_all_successors(cand, cdfs)
             # add candidates with score
             open_list.pushall({s: self.ranker.score(s, da) * -1
@@ -233,11 +233,10 @@ class ASearchPlanner(SentencePlanner):
                 else:
                     defic_iter += 1
 
-        if self.debug_out:
             if num_iter == max_iter:
-                print >> self.debug_out, 'ITERATION LIMIT REACHED'
+                log_debug('ITERATION LIMIT REACHED')
             elif defic_iter == max_defic_iter:
-                print >> self.debug_out, 'DEFICIT ITERATION LIMIT REACHED'
+                log_debug('DEFICIT ITERATION LIMIT REACHED')
 
         # return the N best candidates on the close list
         result = []

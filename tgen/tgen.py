@@ -32,7 +32,7 @@ import random
 import sys
 
 from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
-from flect.logf import log_info
+from flect.logf import log_info, set_debug_stream
 
 from futil import read_das, read_ttrees, chunk_list, ttrees_from_doc
 from candgen import RandomCandidateGenerator
@@ -95,12 +95,11 @@ def logregrank_train(args):
 
 def percrank_train(args):
     opts, files = getopt(args, 'c:d:')
-    debug_out = None
     candgen_model = None
 
     for opt, arg in opts:
         if opt == '-d':
-            debug_out = file_stream(arg, mode='w')
+            set_debug_stream(file_stream(arg, mode='w'))
         elif opt == '-c':
             candgen_model = arg
 
@@ -111,7 +110,6 @@ def percrank_train(args):
     log_info('Training perceptron ranker...')
 
     rank_config = Config(fname_rank_config)
-    rank_config['debug_out'] = debug_out
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
     ranker = PerceptronRanker(rank_config)
@@ -188,9 +186,8 @@ def sample_gen(args):
 def asearch_gen(args):
     """A*search generation"""
 
-    opts, files = getopt(args, 'e:d:')
+    opts, files = getopt(args, 'e:d:w:c:')
     eval_file = None
-    debug_out = None
     fname_ttrees_out = None
     cfg_file = None
 
@@ -198,7 +195,7 @@ def asearch_gen(args):
         if opt == '-e':
             eval_file = arg
         elif opt == '-d':
-            debug_out = file_stream(arg, mode='w')
+            set_debug_stream(file_stream(arg, mode='w'))
         elif opt == '-w':
             fname_ttrees_out = arg
         elif opt == '-c':
@@ -213,7 +210,7 @@ def asearch_gen(args):
     candgen.load_model(fname_cand_model)
     ranker = PerceptronRanker.load_from_file(fname_rank_model)
     cfg = Config(cfg_file) if cfg_file else {}
-    cfg.update({'candgen': candgen, 'debug_out': debug_out, 'ranker': ranker})
+    cfg.update({'candgen': candgen, 'ranker': ranker})
     tgen = ASearchPlanner(cfg)
 
     log_info('Generating...')
@@ -272,6 +269,6 @@ if __name__ == '__main__':
         asearch_gen(args)
     else:
         # Unknown action
-        sys.exit(('ERROR: Unknown action: %s' % action) + __doc__)
+        sys.exit(('Error: Unknown Tgen action: %s' % action) + __doc__)
 
     log_info('Done.')

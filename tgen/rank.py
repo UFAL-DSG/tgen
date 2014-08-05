@@ -11,7 +11,7 @@ import numpy as np
 import cPickle as pickle
 import operator
 
-from flect.logf import log_info
+from flect.logf import log_info, log_debug
 from flect.model import Model
 from alex.components.nlg.tectotpl.core.util import file_stream
 from flect.dataset import DataSet
@@ -151,7 +151,6 @@ class PerceptronRanker(Ranker):
         self.rival_number = cfg.get('rival_number', 10)
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
-        self.debug_out = cfg.get('debug_out')
         self.asearch_planner = None
         self.sampling_planner = None
         self.candgen = None
@@ -175,7 +174,7 @@ class PerceptronRanker(Ranker):
             self.asearch_planner = ASearchPlanner({'candgen': self.candgen,
                                                    'language': self.language,
                                                    'selector': self.selector,
-                                                   'ranker': self})
+                                                   'ranker': self, })
 
     def score(self, cand_ttree, da):
         feats = self.vectorizer.transform(self.feats.get_features(cand_ttree, {'da': da}))
@@ -201,16 +200,15 @@ class PerceptronRanker(Ranker):
         # 1st pass over training data -- just add weights
         for inst in X:
             self.w += self.alpha * inst.toarray()[0]
-        if self.debug_out:
-                print >> self.debug_out, '\n***\nTR %05d:' % 0
-                print >> self.debug_out, self._feat_val_str(self.w)
+
+        log_debug('\n***\nTR %05d:' % 0)
+        log_debug(self._feat_val_str(self.w))
 
         # further passes over training data -- compare the right instance to other, wrong ones
         for iter_no in xrange(1, self.passes + 1):
 
             iter_errs = 0
-            if self.debug_out:
-                print >> self.debug_out, '\n***\nTR %05d:' % iter_no
+            log_debug('\n***\nTR %05d:' % iter_no)
 
             for ttree_no, da in enumerate(das):
                 # obtain some 'rival', alternative incorrect candidates
@@ -222,13 +220,12 @@ class PerceptronRanker(Ranker):
                 scores = [self._score(cand) for cand in cands]
                 top_cand_idx = scores.index(max(scores))
 
-                if self.debug_out:
-                    print >> self.debug_out, ('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
-                    print >> self.debug_out, 'ALL CAND TTREES:'
-                    for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
-                        print >> self.debug_out, "%.3f" % score, "\t", ttree
-                    print >> self.debug_out, 'GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t')
-                    print >> self.debug_out, 'SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t')
+                log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
+                log_debug('ALL CAND TTREES:')
+                for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
+                    log_debug("%.3f" % score, "\t", ttree)
+                log_debug('GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t'))
+                log_debug('SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t'))
 
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
@@ -237,21 +234,14 @@ class PerceptronRanker(Ranker):
                     iter_errs += 1
 
             iter_acc = (1.0 - (iter_errs / float(len(ttrees))))
-            if self.debug_out:
-                print >> self.debug_out, self._feat_val_str(self.w), '\n***'
-                print >> self.debug_out, 'ITER ACCURACY: %.3f' % iter_acc
+            log_debug(self._feat_val_str(self.w), '\n***')
+            log_debug('ITER ACCURACY: %.3f' % iter_acc)
 
             log_info('Iteration %05d -- tree-level accuracy: %.3f' % (iter_no, iter_acc))
 
     def _feat_val_str(self, vec, sep='\n'):
         return sep.join(['%s: %.3f' % (name, weight)
                          for name, weight in zip(self.vectorizer.get_feature_names(), vec)])
-
-    def __getstate__(self):
-        """Avoid pickling debug_out, which would result in an error on loading."""
-        d = dict(self.__dict__)
-        del d['debug_out']
-        return d
 
     def _get_rival_candidates(self, da, train_ttrees, gold_ttree_no):
         """Generate some rival candidates for a DA and the correct (gold) t-tree,

@@ -23,8 +23,8 @@ config = {
                        'rep-nodes-per-rep-dai: rep_nodes_per_rep_dai tree',
                        'rep-nodes: rep_nodes tree',
                        ],
-          'rival_number': 10,
+          'rival_number': 1,
           'rival_gen_strategy': ['gen_cur_weights'],  # ['other_inst', 'random'],
-          'rival_gen_max_iter': 50,
-#          'rival_gen_max_defic_iter': 3,
+          'rival_gen_max_iter': 10,
+          'rival_gen_max_defic_iter': 2,
           }
