@@ -1,15 +1,19 @@
+#
+# TODO this is a bit outdated, should include train-test split (last 42 DAs used as test
+#
+
 
 TREEX_DIR=/home/odusek/treex
 
 
-data-text.yaml.gz: data-text.treex.gz
+all-text.yaml.gz: data-text.treex.gz
 	treex Read::Treex from=$< Write::YAML to=$@
 
-data-text.treex.gz: data-text.txt
+all-text.treex.gz: data-text.txt
 	treex Read::Sentences from=$< $(TREEX_DIR)/devel/en2en/scenarios/en_analysis.scen Write::Treex to=$@
 
-data-text.txt: ACL10-inform-training.txt convert.pl
+all-text.txt: ACL10-inform-training.txt convert.pl
 	./convert.pl $< data-{das,text}.txt
 
-data-das.txt: ACL10-inform-training.txt convert.pl
+all-das.txt: ACL10-inform-training.txt convert.pl
 	./convert.pl $< data-{das,text}.txt
