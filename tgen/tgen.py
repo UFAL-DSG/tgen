@@ -24,7 +24,7 @@ sample_gen -- generate using the given candidate generator and ranker
     - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 
 asearch_gen -- generate using the A*search sentence planner
-    - arguments: [-e oracle-eval-ttrees] [-d debug-output] [-w output-ttrees] candgen-model percrank-model test-das
+    - arguments: [-e oracle-eval-ttrees] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
 """
 
 from __future__ import unicode_literals
@@ -192,6 +192,7 @@ def asearch_gen(args):
     eval_file = None
     debug_out = None
     fname_ttrees_out = None
+    cfg_file = None
 
     for opt, arg in opts:
         if opt == '-e':
@@ -200,6 +201,8 @@ def asearch_gen(args):
             debug_out = file_stream(arg, mode='w')
         elif opt == '-w':
             fname_ttrees_out = arg
+        elif opt == '-c':
+            cfg_file = arg
 
     if len(files) != 3:
         sys.exit('Invalid arguments.\n' + __doc__)
@@ -209,7 +212,9 @@ def asearch_gen(args):
     candgen = RandomCandidateGenerator({})
     candgen.load_model(fname_cand_model)
     ranker = PerceptronRanker.load_from_file(fname_rank_model)
-    tgen = ASearchPlanner({'candgen': candgen, 'debug_out': debug_out, 'ranker': ranker})
+    cfg = Config(cfg_file) if cfg_file else {}
+    cfg.update({'candgen': candgen, 'debug_out': debug_out, 'ranker': ranker})
+    tgen = ASearchPlanner(cfg)
 
     log_info('Generating...')
     gen_doc = None

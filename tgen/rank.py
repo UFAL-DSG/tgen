@@ -141,43 +141,33 @@ class LogisticRegressionRanker(Ranker):
 class PerceptronRanker(Ranker):
 
     def __init__(self, cfg):
+        if not cfg:
+            cfg = {}
         self.w = None
         self.feats = ['bias: bias']
         self.vectorizer = None
-        self.alpha = 1
-        self.passes = 5
-        self.rival_number = 10
-        self.language = 'en'
-        self.selector = ''
-        self.debug_out = None
+        self.alpha = cfg.get('alpha', 1)
+        self.passes = cfg.get('passes', 5)
+        self.rival_number = cfg.get('rival_number', 10)
+        self.language = cfg.get('language', 'en')
+        self.selector = cfg.get('selector', '')
+        self.debug_out = cfg.get('debug_out')
         self.asearch_planner = None
         self.sampling_planner = None
         self.candgen = None
-        self.rival_gen_strategy = ['other_inst']
-        if cfg:
-            if 'language' in cfg:
-                self.language = cfg['language']
-            if 'selector' in cfg:
-                self.selector = cfg['selector']
-            if 'features' in cfg:
-                self.feats.extend(cfg['features'])
-            if 'alpha' in cfg:
-                self.alpha = cfg['alpha']
-            if 'passes' in cfg:
-                self.passes = cfg['passes']
-            if 'rival_number' in cfg:
-                self.rival_number = cfg['rival_number']
-            if 'debug_out' in cfg:
-                self.debug_out = cfg['debug_out']
-            if 'candgen_model' in cfg:
-                self.candgen = RandomCandidateGenerator({})
-                self.candgen.load_model(cfg['candgen_model'])
-                self.sampling_planner = SamplingPlanner({'langugage': self.language,
-                                                         'selector': self.selector,
-                                                         'candgen': self.candgen})
-            if 'rival_gen_strategy' in cfg:
-                self.rival_gen_strategy = cfg['rival_gen_strategy']
+        self.rival_gen_strategy = cfg.get('rival_gen_strategy', ['other_inst'])
+        self.rival_gen_max_iter = cfg.get('rival_gen_max_iter', 50)
+        self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
+        # initialize random candidate generator if needed
+        if 'candgen_model' in cfg:
+            self.candgen = RandomCandidateGenerator({})
+            self.candgen.load_model(cfg['candgen_model'])
+            self.sampling_planner = SamplingPlanner({'langugage': self.language,
+                                                     'selector': self.selector,
+                                                     'candgen': self.candgen})
         # initialize feature functions
+        if 'features' in cfg:
+            self.feats.extend(cfg['features'])
         self.feats = Features(self.feats)
         # initialize planner if needed
         if 'gen_cur_weights' in self.rival_gen_strategy:
@@ -251,12 +241,7 @@ class PerceptronRanker(Ranker):
                 print >> self.debug_out, self._feat_val_str(self.w), '\n***'
                 print >> self.debug_out, 'ITER ACCURACY: %.3f' % iter_acc
 
-            log_info('Iteration %05d -- accuracy: %.3f' % (iter_no, iter_acc))
-
-            # finish if we have no errors (weights are not updated anymore)
-            # TODO: this might not be true if random candidate generation strategy is used
-            if iter_errs == 0:
-                break
+            log_info('Iteration %05d -- tree-level accuracy: %.3f' % (iter_no, iter_acc))
 
     def _feat_val_str(self, vec, sep='\n'):
         return sep.join(['%s: %.3f' % (name, weight)
@@ -307,10 +292,15 @@ class PerceptronRanker(Ranker):
 
         # candidates generated using the A*search planner, which uses this ranker with current
         # weights to guide the search, and the current DA as the input
+        # TODO: use just one!, others are meaningless
         if 'gen_cur_weights' in self.rival_gen_strategy:
-            gen_ttrees = [t for t in self.asearch_planner.get_best_candidates(da, self.rival_number + 1, 50)
+            gen_ttrees = [t for t in self.asearch_planner.get_best_candidates(da, self.rival_number + 1,
+                                                                              self.rival_gen_max_iter,
+                                                                              self.rival_gen_max_defic_iter)
                           if t != train_ttrees[gold_ttree_no]]
             rival_ttrees.extend(gen_ttrees[:self.rival_number])
+            import ipdb
+            ipdb.set_trace()
             rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
                                 for ttree in gen_ttrees[:self.rival_number]])
 

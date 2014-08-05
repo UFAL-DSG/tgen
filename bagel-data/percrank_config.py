@@ -9,8 +9,7 @@ from sklearn.linear_model.logistic import LogisticRegression
 
 config = {
           'alpha': 0.1,
-          'passes': 100,
-          'rival_number': 10,
+          'passes': 10,
           'features': [
 #                        'lemma-count: value tree t_lemma',
 #                        'formeme-count: value tree formeme',
@@ -24,5 +23,8 @@ config = {
                        'rep-nodes-per-rep-dai: rep_nodes_per_rep_dai tree',
                        'rep-nodes: rep_nodes tree',
                        ],
+          'rival_number': 10,
           'rival_gen_strategy': ['gen_cur_weights'],  # ['other_inst', 'random'],
+          'rival_gen_max_iter': 50,
+#          'rival_gen_max_defic_iter': 3,
           }

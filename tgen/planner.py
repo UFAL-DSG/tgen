@@ -58,9 +58,14 @@ class CandidateList(DictMixin):
         return self.members.keys()
 
     def pop(self):
+        """Return the first item on the heap and remove it."""
         value, key = heapq.heappop(self.queue)
         del self.members[key]
         return key, value
+
+    def peek(self):
+        """Return the first item on the heap, but do not remove it."""
+        return self.queue[0]
 
     def push(self, key, value):
         self[key] = value  # calling __setitem__; it will test for membership
@@ -162,7 +167,7 @@ class SamplingPlanner(SentencePlanner):
 class ASearchPlanner(SentencePlanner):
     """Sentence planner using A*-search."""
 
-    MAX_ITER = 11000
+    MAX_ITER = 10000
 
     def __init__(self, cfg):
         super(ASearchPlanner, self).__init__(cfg)
@@ -170,16 +175,20 @@ class ASearchPlanner(SentencePlanner):
         if 'debug_out' in cfg:
             self.debug_out = cfg['debug_out']
         self.ranker = cfg['ranker']
+        self.max_iter = cfg.get('max_iter', self.MAX_ITER)
+        self.max_defic_iter = cfg.get('max_defic_iter')
 
     def generate_tree(self, da, gen_doc=None, gold_ttree=None):
         # generate and use only 1-best
-        best_ttree = self.get_best_candidates(da, 1, self.MAX_ITER, gold_ttree)[0]
+        best_ttree = self.get_best_candidates(da, 1,
+                                              self.max_iter, self.max_defic_iter,
+                                              gold_ttree)[0]
         # return the result
         zone, gen_doc = self.get_target_zone(gen_doc)
         zone.ttree = best_ttree
         return gen_doc
 
-    def get_best_candidates(self, da, ncands, max_iter=None, gold_ttree=None):
+    def get_best_candidates(self, da, ncands, max_iter=None, max_defic_iter=None, gold_ttree=None):
         """Run the A*-search generation and after it finishes, return N best candidates
         on the close list.
 
@@ -191,13 +200,17 @@ class ASearchPlanner(SentencePlanner):
         @return: a list of the best candidates in the close list, sorted by score
         """
         # TODO add future cost ?
+
         # initialization
         open_list, close_list = CandidateList({T(data={'ord': 0}): 0.0}), CandidateList()
         num_iter = 0
-        max_iter = self.MAX_ITER if max_iter is None else max_iter
+        max_iter = self.max_iter
+        defic_iter = 0
         cdfs = self.candgen.get_merged_cdfs(da)
+
         # main search loop
-        while open_list and num_iter < max_iter:
+        while open_list and num_iter < max_iter and (max_defic_iter is None
+                                                     or defic_iter <= max_defic_iter):
             cand, score = open_list.pop()
             if gold_ttree and cand == gold_ttree and self.debug_out:
                 print >> self.debug_out, "IT %05d: CANDIDATE MATCHES GOLD" % num_iter
@@ -211,8 +224,21 @@ class ASearchPlanner(SentencePlanner):
             open_list.pushall({s: self.ranker.score(s, da) * -1
                                for s in successors if not s in close_list})
             num_iter += 1
-        if num_iter == max_iter and self.debug_out:
-            print >> self.debug_out, "ITERATION_LIMIT_REACHED"
+            # check where the score is higher -- on the open or on the close list
+            # keep track of 'deficit' iterations (and do not allow more than the threshold)
+            if open_list and close_list:
+                open_best_score, close_best_score = open_list.peek()[0], close_list.peek()[0]
+                if open_best_score <= close_best_score:  # scores are negative, less is better
+                    defic_iter = 0
+                else:
+                    defic_iter += 1
+
+        if self.debug_out:
+            if num_iter == max_iter:
+                print >> self.debug_out, 'ITERATION LIMIT REACHED'
+            elif defic_iter == max_defic_iter:
+                print >> self.debug_out, 'DEFICIT ITERATION LIMIT REACHED'
+
         # return the N best candidates on the close list
         result = []
         while close_list and len(result) < ncands:
