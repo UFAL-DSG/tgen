@@ -42,7 +42,10 @@ def depth(cur_node, context, scope_func, incremental=False):
     @rtype: dict
     @return: dictionary with one key ('') and the target number as a value
     """
-    return {'': max(node.get_depth() for node in scope_func(cur_node, incremental=incremental))}
+    nodes = scope_func(cur_node, incremental=incremental)
+    if nodes:
+        return {'': max(node.get_depth() for node in nodes)}
+    return {'': 0}
 
 
 def max_children(cur_node, context, scope_func, incremental=False):
@@ -51,8 +54,10 @@ def max_children(cur_node, context, scope_func, incremental=False):
     @rtype: dict
     @return: dictionary with one key ('') and the target number as a value
     """
-    return {'': max(len(node.get_children())
-                    for node in scope_func(cur_node, incremental=incremental))}
+    nodes = scope_func(cur_node, incremental=incremental)
+    if nodes:
+        return {'': max(len(node.get_children()) for node in nodes)}
+    return {'': 0}
 
 
 def nodes_per_dai(cur_node, context, scope_func, incremental=False):

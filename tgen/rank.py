@@ -299,8 +299,6 @@ class PerceptronRanker(Ranker):
                                                                               self.rival_gen_max_defic_iter)
                           if t != train_ttrees[gold_ttree_no]]
             rival_ttrees.extend(gen_ttrees[:self.rival_number])
-            import ipdb
-            ipdb.set_trace()
             rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
                                 for ttree in gen_ttrees[:self.rival_number]])
 
