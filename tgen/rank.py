@@ -157,6 +157,7 @@ class PerceptronRanker(Ranker):
         self.rival_gen_strategy = cfg.get('rival_gen_strategy', ['other_inst'])
         self.rival_gen_max_iter = cfg.get('rival_gen_max_iter', 50)
         self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
+        self.rival_gen_beam_size = cfg.get('rival_gen_beam_size', 100)
         # initialize random candidate generator if needed
         if 'candgen_model' in cfg:
             self.candgen = RandomCandidateGenerator({})
@@ -224,8 +225,8 @@ class PerceptronRanker(Ranker):
                 log_debug('ALL CAND TTREES:')
                 for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
                     log_debug("%.3f" % score, "\t", ttree)
-                log_debug('GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t'))
-                log_debug('SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t'))
+                # log_debug('GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t'))
+                # log_debug('SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t'))
 
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
@@ -286,7 +287,8 @@ class PerceptronRanker(Ranker):
         if 'gen_cur_weights' in self.rival_gen_strategy:
             gen_ttrees = [t for t in self.asearch_planner.get_best_candidates(da, self.rival_number + 1,
                                                                               self.rival_gen_max_iter,
-                                                                              self.rival_gen_max_defic_iter)
+                                                                              self.rival_gen_max_defic_iter,
+                                                                              self.rival_gen_beam_size)
                           if t != train_ttrees[gold_ttree_no]]
             rival_ttrees.extend(gen_ttrees[:self.rival_number])
             rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))

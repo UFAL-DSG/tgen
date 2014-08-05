@@ -23,8 +23,7 @@ class CandidateList(DictMixin):
         self.queue = []
         self.members = {}
         if members:
-            for key, value in members.iteritems():
-                self.push(key, value)
+            self.pushall(members)
         pass
 
     def __nonzero__(self):
@@ -66,14 +65,35 @@ class CandidateList(DictMixin):
 
     def peek(self):
         """Return the first item on the heap, but do not remove it."""
-        return self.queue[0]
+        value, key = self.queue[0]
+        return key, value
 
     def push(self, key, value):
+        """Push one key-value pair to the heap."""
         self[key] = value  # calling __setitem__; it will test for membership
 
     def pushall(self, members):
-        for key, value in members.iteritems():
+        """Push all members of the given structure to the heap
+        (a list of pairs key-value or a dictionary are accepted)."""
+        if isinstance(members, dict):
+            members = members.iteritems()
+        for key, value in members:
             self[key] = value
+
+    def prune(self, size):
+        """Trim the list to the given size, return the rest."""
+        if len(self.queue) <= size:  # don't do anything if we're small enough already
+            return {}
+        pruned_queue = []
+        pruned_members = {}
+        for _ in xrange(size):
+            key, val = self.pop()
+            pruned_queue.append((val, key))
+            pruned_members[key] = val
+        remain_members = self.members
+        self.members = pruned_members
+        self.queue = pruned_queue
+        return remain_members
 
     def __fix_queue(self, index):
         """Fixing a heap after change in one element (swapping elements until heap
@@ -189,7 +209,9 @@ class ASearchPlanner(SentencePlanner):
         zone.ttree = best_ttree
         return gen_doc
 
-    def get_best_candidates(self, da, ncands, max_iter=None, max_defic_iter=None, gold_ttree=None):
+    def get_best_candidates(self, da, ncands,
+                            max_iter=None, max_defic_iter=None, beam_size=None,
+                            gold_ttree=None):
         """Run the A*-search generation and after it finishes, return N best candidates
         on the close list.
 
@@ -223,11 +245,15 @@ class ASearchPlanner(SentencePlanner):
             # add candidates with score
             open_list.pushall({s: self.ranker.score(s, da) * -1
                                for s in successors if not s in close_list})
+            # pruning (if supposed to do it)
+            if beam_size is not None:
+                pruned = open_list.prune(beam_size)
+                close_list.pushall(pruned)
             num_iter += 1
             # check where the score is higher -- on the open or on the close list
             # keep track of 'deficit' iterations (and do not allow more than the threshold)
             if open_list and close_list:
-                open_best_score, close_best_score = open_list.peek()[0], close_list.peek()[0]
+                open_best_score, close_best_score = open_list.peek()[1], close_list.peek()[1]
                 if open_best_score <= close_best_score:  # scores are negative, less is better
                     defic_iter = 0
                 else:
