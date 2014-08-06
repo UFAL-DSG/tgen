@@ -7,6 +7,7 @@ Candidate tree rankers.
 """
 from __future__ import unicode_literals
 from sklearn.feature_extraction.dict_vectorizer import DictVectorizer
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import cPickle as pickle
 import operator
@@ -146,6 +147,7 @@ class PerceptronRanker(Ranker):
         self.w = None
         self.feats = ['bias: bias']
         self.vectorizer = None
+        self.normalizer = None
         self.alpha = cfg.get('alpha', 1)
         self.passes = cfg.get('passes', 5)
         self.rival_number = cfg.get('rival_number', 10)
@@ -178,29 +180,46 @@ class PerceptronRanker(Ranker):
                                                    'ranker': self, })
 
     def score(self, cand_ttree, da):
-        feats = self.vectorizer.transform(self.feats.get_features(cand_ttree, {'da': da}))
-        return self._score(feats)
+        return self._score(self._extract_feats(cand_ttree, da))
 
     def _score(self, cand_feats):
-        return np.dot(self.w, cand_feats.toarray()[0])
+        return np.dot(self.w, cand_feats)
+
+    def _extract_feats(self, ttree, da):
+        return self.normalizer.transform(
+                        self.vectorizer.transform(
+                                self.feats.get_features(ttree, {'da': da})))[0]
 
     def train(self, das_file, ttree_file):
         # read input
+        log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
+        log_info('Reading t-trees from ' + ttree_file + '...')
         ttrees = ttrees_from_doc(read_ttrees(ttree_file), self.language, self.selector)
+        log_info('Training ...')
         # compute features for trees
         X = []
         for da, ttree in zip(das, ttrees):
             X.append(self.feats.get_features(ttree, {'da': da}))
-        # vectorize
-        self.vectorizer = DictVectorizer()
-        X = self.vectorizer.fit_transform(X)
+        # vectorize and normalize (+train normalizer and vectorizer)
+        self.vectorizer = DictVectorizer(sparse=False)
+        self.normalizer = StandardScaler(copy=False)
+        X = self.normalizer.fit_transform(self.vectorizer.fit_transform(X))
+
+        for ttree_no, da in enumerate(das):
+            ttree, feats = ttrees[ttree_no], X[ttree_no]
+            log_debug('------\nDATA %d:' % ttree_no)
+            log_debug('DA: %s' % unicode(da))
+            log_debug('SENT: %s' % ttree.zone.sentence)
+            log_debug('TTREE: %s' % unicode(ttree))
+            log_debug('FEATS:', self._feat_val_str(feats, '\t', nonzero=True))
+
         # initialize weights
-        self.w = np.zeros(X.get_shape()[1])  # number of columns
+        self.w = np.zeros(X.shape[1])  # number of columns
 
         # 1st pass over training data -- just add weights
         for inst in X:
-            self.w += self.alpha * inst.toarray()[0]
+            self.w += self.alpha * inst
 
         log_debug('\n***\nTR %05d:' % 0)
         log_debug(self._feat_val_str(self.w))
@@ -225,13 +244,13 @@ class PerceptronRanker(Ranker):
                 log_debug('ALL CAND TTREES:')
                 for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
                     log_debug("%.3f" % score, "\t", ttree)
-                # log_debug('GOLD CAND -- ', self._feat_val_str(cands[0].toarray()[0], '\t'))
-                # log_debug('SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx].toarray()[0], '\t'))
+                # log_debug('GOLD CAND -- ', self._feat_val_str(cands[0], '\t'))
+                # log_debug('SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx], '\t'))
 
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
-                    self.w += (self.alpha * X[ttree_no].toarray()[0] -
-                               self.alpha * cands[top_cand_idx].toarray()[0])
+                    self.w += (self.alpha * X[ttree_no] -
+                               self.alpha * cands[top_cand_idx])
                     iter_errs += 1
 
             iter_acc = (1.0 - (iter_errs / float(len(ttrees))))
@@ -240,9 +259,10 @@ class PerceptronRanker(Ranker):
 
             log_info('Iteration %05d -- tree-level accuracy: %.3f' % (iter_no, iter_acc))
 
-    def _feat_val_str(self, vec, sep='\n'):
+    def _feat_val_str(self, vec, sep='\n', nonzero=False):
         return sep.join(['%s: %.3f' % (name, weight)
-                         for name, weight in zip(self.vectorizer.get_feature_names(), vec)])
+                         for name, weight in zip(self.vectorizer.get_feature_names(), vec)
+                         if not nonzero or weight != 0])
 
     def _get_rival_candidates(self, da, train_ttrees, gold_ttree_no):
         """Generate some rival candidates for a DA and the correct (gold) t-tree,
@@ -265,8 +285,7 @@ class PerceptronRanker(Ranker):
                              np.random.choice(len(train_ttrees) - 1, self.rival_number))
             other_inst_ttrees = [train_ttrees[rival_idx] for rival_idx in rival_idxs]
             rival_ttrees.extend(other_inst_ttrees)
-            rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
-                                for ttree in other_inst_ttrees])
+            rival_feats.extend([self._extract_feats(ttree, da) for ttree in other_inst_ttrees])
 
         # candidates generated using the random planner (use the current DA)
         if 'random' in self.rival_gen_strategy:
@@ -278,8 +297,7 @@ class PerceptronRanker(Ranker):
                     del gen_doc.bundles[-1]
             random_ttrees = ttrees_from_doc(gen_doc, self.language, self.selector)
             rival_ttrees.extend(random_ttrees)
-            rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
-                                for ttree in random_ttrees])
+            rival_feats.extend([self._extract_feats(ttree, da) for ttree in random_ttrees])
 
         # candidates generated using the A*search planner, which uses this ranker with current
         # weights to guide the search, and the current DA as the input
@@ -291,7 +309,7 @@ class PerceptronRanker(Ranker):
                                                                               self.rival_gen_beam_size)
                           if t != train_ttrees[gold_ttree_no]]
             rival_ttrees.extend(gen_ttrees[:self.rival_number])
-            rival_feats.extend([self.vectorizer.transform(self.feats.get_features(ttree, {'da': da}))
+            rival_feats.extend([self._extract_feats(ttree, da)
                                 for ttree in gen_ttrees[:self.rival_number]])
 
         # return all resulting candidates

@@ -28,14 +28,18 @@ def read_ttrees(ttree_file):
     """Read t-trees from a YAML/Pickle file."""
     if 'pickle' in ttree_file:
         # if pickled, read just the pickle
-        ttrees = pickle.load(file_stream(ttree_file, mode='rb', encoding=None))
+        fh = file_stream(ttree_file, mode='rb', encoding=None)
+        unpickler = pickle.Unpickler(fh)
+        ttrees = unpickler.load()
+        fh.close()
     else:
         # if not pickled, read YAML and save a pickle nearby
         yaml_reader = YAMLReader(scenario=None, args={})
         ttrees = yaml_reader.process_document(ttree_file)
         pickle_file = ttree_file.replace('yaml', 'pickle')
         fh = file_stream(pickle_file, mode='wb', encoding=None)
-        pickle.dump(ttrees, fh, pickle.HIGHEST_PROTOCOL)
+        pickle.Pickler(fh, pickle.HIGHEST_PROTOCOL).dump(ttrees)
+        fh.close()
     return ttrees
 
 
