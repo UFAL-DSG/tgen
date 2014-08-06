@@ -27,5 +27,5 @@ config = {
           'rival_gen_strategy': ['gen_cur_weights'],  # ['other_inst', 'random'],
           'rival_gen_max_iter': 12,
           'rival_gen_max_defic_iter': 2,
-          'rival_gen_beam_size': 20,
+          # 'rival_gen_beam_size': 20, # actually slows it down
           }

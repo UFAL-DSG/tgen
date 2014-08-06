@@ -157,7 +157,7 @@ class PerceptronRanker(Ranker):
         self.rival_gen_strategy = cfg.get('rival_gen_strategy', ['other_inst'])
         self.rival_gen_max_iter = cfg.get('rival_gen_max_iter', 50)
         self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
-        self.rival_gen_beam_size = cfg.get('rival_gen_beam_size', 100)
+        self.rival_gen_beam_size = cfg.get('rival_gen_beam_size')
         # initialize random candidate generator if needed
         if 'candgen_model' in cfg:
             self.candgen = RandomCandidateGenerator({})
