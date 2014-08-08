@@ -2,16 +2,18 @@
 # coding=utf-8
 
 """
-Feature functions for the ranker (must be top-level functions as they are pickled with the model).
+Feature functions for the ranker (must be top-level functions as they are pickled with the model),
+as well as an object that handles them.
+
+@todo: Vectorization and normalization should be handled here.
+@todo: Allow conjunctions & other operations with features.
 """
 
 from collections import defaultdict
 import re
 from functools import partial
+from tree import TreeNode, TreeData
 
-
-# TODO allow multiple attributes (as conjunction)
-# TODO tree to DA size ratio
 
 def find_nodes(node, scope, incremental=False):
     """Given a parent node and scope specifications (in a list), this returns the
@@ -247,6 +249,8 @@ class Features(object):
         @param node: The current node w.r.t. to which the features should be computed
         @param feats: Previous feature values, for incremental computation.
         """
+        if isinstance(node, TreeData):  # this will handle T-nodes as well as simplified TreeData
+            node = TreeNode(node)
         if feats is None:
             feats = defaultdict(float)
         feats_hier = {}

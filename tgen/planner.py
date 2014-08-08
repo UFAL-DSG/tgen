@@ -11,8 +11,8 @@ from collections import deque
 from UserDict import DictMixin
 
 from alex.components.nlg.tectotpl.core.document import Document
-from alex.components.nlg.tectotpl.core.node import T
 from flect.logf import log_debug
+from tree import TreeData
 
 
 class CandidateList(DictMixin):
@@ -225,7 +225,7 @@ class ASearchPlanner(SentencePlanner):
         # TODO add future cost ?
 
         # initialization
-        open_list, close_list = CandidateList({T(data={'ord': 0}): 0.0}), CandidateList()
+        open_list, close_list = CandidateList({TreeData(): 0.0}), CandidateList()
         num_iter = 0
         defic_iter = 0
         cdfs = self.candgen.get_merged_cdfs(da)

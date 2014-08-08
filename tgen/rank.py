@@ -18,7 +18,7 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 from flect.dataset import DataSet
 
 from features import Features
-from futil import read_das, read_ttrees, ttrees_from_doc
+from futil import read_das, read_ttrees, ttrees_from_doc, sentences_from_doc
 from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
 
@@ -40,6 +40,9 @@ class Ranker(object):
 
 
 class LogisticRegressionRanker(Ranker):
+    """Local ranker for new children of a tree node.
+    @todo: this actually doesn't work now due to changes in Features.get_features, fix it.
+    """
 
     LO_PROB = 1e-4  # probability of unseen children
     TARGET_FEAT_NAME = 'sel'  # name of the target feature
@@ -140,6 +143,7 @@ class LogisticRegressionRanker(Ranker):
 
 
 class PerceptronRanker(Ranker):
+    """Global ranker for whole trees, based on linear Perceptron by Collins & Duffy (2002)."""
 
     def __init__(self, cfg):
         if not cfg:
@@ -195,7 +199,9 @@ class PerceptronRanker(Ranker):
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
         log_info('Reading t-trees from ' + ttree_file + '...')
-        ttrees = ttrees_from_doc(read_ttrees(ttree_file), self.language, self.selector)
+        ttree_doc = read_ttrees(ttree_file)
+        sentences = sentences_from_doc(ttree_doc, self.language, self.selector)
+        ttrees = ttrees_from_doc(ttree_doc, self.language, self.selector)
         log_info('Training ...')
         # compute features for trees
         X = []
@@ -210,7 +216,7 @@ class PerceptronRanker(Ranker):
             ttree, feats = ttrees[ttree_no], X[ttree_no]
             log_debug('------\nDATA %d:' % ttree_no)
             log_debug('DA: %s' % unicode(da))
-            log_debug('SENT: %s' % ttree.zone.sentence)
+            log_debug('SENT: %s' % sentences[ttree_no])
             log_debug('TTREE: %s' % unicode(ttree))
             log_debug('FEATS:', self._feat_val_str(feats, '\t', nonzero=True))
 

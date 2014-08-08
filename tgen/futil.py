@@ -11,6 +11,7 @@ import cPickle as pickle
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.slu.da import DialogueAct
 from alex.components.nlg.tectotpl.block.read.yaml import YAML as YAMLReader
+from tree import TreeData
 
 
 def read_das(da_file):
@@ -44,12 +45,17 @@ def read_ttrees(ttree_file):
 
 
 def chunk_list(l, n):
-    """ Yield successive n-sized chunks from l.
-    """
+    """ Yield successive n-sized chunks from l."""
     for i in xrange(0, len(l), n):
         yield l[i:i + n]
 
 
 def ttrees_from_doc(ttree_doc, language, selector):
-    return map(lambda bundle: bundle.get_zone(language, selector).ttree,
+    """Given a Treex document full of t-trees, return TreeData objects for each of them."""
+    return map(lambda bundle: TreeData(ttree=bundle.get_zone(language, selector).ttree),
+               ttree_doc.bundles)
+
+
+def sentences_from_doc(ttree_doc, language, selector):
+    return map(lambda bundle: bundle.get_zone(language, selector).sentence,
                ttree_doc.bundles)

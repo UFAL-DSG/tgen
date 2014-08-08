@@ -9,7 +9,7 @@ from sklearn.linear_model.logistic import LogisticRegression
 
 config = {
           'alpha': 0.1,
-          'passes': 10,
+          'passes': 50,
           'features': [
 #                        'lemma-count: value tree t_lemma',
 #                        'formeme-count: value tree formeme',

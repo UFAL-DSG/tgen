@@ -15,6 +15,7 @@ from flect.logf import log_info
 from alex.components.nlg.tectotpl.core.util import file_stream
 
 from futil import read_das, read_ttrees
+from tree import TreeNode, NodeData
 
 
 class RandomCandidateGenerator(object):
@@ -126,25 +127,21 @@ class RandomCandidateGenerator(object):
     def get_best_child(self, parent, da, cdf):
         return self.sample(cdf)
 
-    def get_all_successors(self, cand, cdfs):
+    def get_all_successors(self, cand_tree, cdfs):
         """Get all possible successors of a candidate tree."""
         # always try adding one node to all possible places
-        tnodes = cand.get_descendants(add_self=1, ordered=1)
+        # TODO possibly avoid creating TreeNode instances for iterating
+        nodes = TreeNode(cand_tree).get_descendants(add_self=1, ordered=1)
         res = []
-        for node_num, tnode in enumerate(tnodes):
+        for node_num, node in enumerate(nodes):
             # skip nodes that can't have more children
-            if (len(tnode.get_children()) >= self.max_children.get(tnode.formeme, 0) or
-                    tnode.formeme not in cdfs):
+            if (len(node.get_children()) >= self.max_children.get(node.formeme, 0) or
+                    node.formeme not in cdfs):
                 continue
             # try all formeme/t-lemma/direction variants of the children at the given spot
-            for formeme, t_lemma, right in map(lambda item: item[0], cdfs[tnode.formeme]):
-                succ = copy.deepcopy(cand)
-                attach_node = succ.get_descendants(add_self=1, ordered=1)[node_num]
-                new_node = attach_node.create_child(data={'t_lemma': t_lemma, 'formeme': formeme})
-                if right:
-                    new_node.shift_after_node(attach_node)
-                else:
-                    new_node.shift_before_node(attach_node)
-                res.append(succ)
+            for formeme, t_lemma, right in map(lambda item: item[0], cdfs[node.formeme]):
+                succ_tree = cand_tree.clone()
+                succ_tree.create_child(node_num, right, NodeData(t_lemma, formeme))
+                res.append(succ_tree)
         # return all successors
         return res
