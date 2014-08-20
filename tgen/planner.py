@@ -17,7 +17,9 @@ from tree import TreeData
 
 class CandidateList(DictMixin):
     """List of candidate trees that can be quickly checked for membership and
-    is sorted according to scores."""
+    can yield the best-scoring candidate quickly.
+
+    The implementation involves a dictionary and a heap."""
 
     def __init__(self, members=None):
         self.queue = []
@@ -40,7 +42,7 @@ class CandidateList(DictMixin):
         if key in self:
             if value == self[key]:
                 return
-            queue_index = (i for i, v in enumerate(self.queue) if i[1] == key).next()
+            queue_index = (i for i, v in enumerate(self.queue) if v[1] == key).next()
             self.queue[queue_index] = (value, key)
             self.__fix_queue(queue_index)
         else:
@@ -49,7 +51,7 @@ class CandidateList(DictMixin):
 
     def __delitem__(self, key):
         del self.members[key]  # this will raise an exception if the key is not there
-        queue_index = (i for i, v in enumerate(self.queue) if i[1] == key).next()
+        queue_index = (i for i, v in enumerate(self.queue) if v[1] == key).next()
         self.queue[queue_index] = self.queue[-1]
         del self.queue[-1]
         self.__fix_queue(queue_index)
@@ -107,7 +109,7 @@ class CandidateList(DictMixin):
             if self.queue[index][0] > self.queue[up][0]:
                 self.queue[index], self.queue[up] = self.queue[up], self.queue[index]
                 self.__fix_queue(up)
-            elif self.queue[index][0] > self.queue[up + 1][0]:
+            elif up + 1 < len(self.queue) and self.queue[index][0] > self.queue[up + 1][0]:
                 self.queue[index], self.queue[up + 1] = self.queue[up + 1], self.queue[index]
                 self.__fix_queue(up + 1)
 

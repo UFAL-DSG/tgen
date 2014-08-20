@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Random generator, according to training data distribution.
+Generating candidate subtrees to enhance the current candidate tree.
 """
 
 from __future__ import unicode_literals
@@ -19,6 +19,8 @@ from tree import TreeNode, NodeData
 
 
 class RandomCandidateGenerator(object):
+    """Random candidate generation according to a parent-child distribution.
+    Can also generate all possible successors of a tree -- see get_all_successors()."""
 
     def __init__(self, cfg):
         self.form_counts = None

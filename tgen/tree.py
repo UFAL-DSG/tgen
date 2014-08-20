@@ -75,6 +75,9 @@ class TreeData(object):
     def __str__(self):
         return unicode(self).encode('UTF-8', 'replace')
 
+    def __repr__(self):
+        return str(self)
+
     def __len__(self):
         return len(self.nodes)
 
@@ -112,7 +115,7 @@ class TreeNode(object):
 
     @property
     def parent(self):
-        return TreeNode(self.tree, self.tree.parents[self.tree.node_idx])
+        return TreeNode(self.tree, self.tree.parents[self.node_idx])
 
     @property
     def root(self):
