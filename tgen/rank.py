@@ -281,40 +281,38 @@ class PerceptronRanker(Ranker):
                          for name, weight in zip(self.vectorizer.get_feature_names(), vec)
                          if not nonzero or weight != 0])
 
-    def _get_rival_candidates(self, da, train_ttrees, gold_ttree_no):
+    def _get_rival_candidates(self, da, train_trees, gold_tree_idx):
         """Generate some rival candidates for a DA and the correct (gold) t-tree,
         given the current rival generation strategy (self.rival_gen_strategy).
 
         TODO: checking for trees identical to the gold one slows down the process
 
         @param da: the current input dialogue act
-        @param train_ttrees: training t-trees
-        @param gold_ttree_no: the index of the gold t-tree in train_ttrees
+        @param train_trees: training data trees
+        @param gold_tree_idx: the index of the gold tree in train_trees
         @rtype: tuple
         @return: an array of rival t-trees and an array of the corresponding features
         """
-        rival_ttrees, rival_feats = [], []
+        rival_trees, rival_feats = [], []
 
         # use current DA but change trees when computing features
         if 'other_inst' in self.rival_gen_strategy:
             # use alternative indexes, avoid the correct one
-            rival_idxs = map(lambda idx: len(train_ttrees) - 1 if idx == gold_ttree_no else idx,
-                             random.sample(xrange(len(train_ttrees) - 1), self.rival_number))
-            other_inst_ttrees = [train_ttrees[rival_idx] for rival_idx in rival_idxs]
-            rival_ttrees.extend(other_inst_ttrees)
+            rival_idxs = map(lambda idx: len(train_trees) - 1 if idx == gold_tree_idx else idx,
+                             random.sample(xrange(len(train_trees) - 1), self.rival_number))
+            other_inst_ttrees = [train_trees[rival_idx] for rival_idx in rival_idxs]
+            rival_trees.extend(other_inst_ttrees)
             rival_feats.extend([self._extract_feats(ttree, da) for ttree in other_inst_ttrees])
 
         # candidates generated using the random planner (use the current DA)
         if 'random' in self.rival_gen_strategy:
-            gen_doc = None
-            while gen_doc is None or (len(gen_doc.bundles) < self.rival_number):
-                gen_doc = self.sampling_planner.generate_tree(da, gen_doc)
-                if (gen_doc.bundles[-1].get_zone(self.language, self.selector).ttree
-                    == train_ttrees[gold_ttree_no]):  # don't generate trees identical to the gold one
-                    del gen_doc.bundles[-1]
-            random_ttrees = ttrees_from_doc(gen_doc, self.language, self.selector)
-            rival_ttrees.extend(random_ttrees)
-            rival_feats.extend([self._extract_feats(ttree, da) for ttree in random_ttrees])
+            random_trees = []
+            while len(random_trees) < self.rival_number:
+                tree = self.sampling_planner.generate_tree(da)
+                if (tree != train_trees[gold_tree_idx]):  # don't generate trees identical to the gold one
+                    random_trees.append(tree)
+            rival_trees.extend(random_trees)
+            rival_feats.extend([self._extract_feats(ttree, da) for ttree in random_trees])
 
         # candidates generated using the A*search planner, which uses this ranker with current
         # weights to guide the search, and the current DA as the input
@@ -324,10 +322,10 @@ class PerceptronRanker(Ranker):
                                                                               self.rival_gen_max_iter,
                                                                               self.rival_gen_max_defic_iter,
                                                                               self.rival_gen_beam_size)
-                          if t != train_ttrees[gold_ttree_no]]
-            rival_ttrees.extend(gen_ttrees[:self.rival_number])
+                          if t != train_trees[gold_tree_idx]]
+            rival_trees.extend(gen_ttrees[:self.rival_number])
             rival_feats.extend([self._extract_feats(ttree, da)
                                 for ttree in gen_ttrees[:self.rival_number]])
 
         # return all resulting candidates
-        return rival_ttrees, rival_feats
+        return rival_trees, rival_feats

@@ -10,9 +10,8 @@ import heapq
 from collections import deque
 from UserDict import DictMixin
 
-from alex.components.nlg.tectotpl.core.document import Document
 from flect.logf import log_debug
-from tree import TreeData
+from tree import TreeData, TreeNode, NodeData
 
 
 class CandidateList(DictMixin):
@@ -126,18 +125,21 @@ class SentencePlanner(object):
 
     def generate_tree(self, da, gen_doc=None):
         """Generate a tree given input DA.
-        @param gen_doc: if this is None, return the tree in a new Document object, otherwise append
+
+        @param gen_doc: if this is None, return the tree as a TreeData object, otherwise append \
+            to a t-tree document
         """
         raise NotImplementedError
 
     def get_target_zone(self, gen_doc):
-        """Create a document if necessary, add a new bundle and a new zone into it,
-        and return the newly created zone and the document (original or new)."""
-        if gen_doc is None:
-            gen_doc = Document()
+        """Add a new bundle to the given document and a new zone into it,
+        return the result.
+
+        @rtype: Zone
+        """
         bundle = gen_doc.create_bundle()
         zone = bundle.create_zone(self.language, self.selector)
-        return zone, gen_doc
+        return zone
 
 
 class SamplingPlanner(SentencePlanner):
@@ -156,8 +158,7 @@ class SamplingPlanner(SentencePlanner):
             self.ranker = cfg['ranker']
 
     def generate_tree(self, da, gen_doc=None):
-        zone, gen_doc = self.get_target_zone(gen_doc)
-        root = zone.create_ttree()
+        root = TreeNode(TreeData())
         cdfs = self.candgen.get_merged_cdfs(da)
         nodes = deque([self.generate_child(root, da, cdfs[root.formeme])])
         treesize = 1
@@ -169,7 +170,11 @@ class SamplingPlanner(SentencePlanner):
                 child = self.generate_child(node, da, cdfs[node.formeme])
                 nodes.append(child)
                 treesize += 1
-        return gen_doc
+        if gen_doc:
+            zone = self.get_target_zone(gen_doc)
+            zone.ttree = root.create_ttree()
+            return
+        return root.tree
 
     def generate_child(self, parent, da, cdf):
         """Generate one t-node, given its parent and the CDF for the possible children."""
@@ -177,13 +182,7 @@ class SamplingPlanner(SentencePlanner):
             formeme, t_lemma, right = self.ranker.get_best_child(parent, da, cdf)
         else:
             formeme, t_lemma, right = self.candgen.sample(cdf)
-        child = parent.create_child()
-        child.t_lemma = t_lemma
-        child.formeme = formeme
-        if right:
-            child.shift_after_subtree(parent)
-        else:
-            child.shift_before_subtree(parent)
+        child = parent.create_child(right, NodeData(t_lemma, formeme))
         return child
 
 
@@ -203,13 +202,15 @@ class ASearchPlanner(SentencePlanner):
 
     def generate_tree(self, da, gen_doc=None, gold_ttree=None):
         # generate and use only 1-best
-        best_ttree = self.get_best_candidates(da, 1,
-                                              self.max_iter, self.max_defic_iter,
-                                              gold_ttree)[0]
-        # return the result
-        zone, gen_doc = self.get_target_zone(gen_doc)
-        zone.ttree = best_ttree
-        return gen_doc
+        best_tree = self.get_best_candidates(da, 1,
+                                            self.max_iter, self.max_defic_iter,
+                                            gold_ttree)[0]
+        # return or append the result
+        if gen_doc:
+            zone = self.get_target_zone(gen_doc)
+            zone.ttree = best_tree.create_ttree()
+            return
+        return best_tree
 
     def get_best_candidates(self, da, ncands,
                             max_iter=None, max_defic_iter=None, beam_size=None,

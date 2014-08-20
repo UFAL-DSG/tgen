@@ -42,6 +42,7 @@ from flect.config import Config
 from getopt import getopt
 from eval import tp_fp_fn, f1_from_counts, p_r_f1_from_counts
 from alex.components.nlg.tectotpl.core.util import file_stream
+from alex.components.nlg.tectotpl.core.document import Document
 
 
 def candgen_train(args):
@@ -151,11 +152,11 @@ def sample_gen(args):
     tgen = SamplingPlanner({'candgen': candgen, 'ranker': ranker})
     # generate
     log_info('Generating...')
-    gen_doc = None
+    gen_doc = Document()
     das = read_das(fname_da_test)
     for da in das:
         for _ in xrange(num_to_generate):  # repeat generation n times
-            gen_doc = tgen.generate_tree(da, gen_doc)
+            tgen.generate_tree(da, gen_doc)
 
     # evaluate if needed
     if oracle_eval_file is not None:
@@ -214,18 +215,18 @@ def asearch_gen(args):
     tgen = ASearchPlanner(cfg)
 
     log_info('Generating...')
-    gen_doc = None
+    gen_doc = Document()
     das = read_das(fname_da_test)
 
     if eval_file is None:
         # just generate
         for da in das:
-            gen_doc = tgen.generate_tree(da, gen_doc, None)
+            tgen.generate_tree(da, gen_doc, None)
     else:
         # generate and evaluate
         eval_ttrees = ttrees_from_doc(read_ttrees(eval_file), tgen.language, tgen.selector)
         for da, eval_ttree in zip(das, eval_ttrees):
-            gen_doc = tgen.generate_tree(da, gen_doc, eval_ttree)
+            tgen.generate_tree(da, gen_doc, eval_ttree)
         gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
 
         log_info('Evaluating...')

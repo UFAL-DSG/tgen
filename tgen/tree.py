@@ -7,6 +7,7 @@ Trees for generating.
 
 from __future__ import unicode_literals
 from collections import namedtuple, deque
+from alex.components.nlg.tectotpl.core.node import T
 
 
 __author__ = "Ondřej Dušek"
@@ -83,6 +84,16 @@ class TreeData(object):
 
     def clone(self):
         return TreeData(nodes=self.nodes, parents=self.parents)
+
+    def create_ttree(self):
+        """Convert the TreeData structure to a regular t-tree."""
+        tnodes = [T(data={'ord': 0})] + [T(data={'t_lemma': node.t_lemma,
+                                                 'formeme': node.formeme,
+                                                 'ord': i})
+                                         for i, node in enumerate(self.nodes[1:], start=1)]
+        for parent_idx, tnode in zip(self.parents[1:], tnodes[1:]):
+            tnode.parent = tnodes[parent_idx]
+        return tnodes[0]
 
 
 class TreeNode(object):
