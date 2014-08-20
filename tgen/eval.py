@@ -78,3 +78,38 @@ def p_r_f1_from_counts(correct, gold, predicted):
     precision = correct / float(predicted)
     recall = correct / float(gold)
     return precision, recall, (2 * precision * recall) / (precision + recall)
+
+
+class Evaluator(object):
+    """A fancy object-oriented interface to computing node F-scores.
+
+    Accumulates scores over trees using append(), then can return
+    a total score using f1(), precision(), recall(), and p_r_f1()."""
+
+    def __init__(self):
+        self.correct = 0
+        self.gold = 0
+        self.predicted = 0
+
+    def append(self, gold_tree, pred_tree):
+        correct, predicted, gold = tp_fp_fn(gold_tree, pred_tree)
+        self.correct += correct
+        self.predicted += predicted
+        self.gold += gold
+
+    def reset(self):
+        self.correct = 0
+        self.predicted = 0
+        self.gold = 0
+
+    def f1(self):
+        return self.p_r_f1()[2]
+
+    def precision(self):
+        return self.p_r_f1()[0]
+
+    def recall(self):
+        return self.p_r_f1()[1]
+
+    def p_r_f1(self):
+        return p_r_f1_from_counts(self.correct, self.gold, self.predicted)

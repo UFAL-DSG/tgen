@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 import cPickle as pickle
 import operator
+import random
 
 from flect.logf import log_info, log_debug
 from flect.model import Model
@@ -21,6 +22,8 @@ from features import Features
 from futil import read_das, read_ttrees, ttrees_from_doc, sentences_from_doc
 from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
+from eval import Evaluator
+from tree import TreeNode
 
 
 class Ranker(object):
@@ -214,16 +217,17 @@ class PerceptronRanker(Ranker):
 
         for ttree_no, da in enumerate(das):
             ttree, feats = ttrees[ttree_no], X[ttree_no]
-            log_debug('------\nDATA %d:' % ttree_no)
-            log_debug('DA: %s' % unicode(da))
-            log_debug('SENT: %s' % sentences[ttree_no])
-            log_debug('TTREE: %s' % unicode(ttree))
-            log_debug('FEATS:', self._feat_val_str(feats, '\t', nonzero=True))
+#             log_debug('------\nDATA %d:' % ttree_no)
+#             log_debug('DA: %s' % unicode(da))
+#             log_debug('SENT: %s' % sentences[ttree_no])
+#             log_debug('TTREE: %s' % unicode(ttree))
+#             log_debug('FEATS:', self._feat_val_str(feats, '\t', nonzero=True))
 
         # initialize weights
         self.w = np.zeros(X.shape[1])  # number of columns
 
         # 1st pass over training data -- just add weights
+        # TODO irrelevant for normalization?
         for inst in X:
             self.w += self.alpha * inst
 
@@ -235,6 +239,7 @@ class PerceptronRanker(Ranker):
 
             iter_errs = 0
             log_debug('\n***\nTR %05d:' % iter_no)
+            evaler = Evaluator()
 
             for ttree_no, da in enumerate(das):
                 # obtain some 'rival', alternative incorrect candidates
@@ -245,6 +250,11 @@ class PerceptronRanker(Ranker):
                 # score them along with the right one
                 scores = [self._score(cand) for cand in cands]
                 top_cand_idx = scores.index(max(scores))
+
+                # find the top-scoring generated tree, evaluate F-score against gold t-tree
+                # (disregarding whether it was selected as the best one)
+                evaler.append(TreeNode(gold_ttree),
+                              TreeNode(rival_ttrees[scores[1:].index(max(scores[1:]))]))
 
                 log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
                 log_debug('ALL CAND TTREES:')
@@ -264,6 +274,7 @@ class PerceptronRanker(Ranker):
             log_debug('ITER ACCURACY: %.3f' % iter_acc)
 
             log_info('Iteration %05d -- tree-level accuracy: %.3f' % (iter_no, iter_acc))
+            log_info(' * generated trees scores: P: %.3f, R: %.3f, F: %.3f' % evaler.p_r_f1())
 
     def _feat_val_str(self, vec, sep='\n', nonzero=False):
         return sep.join(['%s: %.3f' % (name, weight)
@@ -288,7 +299,7 @@ class PerceptronRanker(Ranker):
         if 'other_inst' in self.rival_gen_strategy:
             # use alternative indexes, avoid the correct one
             rival_idxs = map(lambda idx: len(train_ttrees) - 1 if idx == gold_ttree_no else idx,
-                             np.random.choice(len(train_ttrees) - 1, self.rival_number))
+                             random.sample(xrange(len(train_ttrees) - 1), self.rival_number))
             other_inst_ttrees = [train_ttrees[rival_idx] for rival_idx in rival_idxs]
             rival_ttrees.extend(other_inst_ttrees)
             rival_feats.extend([self._extract_feats(ttree, da) for ttree in other_inst_ttrees])
