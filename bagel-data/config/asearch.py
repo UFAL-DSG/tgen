@@ -3,6 +3,6 @@
 
 
 config = {
-          'max_iter': 1000,
+          'max_iter': 50,
           'max_defic_iter': 4,
           }

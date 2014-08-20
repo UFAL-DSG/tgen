@@ -24,7 +24,7 @@ sample_gen -- generate using the given candidate generator and ranker
     - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 
 asearch_gen -- generate using the A*search sentence planner
-    - arguments: [-e oracle-eval-ttrees] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
+    - arguments: [-e eval-ttrees] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
 """
 
 from __future__ import unicode_literals
