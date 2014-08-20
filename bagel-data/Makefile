@@ -24,6 +24,7 @@ CANDGEN_MODEL = model/candgen.pickle.gz
 PERCRANK_MODEL = model/percrank.pickle.gz
 PERCRANK_CONFIG = config/percrank.py
 ASEARCH_CONFIG = config/asearch.py
+TRAIN_PORTION = 1.0
 TRAIN_DAS = data/train-das.txt
 TRAIN_TREES = data/train-text.pickle.gz
 TEST_DAS = data/test-das.txt
@@ -85,6 +86,7 @@ percrank_train:
 	# run the experiment
 	$(QSUBMIT) \
 	    '$(TGEN) percrank_train -d $(TRY_DIR)/debug-log.txt -c $(TRY_DIR)/candgen.pickle.gz  \
+	        -s $(TRAIN_PORTION) \
 	        $(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 	        $(TRY_DIR)/percrank.pickle.gz'
 

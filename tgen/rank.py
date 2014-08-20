@@ -197,7 +197,7 @@ class PerceptronRanker(Ranker):
                         self.vectorizer.transform(
                                 self.feats.get_features(ttree, {'da': da})))[0]
 
-    def train(self, das_file, ttree_file):
+    def train(self, das_file, ttree_file, data_portion=1.0):
         # read input
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
@@ -205,6 +205,11 @@ class PerceptronRanker(Ranker):
         ttree_doc = read_ttrees(ttree_file)
         sentences = sentences_from_doc(ttree_doc, self.language, self.selector)
         ttrees = ttrees_from_doc(ttree_doc, self.language, self.selector)
+        # make training data smaller if necessary
+        train_size = int(round(data_portion * len(ttrees)))
+        ttrees = ttrees[:train_size]
+        das = das[:train_size]
+        log_info('Using %d instances out of %d' % (train_size, len(ttrees)))
         log_info('Training ...')
         # compute features for trees
         X = []
