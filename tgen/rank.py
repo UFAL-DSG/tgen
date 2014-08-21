@@ -209,7 +209,7 @@ class PerceptronRanker(Ranker):
         train_size = int(round(data_portion * len(ttrees)))
         ttrees = ttrees[:train_size]
         das = das[:train_size]
-        log_info('Using %d instances out of %d' % (train_size, len(ttrees)))
+        log_info('Using %d training instances.' % train_size)
         log_info('Training ...')
         # compute features for trees
         X = []
@@ -220,8 +220,8 @@ class PerceptronRanker(Ranker):
         self.normalizer = StandardScaler(copy=False)
         X = self.normalizer.fit_transform(self.vectorizer.fit_transform(X))
 
-        for ttree_no, da in enumerate(das):
-            ttree, feats = ttrees[ttree_no], X[ttree_no]
+#        for ttree_no, da in enumerate(das):
+#            ttree, feats = ttrees[ttree_no], X[ttree_no]
 #             log_debug('------\nDATA %d:' % ttree_no)
 #             log_debug('DA: %s' % unicode(da))
 #             log_debug('SENT: %s' % sentences[ttree_no])
@@ -229,12 +229,13 @@ class PerceptronRanker(Ranker):
 #             log_debug('FEATS:', self._feat_val_str(feats, '\t', nonzero=True))
 
         # initialize weights
-        self.w = np.zeros(X.shape[1])  # number of columns
+        # self.w = np.zeros(X.shape[1])  # number of columns
+        self.w = np.ones(X.shape[1])
 
         # 1st pass over training data -- just add weights
-        # TODO irrelevant for normalization?
-        for inst in X:
-            self.w += self.alpha * inst
+        # TODO irrelevant with normalization?
+        # for inst in X:
+        #    self.w += self.alpha * inst
 
         log_debug('\n***\nTR %05d:' % 0)
         log_debug(self._feat_val_str(self.w))
@@ -262,7 +263,7 @@ class PerceptronRanker(Ranker):
                               TreeNode(rival_ttrees[scores[1:].index(max(scores[1:]))]))
 
                 log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
-                log_debug('ALL CAND TTREES:')
+                log_debug('ALL CAND TREES:')
                 for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
                     log_debug("%.3f" % score, "\t", ttree)
                 # log_debug('GOLD CAND -- ', self._feat_val_str(cands[0], '\t'))

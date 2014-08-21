@@ -112,6 +112,9 @@ class CandidateList(DictMixin):
                 self.queue[index], self.queue[up + 1] = self.queue[up + 1], self.queue[index]
                 self.__fix_queue(up + 1)
 
+    def __repr__(self):
+        return ' '.join(['%6.3f' % val for val, _ in self.queue])
+
 
 class SentencePlanner(object):
     """Common ancestor of sentence planners."""
@@ -200,21 +203,21 @@ class ASearchPlanner(SentencePlanner):
         self.max_iter = cfg.get('max_iter', self.MAX_ITER)
         self.max_defic_iter = cfg.get('max_defic_iter')
 
-    def generate_tree(self, da, gen_doc=None, gold_ttree=None):
+    def generate_tree(self, da, gen_doc=None):
+        log_debug('GEN TREE for DA: %s' % unicode(da))
         # generate and use only 1-best
-        best_tree = self.get_best_candidates(da, 1,
-                                            self.max_iter, self.max_defic_iter,
-                                            gold_ttree)[0]
+        best_tree = self.get_best_candidates(da, 1, self.max_iter, self.max_defic_iter)[0]
+        log_debug("RESULT: %s\n\n" % unicode(best_tree))
         # return or append the result
         if gen_doc:
             zone = self.get_target_zone(gen_doc)
             zone.ttree = best_tree.create_ttree()
+            zone.sentence = unicode(da)
             return
         return best_tree
 
     def get_best_candidates(self, da, ncands,
-                            max_iter=None, max_defic_iter=None, beam_size=None,
-                            gold_ttree=None):
+                            max_iter=None, max_defic_iter=None, beam_size=None):
         """Run the A*-search generation and after it finishes, return N best candidates
         on the close list.
 
@@ -228,7 +231,9 @@ class ASearchPlanner(SentencePlanner):
         # TODO add future cost ?
 
         # initialization
-        open_list, close_list = CandidateList({TreeData(): 0.0}), CandidateList()
+        empty_tree = TreeData()
+        open_list = CandidateList({empty_tree: self.ranker.score(empty_tree, da) * -1})
+        close_list = CandidateList()
         num_iter = 0
         defic_iter = 0
         cdfs = self.candgen.get_merged_cdfs(da)
@@ -238,12 +243,12 @@ class ASearchPlanner(SentencePlanner):
         # main search loop
         while open_list and num_iter < max_iter and (max_defic_iter is None
                                                      or defic_iter <= max_defic_iter):
+            log_debug("   OPEN : %s" % str(open_list))
+            log_debug("   CLOSE: %s" % str(close_list))
             cand, score = open_list.pop()
-            if gold_ttree and cand == gold_ttree:
-                log_debug("IT %05d: CANDIDATE MATCHES GOLD" % num_iter)
             close_list.push(cand, score)
-            log_debug("\n***\nIT %05d:%s\n[%6.4f]\nO: %d C: %d\n***" %
-                      (num_iter, unicode(cand), score, len(open_list), len(close_list)))
+            log_debug("--- IT %05d: [O: %5d C: %5d]" % (num_iter, len(open_list), len(close_list)))
+            log_debug("              [S:   %8.4f    ] %s" % (score, unicode(cand)))
             successors = self.candgen.get_all_successors(cand, cdfs)
             # add candidates with score
             open_list.pushall({s: self.ranker.score(s, da) * -1
