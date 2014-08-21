@@ -5,7 +5,7 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../tgen/tgen.py
-QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem 8g --jobname T.$(RUN_NAME)# using OB's qsubmit script
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem 8g --jobname T.$(RUN_NAME) $(QP)# using OB's qsubmit script
 
 # Runs directories
 RUNS_DIR  := runs# main directory for experiment outputs

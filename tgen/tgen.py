@@ -40,9 +40,10 @@ from rank import LogisticRegressionRanker, PerceptronRanker
 from planner import SamplingPlanner, ASearchPlanner
 from flect.config import Config
 from getopt import getopt
-from eval import tp_fp_fn, f1_from_counts, p_r_f1_from_counts
+from eval import Evaluator, p_r_f1_from_counts, tp_fp_fn, f1_from_counts
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
+from tree import TreeNode
 
 
 def candgen_train(args):
@@ -229,18 +230,14 @@ def asearch_gen(args):
         # generate and evaluate
         eval_ttrees = ttrees_from_doc(read_ttrees(eval_file), tgen.language, tgen.selector)
         for da, eval_ttree in zip(das, eval_ttrees):
-            tgen.generate_tree(da, gen_doc, eval_ttree)
+            tgen.generate_tree(da, gen_doc)
         gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
 
         log_info('Evaluating...')
-        correct, predicted, gold = 0, 0, 0
+        evaler = Evaluator()
         for eval_ttree, gen_ttree in zip(eval_ttrees, gen_ttrees):
-            tc, tp, tg = tp_fp_fn(eval_ttree, gen_ttree)
-            correct += tc
-            predicted += tp
-            gold += tg
-        log_info("Node precision: %.4f, Recall: %.4f, F1: %.4f" %
-                 p_r_f1_from_counts(correct, gold, predicted))
+            evaler.append(eval_ttree, gen_ttree)
+        log_info("Node precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
 
     # write output
     if fname_ttrees_out is not None:

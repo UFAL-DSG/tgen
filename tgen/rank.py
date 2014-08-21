@@ -19,7 +19,7 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 from flect.dataset import DataSet
 
 from features import Features
-from futil import read_das, read_ttrees, ttrees_from_doc, sentences_from_doc
+from futil import read_das, read_ttrees, trees_from_doc, sentences_from_doc
 from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
 from eval import Evaluator
@@ -204,7 +204,7 @@ class PerceptronRanker(Ranker):
         log_info('Reading t-trees from ' + ttree_file + '...')
         ttree_doc = read_ttrees(ttree_file)
         sentences = sentences_from_doc(ttree_doc, self.language, self.selector)
-        ttrees = ttrees_from_doc(ttree_doc, self.language, self.selector)
+        ttrees = trees_from_doc(ttree_doc, self.language, self.selector)
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(ttrees)))
         ttrees = ttrees[:train_size]

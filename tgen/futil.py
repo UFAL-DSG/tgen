@@ -51,6 +51,12 @@ def chunk_list(l, n):
 
 
 def ttrees_from_doc(ttree_doc, language, selector):
+    """Given a Treex document full of t-trees, return just the array of t-trees."""
+    return map(lambda bundle: bundle.get_zone(language, selector).ttree,
+               ttree_doc.bundles)
+
+
+def trees_from_doc(ttree_doc, language, selector):
     """Given a Treex document full of t-trees, return TreeData objects for each of them."""
     return map(lambda bundle: TreeData(ttree=bundle.get_zone(language, selector).ttree),
                ttree_doc.bundles)
