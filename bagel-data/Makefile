@@ -44,6 +44,9 @@ Tgen experiments
 - Use 'make asearch_gen' to run A*search generation
   (set PERCRANK_MODEL to the model you want to use).
 
+Use QP='--console' if you want the job to run interactively instead
+of submitting to the cluster.
+
 endef
 export HELP_MESSAGE
 
@@ -88,7 +91,7 @@ percrank_train:
 	    '$(TGEN) percrank_train -d $(TRY_DIR)/debug-log.txt -c $(TRY_DIR)/candgen.pickle.gz  \
 	        -s $(TRAIN_PORTION) \
 	        $(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
-	        $(TRY_DIR)/percrank.pickle.gz'
+	        $(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/log.txt
 
 
 asearch_gen: RUN_NAME := asearch_gen
@@ -103,7 +106,8 @@ asearch_gen:
 	$(QSUBMIT) \
 	    '$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz -d $(TRY_DIR)/debug-log.txt \
 	        -w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
-	        $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt'
+	        $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt' \
+		2>&1 | tee $(TRY_DIR)/log.txt
 
 
 
