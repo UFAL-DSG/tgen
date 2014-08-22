@@ -24,7 +24,7 @@ sample_gen -- generate using the given candidate generator and ranker
     - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 
 asearch_gen -- generate using the A*search sentence planner
-    - arguments: [-e eval-ttrees] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
+    - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
 """
 
 from __future__ import unicode_literals
@@ -43,7 +43,6 @@ from getopt import getopt
 from eval import Evaluator, p_r_f1_from_counts, tp_fp_fn, f1_from_counts
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
-from tree import TreeNode
 
 
 def candgen_train(args):
@@ -195,10 +194,13 @@ def asearch_gen(args):
     eval_file = None
     fname_ttrees_out = None
     cfg_file = None
+    eval_selector = ''
 
     for opt, arg in opts:
         if opt == '-e':
             eval_file = arg
+        elif opt == '-s':
+            eval_selector = arg
         elif opt == '-d':
             set_debug_stream(file_stream(arg, mode='w'))
         elif opt == '-w':
@@ -219,18 +221,24 @@ def asearch_gen(args):
     tgen = ASearchPlanner(cfg)
 
     log_info('Generating...')
-    gen_doc = Document()
     das = read_das(fname_da_test)
 
     if eval_file is None:
-        # just generate
-        for da in das:
-            tgen.generate_tree(da, gen_doc, None)
+        gen_doc = Document()
     else:
+        eval_doc = read_ttrees(eval_file)
+        if eval_selector == tgen.selector:
+            gen_doc = Document()
+        else:
+            gen_doc = eval_doc
+
+    # generate
+    for da in das:
+        tgen.generate_tree(da, gen_doc)
+
+    if eval_file is not None:
         # generate and evaluate
-        eval_ttrees = ttrees_from_doc(read_ttrees(eval_file), tgen.language, tgen.selector)
-        for da, eval_ttree in zip(das, eval_ttrees):
-            tgen.generate_tree(da, gen_doc)
+        eval_ttrees = ttrees_from_doc(eval_doc, tgen.language, eval_selector)
         gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
 
         log_info('Evaluating...')

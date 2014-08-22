@@ -5,4 +5,5 @@
 config = {
           'max_iter': 50,
           'max_defic_iter': 4,
+          'selector': 'gen',
           }

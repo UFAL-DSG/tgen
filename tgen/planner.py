@@ -12,6 +12,7 @@ from UserDict import DictMixin
 
 from flect.logf import log_debug
 from tree import TreeData, TreeNode, NodeData
+from alex.components.nlg.tectotpl.core.util import first
 
 
 class CandidateList(DictMixin):
@@ -135,13 +136,13 @@ class SentencePlanner(object):
         raise NotImplementedError
 
     def get_target_zone(self, gen_doc):
-        """Add a new bundle to the given document and a new zone into it,
-        return the result.
+        """Find the first bundle in the given document that does not have the target
+        zone (or create it), then create the target zone and return it.
 
         @rtype: Zone
         """
-        # TODO adding to existing bundles (if they are there, but the zone is not)
-        bundle = gen_doc.create_bundle()
+        bundle = first(lambda bundle: not bundle.has_zone(self.language, self.selector),
+                       gen_doc.bundles) or gen_doc.create_bundle()
         zone = bundle.create_zone(self.language, self.selector)
         return zone
 
