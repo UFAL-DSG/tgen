@@ -263,6 +263,7 @@ class PerceptronRanker(Ranker):
                               TreeNode(rival_ttrees[scores[1:].index(max(scores[1:]))]))
 
                 log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (ttree_no, top_cand_idx, len(cands)))
+                log_debug('SENT: %s' % sentences[ttree_no])
                 log_debug('ALL CAND TREES:')
                 for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
                     log_debug("%.3f" % score, "\t", ttree)

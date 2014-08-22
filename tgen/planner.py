@@ -140,6 +140,7 @@ class SentencePlanner(object):
 
         @rtype: Zone
         """
+        # TODO adding to existing bundles (if they are there, but the zone is not)
         bundle = gen_doc.create_bundle()
         zone = bundle.create_zone(self.language, self.selector)
         return zone
@@ -251,9 +252,10 @@ class ASearchPlanner(SentencePlanner):
             log_debug("              [S:   %8.4f    ] %s" % (score, unicode(cand)))
             successors = self.candgen.get_all_successors(cand, cdfs)
             # add candidates with score
-            open_list.pushall({s: self.ranker.score(s, da) * -1
-                               for s in successors if not s in close_list})
+            open_list.pushall([(s, self.ranker.score(s, da) * -1)
+                               for s in successors if not s in close_list])
             # pruning (if supposed to do it)
+            # TODO do not even add them on the open list when pruning
             if beam_size is not None:
                 pruned = open_list.prune(beam_size)
                 close_list.pushall(pruned)

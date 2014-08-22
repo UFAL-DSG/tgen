@@ -95,6 +95,11 @@ class TreeData(object):
             tnode.parent = tnodes[parent_idx]
         return tnodes[0]
 
+    def __lt__(self, other):
+        """Comparing by node values, then by parents. Actually only needed to make
+        calls to heapq in CandidateList deterministic."""
+        return (self.nodes, self.parents) < (other.nodes, other.parents)
+
 
 class TreeNode(object):
     """This is a tiny wrapper over TreeData that holds a link to a tree
