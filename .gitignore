@@ -1,6 +1,7 @@
 .project
 .pydevproject
 .settings
+.qsubmit-*.bash
 *.treex.gz
 *.yaml.gz
 *.pickle.gz
