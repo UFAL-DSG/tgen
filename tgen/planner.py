@@ -245,8 +245,8 @@ class ASearchPlanner(SentencePlanner):
         # main search loop
         while open_list and num_iter < max_iter and (max_defic_iter is None
                                                      or defic_iter <= max_defic_iter):
-            log_debug("   OPEN : %s" % str(open_list))
-            log_debug("   CLOSE: %s" % str(close_list))
+            # log_debug("   OPEN : %s" % str(open_list))
+            # log_debug("   CLOSE: %s" % str(close_list))
             cand, score = open_list.pop()
             close_list.push(cand, score)
             log_debug("--- IT %05d: [O: %5d C: %5d]" % (num_iter, len(open_list), len(close_list)))

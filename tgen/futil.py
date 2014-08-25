@@ -65,3 +65,9 @@ def trees_from_doc(ttree_doc, language, selector):
 def sentences_from_doc(ttree_doc, language, selector):
     return map(lambda bundle: bundle.get_zone(language, selector).sentence,
                ttree_doc.bundles)
+
+
+def add_bundle_text(bundle, language, selector, text):
+    """Given a document bundle, add sentence text to the given language and selector."""
+    zone = bundle.get_or_create_zone(language, selector)
+    zone.sentence = (zone.sentence + ' ' if zone.sentence is not None else '') + text

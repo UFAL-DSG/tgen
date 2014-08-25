@@ -34,7 +34,7 @@ import sys
 from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 from flect.logf import log_info, set_debug_stream
 
-from futil import read_das, read_ttrees, chunk_list, ttrees_from_doc
+from futil import read_das, read_ttrees, chunk_list, ttrees_from_doc, add_bundle_text
 from candgen import RandomCandidateGenerator
 from rank import LogisticRegressionRanker, PerceptronRanker
 from planner import SamplingPlanner, ASearchPlanner
@@ -243,7 +243,9 @@ def asearch_gen(args):
 
         log_info('Evaluating...')
         evaler = Evaluator()
-        for eval_ttree, gen_ttree in zip(eval_ttrees, gen_ttrees):
+        for eval_bundle, eval_ttree, gen_ttree in zip(eval_doc.bundles, eval_ttrees, gen_ttrees):
+            add_bundle_text(eval_bundle, eval_ttree, gen_ttree, tgen.language, tgen.selector + '-score',
+                            "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(tp_fp_fn(eval_ttree, gen_ttree)))
             evaler.append(eval_ttree, gen_ttree)
         log_info("Node precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
 
