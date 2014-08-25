@@ -159,10 +159,10 @@ def dependency(tree, context, attrib):
             val = right_val(tree, idx)
             parent_val = right_val(tree, parent_idx)
             if parent_val is not None:
-                ret[val + "\n" + parent_val] = 1
+                ret[val + "+" + parent_val] = 1
         else:
             parent_node = tree.nodes[parent_idx]
-            ret[unicode(getattr(node, attrib)) + "\n" + unicode(getattr(parent_node, attrib))] = 1
+            ret[unicode(getattr(node, attrib)) + "+" + unicode(getattr(parent_node, attrib))] = 1
     return ret
 
 
@@ -196,7 +196,7 @@ def combine(tree, context, attrib):
     cur = context['feats'][attrib[0]]
     for attr_name in attrib[1:]:
         add = context['feats'][attr_name]
-        merged = {ckey + "\n" + akey: 1.0
+        merged = {ckey + "+|+" + akey: 1.0
                   for ckey in cur.iterkeys()
                   for akey in add.iterkeys()}
         cur = merged
@@ -218,7 +218,7 @@ class Features(object):
 
         Label: value/same_as_current/... [param1,...]
         """
-        features = {}
+        features = []
         for feat in spec:
             label, func_name = re.split(r'[:\s]+', feat, 1)
             func_params = ''
@@ -259,7 +259,7 @@ class Features(object):
             else:
                 raise Exception('Unknown feature function:' + feat)
 
-            features[label] = feat_func
+            features.append((label, feat_func))
 
         return features
 
@@ -272,7 +272,7 @@ class Features(object):
         feats = defaultdict(float)
         feats_hier = {}
         context['feats'] = feats_hier  # allow features to look at previous features
-        for name, func in self.features.iteritems():
+        for name, func in self.features:
             feats_hier[name] = func(tree, context)
         for name, val in feats_hier.iteritems():
             for subname, subval in val.iteritems():
