@@ -135,7 +135,7 @@ def count(tree, context, attribs):
     @rtype: dict
     @return: dictionary with keys for values of the attribute, values for counts of matching nodes
     """
-    ret = defaultdict(float)
+    ret = defaultdict(int)
     for idx in xrange(len(tree)):
         ret[attribs_val(tree, idx, attribs)] += 1
     return ret
@@ -158,7 +158,7 @@ def dependency(tree, context, attribs):
     @rtype: : dict
     @return dictionary with keys for values of the attribute and values equal to 1
     """
-    ret = defaultdict(float)
+    ret = {}
     for idx, parent_idx in enumerate(tree.parents):
         if parent_idx <= 0:  # skip for technical root
             continue
@@ -171,7 +171,7 @@ def dir_dependency(tree, context, attribs):
     @rtype: : dict
     @return dictionary with keys for values of the attribute and values equal to 1
     """
-    ret = defaultdict(float)
+    ret = {}
     for idx, parent_idx in enumerate(tree.parents):
         if parent_idx <= 0:  # skip for technical root
             continue
@@ -187,7 +187,7 @@ def dai_presence(tree, context):
     @rtype: dict
     @return: dictionary with keys composed of DAIs and values equal to 1
     """
-    ret = defaultdict(float)
+    ret = {}
     for dai in context['da']:
         ret[unicode(dai)] = 1
     return ret
@@ -203,7 +203,7 @@ def combine(tree, context, attribs):
     cur = context['feats'][attribs[0]]
     for attrib in attribs[1:]:
         add = context['feats'][attrib]
-        merged = {ckey + "-&-" + akey: 1.0
+        merged = {ckey + "-&-" + akey: 1
                   for ckey in cur.iterkeys()
                   for akey in add.iterkeys()}
         cur = merged
