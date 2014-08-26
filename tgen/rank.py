@@ -229,7 +229,7 @@ class PerceptronRanker(Ranker):
 #             log_debug('FEATS:', self._feat_val_str(feats, '\t', nonzero=True))
 
         # initialize weights
-        # self.w = np.zeros(X.shape[1])  # number of columns
+        # self.w = np.zeros(X.shape[1])  # can't be zeroes (will never update)
         self.w = np.ones(X.shape[1])
 
         # 1st pass over training data -- just add weights
