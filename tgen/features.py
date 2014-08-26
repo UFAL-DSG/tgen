@@ -14,6 +14,36 @@ import re
 from functools import partial
 
 
+# Helper functions
+
+
+def dep_dir(tree, node_idx):
+    """Return 'R' if the node at the given position in the given tree is
+    its parent's right child, 'L' otherwise. Return None for the technical root.
+
+    @rtype: str"""
+    parent_idx = tree.parents[node_idx]
+    if parent_idx >= 0 and node_idx > parent_idx:
+        return 'R'
+    elif parent_idx >= 0:
+        return 'L'
+    return None
+
+
+def attribs_val(tree, idx, attribs):
+    """Return the joined value of the given attributes for the idx-th node of
+    the given tree.
+
+    @rtype: unicode"""
+    val = []
+    for attrib in attribs:
+        val.append(unicode(getattr(tree.nodes[idx], attrib)))
+    return '+'.join(val)
+
+
+# Feature functions
+
+
 def depth(tree, context):
     """Return the depth of the given tree.
 
@@ -98,20 +128,7 @@ def tree_size(tree, context):
     return {'': len(tree)}
 
 
-def right_val(tree, node_idx):
-    """Return 'True' if the node at the given position in the given tree is
-    its parent's right child, 'False' otherwise. Return None for the technical root.
-
-    @rtype: str"""
-    parent_idx = tree.parents[node_idx]
-    if parent_idx >= 0 and node_idx > parent_idx:
-        return 'True'
-    elif parent_idx >= 0:
-        return 'False'
-    return None
-
-
-def value(tree, context, attrib):
+def count(tree, context, attribs):
     """Return the number of nodes holding the individual values of the given attribute
     in the given tree.
 
@@ -119,84 +136,74 @@ def value(tree, context, attrib):
     @return: dictionary with keys for values of the attribute, values for counts of matching nodes
     """
     ret = defaultdict(float)
-    for idx, node in enumerate(tree.nodes):
-        if attrib == 'right':
-            val = right_val(tree, idx)
-            if val is not None:
-                ret[val] += 1
-        else:
-            ret[unicode(getattr(node, attrib))] += 1
+    for idx in xrange(len(tree)):
+        ret[attribs_val(tree, idx, attribs)] += 1
     return ret
 
 
-def presence(tree, context, attrib):
+def presence(tree, context, attribs):
     """Return 1 for all values of the given attribute found in the given tree.
 
     @rtype: dict
     @return: dictionary with keys for values of the attribute and values equal to 1
     """
-    ret = defaultdict(float)
-    for idx, node in enumerate(tree.nodes):
-        if attrib == 'right':
-            val = right_val(tree, idx)
-            if val is not None:
-                ret[val] = 1
-        else:
-            ret[unicode(getattr(node, attrib))] = 1
+    ret = {}
+    for idx in xrange(len(tree)):
+        ret[attribs_val(tree, idx, attribs)] = 1
     return ret
 
 
-def dependency(tree, context, attrib):
+def dependency(tree, context, attribs):
     """Return 1 for all dependency pairs of the given attribute found in the given tree.
     @rtype: : dict
     @return dictionary with keys for values of the attribute and values equal to 1
     """
     ret = defaultdict(float)
-    for idx, (node, parent_idx) in enumerate(zip(tree.nodes, tree.parents)):
+    for idx, parent_idx in enumerate(tree.parents):
         if parent_idx <= 0:  # skip for technical root
             continue
-        if attrib == 'right':
-            val = right_val(tree, idx)
-            parent_val = right_val(tree, parent_idx)
-            if parent_val is not None:
-                ret[val + "+" + parent_val] = 1
-        else:
-            parent_node = tree.nodes[parent_idx]
-            ret[unicode(getattr(node, attrib)) + "+" + unicode(getattr(parent_node, attrib))] = 1
+        ret[attribs_val(tree, idx, attribs) + "//" + attribs_val(tree, parent_idx, attribs)] = 1
     return ret
 
 
-def dai_cooc(tree, context, attrib):
-    """Return 1 for all combinations of DAIs and values of a tree.
+def dir_dependency(tree, context, attribs):
+    """Same as :py:func:`dependency`, but includes edge direction (L/R).
+    @rtype: : dict
+    @return dictionary with keys for values of the attribute and values equal to 1
+    """
+    ret = defaultdict(float)
+    for idx, parent_idx in enumerate(tree.parents):
+        if parent_idx <= 0:  # skip for technical root
+            continue
+        ret[attribs_val(tree, idx, attribs) + '/' +
+            dep_dir(tree, idx) + '/' +
+            attribs_val(tree, parent_idx, attribs)] = 1
+    return ret
+
+
+def dai_presence(tree, context):
+    """Return 1 for all DAIs in the given context.
 
     @rtype: dict
-    @return: dictionary with keys composed of DAIs and values of the given attribute, \
-        and values equal to 1
+    @return: dictionary with keys composed of DAIs and values equal to 1
     """
     ret = defaultdict(float)
     for dai in context['da']:
-        for idx, (node, parent_idx) in enumerate(zip(tree.nodes, tree.parents)):
-            if attrib == 'right':
-                if parent_idx >= 0 and idx > parent_idx:
-                    ret[unicode(dai) + '+True'] = 1
-                elif parent_idx >= 0:
-                    ret[unicode(dai) + '+False'] = 1
-            else:
-                ret[unicode(dai) + '+' + unicode(getattr(node, attrib))] = 1
+        ret[unicode(dai)] = 1
     return ret
 
 
-def combine(tree, context, attrib):
+def combine(tree, context, attribs):
     """A meta-feature combining n-tuples of other features (as found in context['feats']).
 
     @rtype: dict
     @return: dictionary with keys composed of combined keys of the original features \
         and values equal to 1.
     """
-    cur = context['feats'][attrib[0]]
-    for attr_name in attrib[1:]:
-        add = context['feats'][attr_name]
-        merged = {ckey + "+|+" + akey: 1.0
+    cur = context['feats'][attribs[0]]
+    for attrib in attribs[1:]:
+        add = context['feats'][attrib]
+        merged = {ckey + "-&-" + akey: 1.0
                   for ckey in cur.iterkeys()
                   for akey in add.iterkeys()}
         cur = merged
@@ -233,14 +240,16 @@ class Features(object):
             if func_name.lower() == 'bias':
                 feat_func = bias
             # node features
-            elif func_name.lower() == 'value':
-                feat_func = partial(value, attrib=func_params[0])
+            elif func_name.lower() == 'count':
+                feat_func = partial(count, attribs=func_params)
             elif func_name.lower() == 'presence':
-                feat_func = partial(presence, attrib=func_params[0])
-            elif func_name.lower() == 'dai_cooc':
-                feat_func = partial(dai_cooc, attrib=func_params[0])
+                feat_func = partial(presence, attribs=func_params)
+            elif func_name.lower() == 'dai_presence':
+                feat_func = dai_presence
             elif func_name.lower() == 'dependency':
-                feat_func = partial(dependency, attrib=func_params[0])
+                feat_func = partial(dependency, attribs=func_params)
+            elif func_name.lower() == 'dir_dependency':
+                feat_func = partial(dir_dependency, attribs=func_params)
             # tree shape features
             elif func_name.lower() == 'depth':
                 feat_func = depth
@@ -255,7 +264,7 @@ class Features(object):
             elif func_name.lower() == 'rep_nodes':
                 feat_func = rep_nodes
             elif func_name.lower() == 'combine':
-                feat_func = partial(combine, attrib=func_params)
+                feat_func = partial(combine, attribs=func_params)
             else:
                 raise Exception('Unknown feature function:' + feat)
 
