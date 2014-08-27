@@ -24,6 +24,7 @@ from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
 from eval import Evaluator
 from tree import TreeNode
+# from alex.utils.cache import lru_cache
 
 
 class Ranker(object):
@@ -192,6 +193,7 @@ class PerceptronRanker(Ranker):
     def _score(self, cand_feats):
         return np.dot(self.w, cand_feats)
 
+    # @lru_cache(maxsize=10000) # TODO this doesn't seem to have any effect -- why?
     def _extract_feats(self, ttree, da):
         return self.normalizer.transform(
                         self.vectorizer.transform(
