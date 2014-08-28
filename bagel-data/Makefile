@@ -60,7 +60,15 @@ help:
 	@echo "$$HELP_MESSAGE" | egrep --color '^(\s*make.*|)'
 
 desc:
-	ls $(RUNS_DIR)/*/ABOUT | sort | while read file; do echo -ne $$file ": \t"; cat $$file; done
+	ls -d $(RUNS_DIR)/* | sort | while read file; do \
+		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
+		cat $$file/ABOUT | tr  '\n' ' '; \
+		if echo $$file | grep 'asearch_gen' >/dev/null 2>&1; then \
+			score=`grep "Node precision" $$file/T.* $$file/log.txt 2>/dev/null | head -n 1 | sed 's/.*Node p/P/' | tr -d '\n'`; \
+			echo -en "\t$$score"; \
+		fi; \
+		echo; \
+	done
 
 
 printvars:

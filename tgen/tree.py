@@ -54,6 +54,7 @@ class TreeData(object):
     def children_idxs(self, parent_idx):
         return [idx for idx, val in enumerate(self.parents) if val == parent_idx]
 
+    # @jit
     def node_depth(self, node_idx):
         depth = 0
         while node_idx > 0:
@@ -116,6 +117,7 @@ class TreeNode(object):
         self.tree = tree
         self.node_idx = node_idx
 
+    # @jit
     def create_child(self, right, child_data):
         child_idx = self.tree.create_child(self.node_idx, right, child_data)
         if not right:
@@ -126,6 +128,7 @@ class TreeNode(object):
         return [TreeNode(self.tree, child_idx)
                 for child_idx in self.tree.children_idxs(self.node_idx)]
 
+    # @jit
     def get_depth(self):
         return self.tree.node_depth(self.node_idx)
 
@@ -145,6 +148,7 @@ class TreeNode(object):
     def t_lemma(self):
         return self.tree.nodes[self.node_idx].t_lemma
 
+    # @jit
     def get_attr(self, attr_name):
         return getattr(self.tree.nodes[self.node_idx], attr_name)
 

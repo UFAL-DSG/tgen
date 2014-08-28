@@ -24,7 +24,8 @@ from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
 from eval import Evaluator
 from tree import TreeNode
-# from alex.utils.cache import lru_cache
+import time
+import datetime
 
 
 class Ranker(object):
@@ -193,8 +194,8 @@ class PerceptronRanker(Ranker):
     def _score(self, cand_feats):
         return np.dot(self.w, cand_feats)
 
-    # @lru_cache(maxsize=10000) # TODO this doesn't seem to have any effect -- why?
     def _extract_feats(self, ttree, da):
+        log_debug('EXTRACT FEATS: %s + %s' % (unicode(ttree), unicode(da)))
         return self.normalizer.transform(
                         self.vectorizer.transform(
                                 self.feats.get_features(ttree, {'da': da})))[0]
@@ -245,6 +246,8 @@ class PerceptronRanker(Ranker):
         # further passes over training data -- compare the right instance to other, wrong ones
         for iter_no in xrange(1, self.passes + 1):
 
+            iter_start_time = time.clock()
+
             iter_errs = 0
             log_debug('\n***\nTR %05d:' % iter_no)
             evaler = Evaluator()
@@ -281,9 +284,14 @@ class PerceptronRanker(Ranker):
             iter_acc = (1.0 - (iter_errs / float(len(ttrees))))
             log_debug(self._feat_val_str(self.w), '\n***')
             log_debug('ITER ACCURACY: %.3f' % iter_acc)
+            log_debug('ITER LRU CACHE PERFORMANCE: HITS: %d, MISSES: %d' %
+                      (self._extract_feats.hits, self._extract_feats.misses))
+
+            iter_end_time = time.clock()
 
             log_info('Iteration %05d -- tree-level accuracy: %.3f' % (iter_no, iter_acc))
-            log_info(' * generated trees scores: P: %.3f, R: %.3f, F: %.3f' % evaler.p_r_f1())
+            log_info(' * Generated trees scores: P: %.3f, R: %.3f, F: %.3f' % evaler.p_r_f1())
+            log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
 
     def _feat_val_str(self, vec, sep='\n', nonzero=False):
         return sep.join(['%s: %.3f' % (name, weight)

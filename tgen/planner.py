@@ -97,6 +97,7 @@ class CandidateList(DictMixin):
         self.queue = pruned_queue
         return remain_members
 
+    # @jit
     def __fix_queue(self, index):
         """Fixing a heap after change in one element (swapping elements until heap
         condition is satisfied.)"""
