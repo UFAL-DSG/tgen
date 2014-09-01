@@ -195,7 +195,6 @@ class PerceptronRanker(Ranker):
         return np.dot(self.w, cand_feats)
 
     def _extract_feats(self, ttree, da):
-        log_debug('EXTRACT FEATS: %s + %s' % (unicode(ttree), unicode(da)))
         return self.normalizer.transform(
                         self.vectorizer.transform(
                                 self.feats.get_features(ttree, {'da': da})))[0]
@@ -284,8 +283,6 @@ class PerceptronRanker(Ranker):
             iter_acc = (1.0 - (iter_errs / float(len(ttrees))))
             log_debug(self._feat_val_str(self.w), '\n***')
             log_debug('ITER ACCURACY: %.3f' % iter_acc)
-            log_debug('ITER LRU CACHE PERFORMANCE: HITS: %d, MISSES: %d' %
-                      (self._extract_feats.hits, self._extract_feats.misses))
 
             iter_end_time = time.clock()
 
