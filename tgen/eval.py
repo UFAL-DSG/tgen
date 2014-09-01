@@ -10,6 +10,14 @@ from collections import defaultdict
 
 
 def collect_counts(ttree, count_type='node'):
+    """Collects counts of different node/dependency types in the given t-tree.
+
+    @param ttree: the tree to collect counts from
+    @param count_type: if set to 'node' (default), count nodes (formemes, lemmas, dependency \
+        direction), if set to 'dep', count dependencies (including parent's formeme, lemma, \
+        dependency direction).
+    @rtype: defaultdict
+    """
     counts = defaultdict(int)
     for node in ttree.get_descendants():
         if count_type == 'node':
@@ -33,8 +41,8 @@ def tp_fp_fn(gold_ttree, pred_ttree, count_type='node'):
     @rtype: tuple
     @return: numbers of correctly predicted, total predicted, and total golden nodes
     """
-    gold_counts = collect_counts(gold_ttree, type)
-    pred_counts = collect_counts(pred_ttree, type)
+    gold_counts = collect_counts(gold_ttree, count_type)
+    pred_counts = collect_counts(pred_ttree, count_type)
     correct, predicted = 0, 0
     for node_id, node_count in pred_counts.iteritems():
         predicted += node_count
