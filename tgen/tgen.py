@@ -30,6 +30,8 @@ asearch_gen -- generate using the A*search sentence planner
 from __future__ import unicode_literals
 import random
 import sys
+from getopt import getopt
+import platform
 
 from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 from flect.logf import log_info, set_debug_stream
@@ -43,6 +45,7 @@ from getopt import getopt
 from eval import Evaluator, p_r_f1_from_counts, tp_fp_fn, f1_from_counts
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
+
 
 
 def candgen_train(args):
@@ -266,6 +269,9 @@ if __name__ == '__main__':
     action = sys.argv[1]
     args = sys.argv[2:]
 
+    log_info('Running on %s version %s' % (platform.python_implementation(),
+                                           platform.python_version()))
+
     if action == 'candgen_train':
         candgen_train(args)
     elif action == 'logregrank_create_data':
@@ -280,6 +286,6 @@ if __name__ == '__main__':
         asearch_gen(args)
     else:
         # Unknown action
-        sys.exit(('Error: Unknown Tgen action: %s' % action) + __doc__)
+        sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)
 
     log_info('Done.')
