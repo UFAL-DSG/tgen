@@ -25,6 +25,7 @@ from __future__ import unicode_literals
 import random
 import sys
 from getopt import getopt
+import platform
 
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
@@ -38,6 +39,7 @@ from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import SamplingPlanner, ASearchPlanner
 from tgen.eval import Evaluator, p_r_f1_from_counts, tp_fp_fn, f1_from_counts
+
 
 
 
@@ -224,6 +226,9 @@ if __name__ == '__main__':
     action = sys.argv[1]
     args = sys.argv[2:]
 
+    log_info('Running on %s version %s' % (platform.python_implementation(),
+                                           platform.python_version()))
+
     if action == 'candgen_train':
         candgen_train(args)
     elif action == 'percrank_train':
@@ -234,6 +239,6 @@ if __name__ == '__main__':
         asearch_gen(args)
     else:
         # Unknown action
-        sys.exit(('Error: Unknown Tgen action: %s' % action) + __doc__)
+        sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)
 
     log_info('Done.')
