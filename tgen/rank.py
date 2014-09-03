@@ -6,22 +6,22 @@ Candidate tree rankers.
 
 """
 from __future__ import unicode_literals
-from ml import DictVectorizer, StandardScaler
 import numpy as np
 import cPickle as pickle
 import random
+import time
+import datetime
 
-from flect.logf import log_info, log_debug
 from alex.components.nlg.tectotpl.core.util import file_stream
 
+from ml import DictVectorizer, StandardScaler
+from logf import log_info, log_debug
 from features import Features
 from futil import read_das, read_ttrees, trees_from_doc, sentences_from_doc
 from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
 from eval import Evaluator
 from tree import TreeNode
-import time
-import datetime
 
 
 class Ranker(object):
@@ -90,7 +90,7 @@ class PerceptronRanker(Ranker):
     def _extract_feats(self, ttree, da):
         return self.normalizer.transform(
                         self.vectorizer.transform(
-                                self.feats.get_features(ttree, {'da': da})))[0]
+                                [self.feats.get_features(ttree, {'da': da})]))[0]
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         # read input

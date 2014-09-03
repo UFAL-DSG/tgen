@@ -4,7 +4,6 @@
 
 from __future__ import unicode_literals
 from .externals import six
-from collections import Mapping, Sequence
 from array import array
 from operator import itemgetter
 import numpy as np
@@ -209,25 +208,6 @@ def _mean_and_std(X, axis=0, with_mean=True, with_std=True):
 
     return mean_, std_
 
-
-# sklearn.utils.__init__
-def tosequence(x):
-    """Cast iterable x to a Sequence, avoiding a copy if possible."""
-    if isinstance(x, np.ndarray):
-        return np.asarray(x)
-    elif isinstance(x, Sequence):
-        return x
-    else:
-        return list(x)
-
-
-# sklearn.feature_extraction.dict_vectorizer
-def _tosequence(X):
-    """Turn X into a sequence or ndarray, avoiding a copy if possible."""
-    if isinstance(X, Mapping):  # single sample
-        return [X]
-    else:
-        return tosequence(X)
 
 # sklearn.utils.fixes
 # little danse to see if np.copy has an 'order' keyword argument
@@ -657,7 +637,6 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
         Because this method requires two passes over X, it materializes X in
         memory.
         """
-        X = _tosequence(X)
         self.fit(X)
         return self.transform(X)
 
@@ -727,14 +706,10 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
         dtype = self.dtype
         vocab = self.vocabulary_
 
-        X = _tosequence(X)
         Xa = np.zeros((len(X), len(vocab)), dtype=dtype)
 
         for i, x in enumerate(X):
             for f, v in six.iteritems(x):
-                if isinstance(v, six.string_types):
-                    f = "%s%s%s" % (f, self.separator, v)
-                    v = 1
                 try:
                     Xa[i, vocab[f]] = dtype(v)
                 except KeyError:

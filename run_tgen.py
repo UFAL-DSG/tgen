@@ -31,9 +31,9 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
 from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 
-from flect.logf import log_info, set_debug_stream
 from flect.config import Config
 
+from tgen.logf import log_info, set_debug_stream
 from tgen.futil import read_das, read_ttrees, chunk_list, ttrees_from_doc, add_bundle_text
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
