@@ -11,6 +11,7 @@ ifdef PYPY
 else
   ACTIVATE = echo -n
 endif
+DIFFTOOL = vimdiff
 
 # Runs directories
 RUNS_DIR  := runs# main directory for experiment outputs
@@ -123,4 +124,8 @@ asearch_gen:
 		2>&1 | tee $(TRY_DIR)/log.txt
 
 
-
+compare_logs-%:
+	NUM1=`echo $* | cut -d: -f1`; NUM2=`echo $* | cut -d: -f2`; \
+	cat $(RUNS_DIR)/$$NUM1*/debug-log.txt | sed -n -e '1,/TR 00002/p' | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.1.txt ; \
+	cat $(RUNS_DIR)/$$NUM2*/debug-log.txt | sed -n -e '1,/TR 00002/p' | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.2.txt ; \
+	$(DIFFTOOL) compare.1.txt compare.2.txt
