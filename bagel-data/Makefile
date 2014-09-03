@@ -66,7 +66,7 @@ help:
 	@echo "$$HELP_MESSAGE" | egrep --color '^(\s*make.*|)'
 
 desc:
-	ls -d $(RUNS_DIR)/* | sort | while read file; do \
+	@ls -d $(RUNS_DIR)/* | sort | while read file; do \
 		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
 		cat $$file/ABOUT | tr  '\n' ' '; \
 		if echo $$file | grep 'asearch_gen' >/dev/null 2>&1; then \

@@ -1,0 +1,5 @@
+.qsubmit-*.bash
+compare.*.txt
+data
+models
+runs
