@@ -11,17 +11,11 @@ Actions:
 candgen_train -- train candidate generator (probability distributions)
     - arguments: [-p prune_threshold] train-das train-ttrees output-model
 
-logregrank_create_data -- create training data for logistic regression ranker
-    - arguments: [-h use-headers] train-das train-ttrees candgen-model ranker-config output-train-data
-
-logregrank_train -- train logistic regression local ranker
-    - arguments: ranker-config ranker-train-data output-model
-
 percrank_train -- train perceptron global ranker
     - arguments: [-d debug-output] [-c candgen-model] [-s data-portion] ranker-config train-das train-ttrees output-model
 
-sample_gen -- generate using the given candidate generator and ranker
-    - arguments: [-n trees-per-da] [-r ranker-model] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
+sample_gen -- generate using the given candidate generator
+    - arguments: [-n trees-per-da] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 
 asearch_gen -- generate using the A*search sentence planner
     - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
@@ -33,18 +27,20 @@ import sys
 from getopt import getopt
 import platform
 
-from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
-from flect.logf import log_info, set_debug_stream
-
-from futil import read_das, read_ttrees, chunk_list, ttrees_from_doc, add_bundle_text
-from candgen import RandomCandidateGenerator
-from rank import LogisticRegressionRanker, PerceptronRanker
-from planner import SamplingPlanner, ASearchPlanner
-from flect.config import Config
-from getopt import getopt
-from eval import Evaluator, p_r_f1_from_counts, tp_fp_fn, f1_from_counts
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
+from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
+
+from flect.config import Config
+
+from tgen.logf import log_info, set_debug_stream
+from tgen.futil import read_das, read_ttrees, chunk_list, ttrees_from_doc, add_bundle_text
+from tgen.candgen import RandomCandidateGenerator
+from tgen.rank import PerceptronRanker
+from tgen.planner import SamplingPlanner, ASearchPlanner
+from tgen.eval import Evaluator, p_r_f1_from_counts, tp_fp_fn, f1_from_counts
+
+
 
 
 
@@ -63,38 +59,6 @@ def candgen_train(args):
     candgen = RandomCandidateGenerator({'prune_threshold': prune_threshold})
     candgen.train(fname_da_train, fname_ttrees_train)
     candgen.save_model(fname_cand_model)
-
-
-def logregrank_create_data(args):
-    opts, files = getopt(args, 'h:')
-    header_file = None
-    for opt, arg in opts:
-        if opt == '-h':
-            header_file = arg
-    if len(files) != 5:
-        sys.exit(__doc__)
-    fname_da_train, fname_ttrees_train, fname_cand_model, fname_rank_config, fname_rank_train = files
-
-    log_info('Creating data for ranker...')
-    candgen = RandomCandidateGenerator({})
-    candgen.load_model(fname_cand_model)
-    rank_config = Config(fname_rank_config)
-    ranker = LogisticRegressionRanker(rank_config)
-    ranker.create_training_data(fname_ttrees_train, fname_da_train, candgen, fname_rank_train,
-                                header_file=header_file)
-
-
-def logregrank_train(args):
-    if len(args) != 3:
-        sys.exit(__doc__)
-
-    fname_rank_config, fname_rank_train, fname_rank_model = args
-    log_info('Training logistic regression ranker...')
-
-    rank_config = Config(fname_rank_config)
-    ranker = LogisticRegressionRanker(rank_config)
-    ranker.train(fname_rank_train)
-    ranker.save_to_file(fname_rank_model)
 
 
 def percrank_train(args):
@@ -127,14 +91,11 @@ def percrank_train(args):
 def sample_gen(args):
     opts, files = getopt(args, 'r:n:o:w:')
     num_to_generate = 1
-    ranker_model = None
     oracle_eval_file = None
     fname_ttrees_out = None
 
     for opt, arg in opts:
-        if opt == '-r':
-            ranker_model = arg
-        elif opt == '-n':
+        if opt == '-n':
             num_to_generate = int(arg)
         elif opt == '-o':
             oracle_eval_file = arg
@@ -150,10 +111,7 @@ def sample_gen(args):
     candgen = RandomCandidateGenerator({})
     candgen.load_model(fname_cand_model)
 
-    if ranker_model is not None:
-        ranker = LogisticRegressionRanker.load_from_file(ranker_model)
-    else:
-        ranker = candgen
+    ranker = candgen
 
     tgen = SamplingPlanner({'candgen': candgen, 'ranker': ranker})
     # generate
@@ -274,10 +232,6 @@ if __name__ == '__main__':
 
     if action == 'candgen_train':
         candgen_train(args)
-    elif action == 'logregrank_create_data':
-        logregrank_create_data(args)
-    elif action == 'logregrank_train':
-        logregrank_train(args)
     elif action == 'percrank_train':
         percrank_train(args)
     elif action == 'random_gen':

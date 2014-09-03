@@ -4,8 +4,13 @@
 
 # Environment settings
 SHELL = /bin/bash
-TGEN = ../tgen/tgen.py
+TGEN = ../run_tgen.py
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem 8g --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP)# using OB's qsubmit script
+ifdef PYPY
+  ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
+else
+  ACTIVATE = echo -n
+endif
 DIFFTOOL = vimdiff
 
 # Runs directories
@@ -96,11 +101,11 @@ percrank_train:
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
 	# run the experiment
-	$(QSUBMIT) \
-	    '$(TGEN) percrank_train -d $(TRY_DIR)/debug-log.txt -c $(TRY_DIR)/candgen.pickle.gz  \
-	        -s $(TRAIN_PORTION) \
-	        $(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
-	        $(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/log.txt
+	$(QSUBMIT) '$(ACTIVATE); \
+		$(TGEN) percrank_train -d $(TRY_DIR)/debug-log.txt -c $(TRY_DIR)/candgen.pickle.gz  \
+		-s $(TRAIN_PORTION) \
+		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
+		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/log.txt
 
 
 asearch_gen: RUN_NAME := asearch_gen
@@ -112,10 +117,10 @@ asearch_gen:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	# run
-	$(QSUBMIT) \
-	    '$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz -d $(TRY_DIR)/debug-log.txt \
-	        -w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
-	        $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt' \
+	$(QSUBMIT) '$(ACTIVATE); \
+		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz -d $(TRY_DIR)/debug-log.txt \
+		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
+		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt' \
 		2>&1 | tee $(TRY_DIR)/log.txt
 
 

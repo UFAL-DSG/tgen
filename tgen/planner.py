@@ -10,7 +10,7 @@ import heapq
 from collections import deque
 from UserDict import DictMixin
 
-from flect.logf import log_debug
+from logf import log_debug
 from tree import TreeData, TreeNode, NodeData
 from alex.components.nlg.tectotpl.core.util import first
 

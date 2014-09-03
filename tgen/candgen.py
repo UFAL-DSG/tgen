@@ -11,7 +11,7 @@ import cPickle as pickle
 import random
 import copy
 
-from flect.logf import log_info
+from logf import log_info
 from alex.components.nlg.tectotpl.core.util import file_stream
 
 from futil import read_das, read_ttrees
