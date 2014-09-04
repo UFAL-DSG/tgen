@@ -70,7 +70,7 @@ desc:
 		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
 		cat $$file/ABOUT | tr  '\n' ' '; \
 		if echo $$file | grep 'asearch_gen' >/dev/null 2>&1; then \
-			score=`grep "Node precision" $$file/T.* $$file/log.txt 2>/dev/null | head -n 1 | sed 's/.*Node p/P/' | tr -d '\n'`; \
+			score=`grep -i "Node precision" $$file/T.* $$file/log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
 			echo -en "\t$$score"; \
 		fi; \
 		echo; \

@@ -149,7 +149,8 @@ class PerceptronRanker(Ranker):
             for ttree_no, da in enumerate(das):
                 # obtain some 'rival', alternative incorrect candidates
                 gold_ttree, gold_feats = ttrees[ttree_no], X[ttree_no]
-                rival_ttrees, rival_feats = self._get_rival_candidates(da, ttrees, ttree_no)
+                rival_ttrees, rival_feats = self._get_rival_candidates(da, ttrees, ttree_no,
+                                                                       lists_analyzer)
                 cands = [gold_feats] + rival_feats
 
                 # score them along with the right one

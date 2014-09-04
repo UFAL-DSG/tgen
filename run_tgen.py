@@ -196,8 +196,8 @@ def asearch_gen(args):
     if eval_file is not None:
         # generate + analyze open&close lists
         lists_analyzer = ASearchListsAnalyzer()
-        for num, da, gold_tree in enumerate(zip(das,
-                                                trees_from_doc(eval_doc, tgen.language, eval_selector))):
+        for num, (da, gold_tree) in enumerate(zip(das,
+                                                  trees_from_doc(eval_doc, tgen.language, eval_selector))):
             log_debug("\n\nTREE No. %03d" % num)
             open_list, close_list = tgen.generate_tree(da, gen_doc, return_lists=True)
             lists_analyzer.append(gold_tree, open_list, close_list)
