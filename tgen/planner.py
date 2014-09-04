@@ -199,9 +199,6 @@ class ASearchPlanner(SentencePlanner):
 
     def __init__(self, cfg):
         super(ASearchPlanner, self).__init__(cfg)
-        self.debug_out = None
-        if 'debug_out' in cfg:
-            self.debug_out = cfg['debug_out']
         self.ranker = cfg['ranker']
         self.max_iter = cfg.get('max_iter', self.MAX_ITER)
         self.max_defic_iter = cfg.get('max_defic_iter')
@@ -211,7 +208,7 @@ class ASearchPlanner(SentencePlanner):
         # generate and use only 1-best
         open_list, close_list = self.run(da, self.max_iter, self.max_defic_iter)
         best_tree = close_list.peek()[0]
-        log_debug("RESULT: %s\n\n" % unicode(best_tree))
+        log_debug("RESULT: %s" % unicode(best_tree))
         # return or append the result, return open & close list for inspection if needed
         if gen_doc:
             zone = self.get_target_zone(gen_doc)

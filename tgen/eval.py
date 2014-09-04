@@ -11,7 +11,7 @@ from enum import Enum
 from tgen.logf import log_debug
 
 
-EvalTypes = Enum('EvalTypes', 'NODE DEP')
+EvalTypes = Enum(b'EvalTypes', b'NODE DEP')
 EvalTypes.__doc__ = """Evaluation flavors (node-only, dependency)"""
 
 
@@ -127,7 +127,9 @@ class Evaluator(object):
         return self.p_r_f1(eval_type)[1]
 
     def p_r_f1(self, eval_type=EvalTypes.NODE):
-        return p_r_f1_from_counts(self.correct, self.gold, self.predicted, eval_type)
+        return p_r_f1_from_counts(self.correct[eval_type],
+                                  self.gold[eval_type],
+                                  self.predicted[eval_type])
 
 
 class ASearchListsAnalyzer(object):

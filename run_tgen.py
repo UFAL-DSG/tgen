@@ -33,7 +33,7 @@ from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 
 from flect.config import Config
 
-from tgen.logf import log_info, set_debug_stream
+from tgen.logf import log_info, set_debug_stream, log_debug
 from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc
 from tgen.candgen import RandomCandidateGenerator
@@ -196,7 +196,9 @@ def asearch_gen(args):
     if eval_file is not None:
         # generate + analyze open&close lists
         lists_analyzer = ASearchListsAnalyzer()
-        for da, gold_tree in zip(das, trees_from_doc(eval_doc, tgen.language, eval_selector)):
+        for num, da, gold_tree in enumerate(zip(das,
+                                                trees_from_doc(eval_doc, tgen.language, eval_selector))):
+            log_debug("\n\nTREE No. %03d" % num)
             open_list, close_list = tgen.generate_tree(da, gen_doc, return_lists=True)
             lists_analyzer.append(gold_tree, open_list, close_list)
         log_info('Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' % lists_analyzer.stats())
