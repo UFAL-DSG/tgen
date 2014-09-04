@@ -20,8 +20,9 @@ from features import Features
 from futil import read_das, read_ttrees, trees_from_doc, sentences_from_doc
 from planner import SamplingPlanner, ASearchPlanner
 from candgen import RandomCandidateGenerator
-from eval import Evaluator
+from eval import Evaluator, EvalTypes
 from tree import TreeNode
+from tgen.eval import ASearchListsAnalyzer
 
 
 class Ranker(object):
@@ -143,6 +144,7 @@ class PerceptronRanker(Ranker):
             iter_errs = 0
             log_debug('\n***\nTR %05d:' % iter_no)
             evaler = Evaluator()
+            lists_analyzer = ASearchListsAnalyzer()
 
             for ttree_no, da in enumerate(das):
                 # obtain some 'rival', alternative incorrect candidates
@@ -179,8 +181,12 @@ class PerceptronRanker(Ranker):
 
             iter_end_time = time.clock()
 
-            log_info('Iteration %05d -- tree-level accuracy: %.3f' % (iter_no, iter_acc))
-            log_info(' * Generated trees scores: P: %.3f, R: %.3f, F: %.3f' % evaler.p_r_f1())
+            log_info('Iteration %05d -- tree-level accuracy: %.4f' % (iter_no, iter_acc))
+            log_info(' * Generated trees NODE scores: P: %.4f, R: %.4f, F: %.4f' % evaler.p_r_f1())
+            log_info(' * Generated trees DEP  scores: P: %.4f, R: %.4f, F: %.4f' %
+                     evaler.p_r_f1(EvalTypes.DEP))
+            log_info(' * Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' %
+                     lists_analyzer.stats())
             log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
 
     def _feat_val_str(self, vec, sep='\n', nonzero=False):
@@ -188,7 +194,7 @@ class PerceptronRanker(Ranker):
                          for name, weight in zip(self.vectorizer.get_feature_names(), vec)
                          if not nonzero or weight != 0])
 
-    def _get_rival_candidates(self, da, train_trees, gold_tree_idx):
+    def _get_rival_candidates(self, da, train_trees, gold_tree_idx, lists_analyzer=None):
         """Generate some rival candidates for a DA and the correct (gold) t-tree,
         given the current rival generation strategy (self.rival_gen_strategy).
 
@@ -225,11 +231,17 @@ class PerceptronRanker(Ranker):
         # weights to guide the search, and the current DA as the input
         # TODO: use just one!, others are meaningless
         if 'gen_cur_weights' in self.rival_gen_strategy:
-            gen_ttrees = [t for t in self.asearch_planner.get_best_candidates(da, self.rival_number + 1,
-                                                                              self.rival_gen_max_iter,
-                                                                              self.rival_gen_max_defic_iter,
-                                                                              self.rival_gen_beam_size)
-                          if t != train_trees[gold_tree_idx]]
+            open_list, close_list = self.asearch_planner.run(da,
+                                                             self.rival_gen_max_iter,
+                                                             self.rival_gen_max_defic_iter,
+                                                             self.rival_gen_beam_size)
+            if lists_analyzer:
+                lists_analyzer.append(train_trees[gold_tree_idx], open_list, close_list)
+            gen_ttrees = []
+            while close_list and len(gen_ttrees) < self.rival_number:
+                tree = close_list.pop()[0]
+                if tree != train_trees[gold_tree_idx]:
+                    gen_ttrees.append(tree)
             rival_trees.extend(gen_ttrees[:self.rival_number])
             rival_feats.extend([self._extract_feats(ttree, da)
                                 for ttree in gen_ttrees[:self.rival_number]])

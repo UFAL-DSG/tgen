@@ -206,30 +206,32 @@ class ASearchPlanner(SentencePlanner):
         self.max_iter = cfg.get('max_iter', self.MAX_ITER)
         self.max_defic_iter = cfg.get('max_defic_iter')
 
-    def generate_tree(self, da, gen_doc=None):
+    def generate_tree(self, da, gen_doc=None, return_lists=False):
         log_debug('GEN TREE for DA: %s' % unicode(da))
         # generate and use only 1-best
-        best_tree = self.get_best_candidates(da, 1, self.max_iter, self.max_defic_iter)[0]
+        open_list, close_list = self.run(da, self.max_iter, self.max_defic_iter)
+        best_tree = close_list.peek()[0]
         log_debug("RESULT: %s\n\n" % unicode(best_tree))
-        # return or append the result
+        # return or append the result, return open & close list for inspection if needed
         if gen_doc:
             zone = self.get_target_zone(gen_doc)
             zone.ttree = best_tree.create_ttree()
             zone.sentence = unicode(da)
+        if return_lists:
+            return open_list, close_list
+        if gen_doc:
             return
         return best_tree
 
-    def get_best_candidates(self, da, ncands,
-                            max_iter=None, max_defic_iter=None, beam_size=None):
-        """Run the A*-search generation and after it finishes, return N best candidates
-        on the close list.
+    def run(self, da, max_iter=None, max_defic_iter=None, beam_size=None):
+        """Run the A*-search generation and after it finishes, return the open
+        and close lists.
 
         @param da: the input dialogue act
-        @param ncands: (maximum) number of candidates to return
         @param max_iter: maximum number of iterations for generation
         @param gold_ttree: a gold t-tree to check if it matches the current candidate
         @rtype: list
-        @return: a list of the best candidates in the close list, sorted by score
+        @return: the resulting open and close lists
         """
         # TODO add future cost ?
 
@@ -276,8 +278,4 @@ class ASearchPlanner(SentencePlanner):
             elif defic_iter == max_defic_iter:
                 log_debug('DEFICIT ITERATION LIMIT REACHED')
 
-        # return the N best candidates on the close list
-        result = []
-        while close_list and len(result) < ncands:
-            result.append(close_list.pop()[0])
-        return result
+        return open_list, close_list

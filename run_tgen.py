@@ -34,14 +34,13 @@ from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 from flect.config import Config
 
 from tgen.logf import log_info, set_debug_stream
-from tgen.futil import read_das, read_ttrees, chunk_list, ttrees_from_doc, add_bundle_text
+from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
+    trees_from_doc, ttrees_from_doc
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import SamplingPlanner, ASearchPlanner
-from tgen.eval import Evaluator, p_r_f1_from_counts, tp_fp_fn, f1_from_counts
-
-
-
+from tgen.eval import p_r_f1_from_counts, tp_fp_fn, f1_from_counts, ASearchListsAnalyzer, \
+    EvalTypes, Evaluator
 
 
 def candgen_train(args):
@@ -193,12 +192,16 @@ def asearch_gen(args):
         else:
             gen_doc = eval_doc
 
-    # generate
-    for da in das:
-        tgen.generate_tree(da, gen_doc)
-
+    # generate and evaluate
     if eval_file is not None:
-        # generate and evaluate
+        # generate + analyze open&close lists
+        lists_analyzer = ASearchListsAnalyzer()
+        for da, gold_tree in zip(das, trees_from_doc(eval_doc, tgen.language, eval_selector)):
+            open_list, close_list = tgen.generate_tree(da, gen_doc, return_lists=True)
+            lists_analyzer.append(gold_tree, open_list, close_list)
+        log_info('Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' % lists_analyzer.stats())
+
+        # evaluate F-scores
         eval_ttrees = ttrees_from_doc(eval_doc, tgen.language, eval_selector)
         gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
 
@@ -208,7 +211,12 @@ def asearch_gen(args):
             add_bundle_text(eval_bundle, tgen.language, tgen.selector + 'Xscore',
                             "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*tp_fp_fn(eval_ttree, gen_ttree)))
             evaler.append(eval_ttree, gen_ttree)
-        log_info("Node precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
+        log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
+        log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
+    # just generate
+    else:
+        for da in das:
+            tgen.generate_tree(da, gen_doc)
 
     # write output
     if fname_ttrees_out is not None:
