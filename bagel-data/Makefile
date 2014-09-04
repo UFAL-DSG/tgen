@@ -80,6 +80,13 @@ desc:
 printvars:
 	$(foreach V, $(sort $(.VARIABLES)), $(if $(filter-out environment% default automatic, $(origin $V)), $(info $V=$($V) ($(value $V)))))
 
+printgit:
+	@git status
+	@echo -e "\n*** *** ***\n"
+	@git log --pretty=format:"%h - %an, %ar : %s" -1
+	@echo -e "\n*** *** ***\n"
+	@git diff
+
 
 prepare_dir:
 	# create the directory (and parallel run directory if needed)
@@ -89,6 +96,7 @@ prepare_dir:
 		echo "$(DESC)" > $(TRY_DIR)/ABOUT; \
 	fi
 	make printvars > $(TRY_DIR)/VARS
+	make printgit > $(TRY_DIR)/GIT_VERSION
 
 # Main targets
 
