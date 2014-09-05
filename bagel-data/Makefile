@@ -50,8 +50,16 @@ Tgen experiments
 - Use 'make asearch_gen' to run A*search generation
   (set PERCRANK_MODEL to the model you want to use).
 
+- Use 'make compare-X:Y' to compare the logs of runs X
+  and Y.
+
 Use QP='--console' if you want the job to run interactively instead
 of submitting to the cluster.
+
+Use ACTIVATE='source path/to/virtualenv/bin/activate' to run
+within a Virtualenv instead of the default Python.
+
+Use PYPY=1 to activate the preset PyPy Virtualenv.
 
 endef
 export HELP_MESSAGE
