@@ -167,8 +167,6 @@ class PerceptronRanker(Ranker):
                 log_debug('ALL CAND TREES:')
                 for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
                     log_debug("%.3f" % score, "\t", ttree)
-                # log_debug('GOLD CAND -- ', self._feat_val_str(cands[0], '\t'))
-                # log_debug('SEL  CAND -- ', self._feat_val_str(cands[top_cand_idx], '\t'))
 
                 # update weights if the system doesn't give the highest score to the right one
                 if top_cand_idx != 0:
