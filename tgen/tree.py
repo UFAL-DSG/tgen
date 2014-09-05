@@ -8,6 +8,7 @@ Trees for generating.
 from __future__ import unicode_literals
 from collections import namedtuple, deque
 from alex.components.nlg.tectotpl.core.node import T
+from tgen.logf import log_debug
 
 
 __author__ = "Ondřej Dušek"
@@ -24,7 +25,7 @@ class TreeData(object):
 
     __slots__ = ['nodes', 'parents']
 
-    def __init__(self, nodes=None, parents=None, ttree=None):
+    def __init__(self, nodes=None, parents=None):
 
         if nodes and parents:
             # copy structure if it's given
@@ -35,14 +36,25 @@ class TreeData(object):
             self.nodes = [NodeData(None, None)]
             self.parents = [-1]
 
-            # initialize with data from existing t-tree
-            if ttree is not None:
-                tnodes = ttree.get_descendants(ordered=True)
-                id2ord = {tnode.id: num for num, tnode in enumerate(tnodes, start=1)}
-                id2ord[ttree.id] = 0
-                for tnode in tnodes:
-                    self.nodes.append(NodeData(tnode.t_lemma, tnode.formeme))
-                    self.parents.append(id2ord[tnode.parent.id])
+    @staticmethod
+    def from_ttree(ttree):
+        tree = TreeData()
+        tnodes = ttree.get_descendants(ordered=True)
+        id2ord = {tnode.id: num for num, tnode in enumerate(tnodes, start=1)}
+        id2ord[ttree.id] = 0
+        for tnode in tnodes:
+            tree.nodes.append(NodeData(tnode.t_lemma, tnode.formeme))
+            tree.parents.append(id2ord[tnode.parent.id])
+        return tree
+
+    @staticmethod
+    def from_string(string):
+        tree = TreeData()
+        for node in string.split(' ')[1:]:
+            _, parent, t_lemma, formeme = node.split('|')
+            tree.parents.append(int(parent))
+            tree.nodes.append(NodeData(t_lemma, formeme))
+        return tree
 
     def create_child(self, parent_idx, right, child_data):
         child_idx = parent_idx + 1 if right else parent_idx
@@ -54,7 +66,6 @@ class TreeData(object):
     def children_idxs(self, parent_idx):
         return [idx for idx, val in enumerate(self.parents) if val == parent_idx]
 
-    # @jit
     def node_depth(self, node_idx):
         depth = 0
         while node_idx > 0:
