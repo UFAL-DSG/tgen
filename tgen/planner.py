@@ -6,7 +6,6 @@ Sentence planning: Generating T-trees from dialogue acts.
 """
 
 from __future__ import unicode_literals
-import heapq
 from collections import deque
 from UserDict import DictMixin
 
@@ -44,9 +43,10 @@ class CandidateList(DictMixin):
                 return
             queue_index = (i for i, v in enumerate(self.queue) if v[1] == key).next()
             self.queue[queue_index] = (value, key)
-            self.__fix_queue(queue_index)
+            self._siftup(queue_index)
         else:
-            heapq.heappush(self.queue, (value, key))
+            self.queue.append((value, key))
+            self._siftdown(0, len(self.queue) - 1)
         self.members[key] = value
 
     def __delitem__(self, key):
@@ -54,14 +54,20 @@ class CandidateList(DictMixin):
         queue_index = (i for i, v in enumerate(self.queue) if v[1] == key).next()
         self.queue[queue_index] = self.queue[-1]
         del self.queue[-1]
-        self.__fix_queue(queue_index)
+        self._siftup(queue_index)
 
     def keys(self):
         return self.members.keys()
 
     def pop(self):
         """Return the first item on the heap and remove it."""
-        value, key = heapq.heappop(self.queue)
+        last = self.queue.pop()  # raises appropriate IndexError if heap is empty
+        if self.queue:
+            value, key = self.queue[0]
+            self.queue[0] = last
+            self._siftup(0)
+        else:
+            value, key = last
         del self.members[key]
         return key, value
 
@@ -97,25 +103,46 @@ class CandidateList(DictMixin):
         self.queue = pruned_queue
         return remain_members
 
-    # @jit
-    def __fix_queue(self, index):
-        """Fixing a heap after change in one element (swapping elements until heap
-        condition is satisfied.)"""
-        down = index / 2 - 1
-        up = index * 2 + 1
-        if index > 0 and self.queue[index][0] < self.queue[down][0]:
-            self.queue[index], self.queue[down] = self.queue[down], self.queue[index]
-            self.__fix_queue(down)
-        elif up < len(self.queue):
-            if self.queue[index][0] > self.queue[up][0]:
-                self.queue[index], self.queue[up] = self.queue[up], self.queue[index]
-                self.__fix_queue(up)
-            elif up + 1 < len(self.queue) and self.queue[index][0] > self.queue[up + 1][0]:
-                self.queue[index], self.queue[up + 1] = self.queue[up + 1], self.queue[index]
-                self.__fix_queue(up + 1)
-
     def __repr__(self):
         return ' '.join(['%6.3f' % val for val, _ in self.queue])
+
+    def _siftdown(self, startpos, pos):
+        """Copied from heapq._siftdown, with custom comparison (comparing *just* by 1st element)"""
+        heap = self.queue
+        newitem = heap[pos]
+        # Follow the path to the root, moving parents down until finding a place
+        # newitem fits.
+        while pos > startpos:
+            parentpos = (pos - 1) >> 1
+            parent = heap[parentpos]
+            if newitem[0] < parent[0]:
+                heap[pos] = parent
+                pos = parentpos
+                continue
+            break
+        heap[pos] = newitem
+
+    def _siftup(self, pos):
+        """Copied from heapq._siftup, with custom comparison (comparing *just* by 1st element)"""
+        heap = self.queue
+        endpos = len(heap)
+        startpos = pos
+        newitem = heap[pos]
+        # Bubble up the smaller child until hitting a leaf.
+        childpos = 2 * pos + 1  # leftmost child position
+        while childpos < endpos:
+            # Set childpos to index of smaller child.
+            rightpos = childpos + 1
+            if rightpos < endpos and not heap[childpos] < heap[rightpos]:
+                childpos = rightpos
+            # Move the smaller child up.
+            heap[pos] = heap[childpos]
+            pos = childpos
+            childpos = 2 * pos + 1
+        # The leaf at pos is empty now.  Put newitem there, and bubble it up
+        # to its final resting place (by sifting its parents down).
+        heap[pos] = newitem
+        self._siftdown(startpos, pos)
 
 
 class SentencePlanner(object):
