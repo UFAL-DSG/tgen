@@ -12,6 +12,7 @@ else
   ACTIVATE = echo -n
 endif
 DIFFTOOL = vimdiff
+COMPARE_ITERS = 1# setting last iteration to be compared in log comparison
 
 # Runs directories
 RUNS_DIR  := runs# main directory for experiment outputs
@@ -51,7 +52,8 @@ Tgen experiments
   (set PERCRANK_MODEL to the model you want to use).
 
 - Use 'make compare-X:Y' to compare the logs of runs X
-  and Y.
+  and Y (set COMPARE_ITERS to the number of iterations you
+  want to compare).
 
 Use QP='--console' if you want the job to run interactively instead
 of submitting to the cluster.
@@ -142,6 +144,7 @@ asearch_gen:
 
 compare_logs-%:
 	NUM1=`echo $* | cut -d: -f1`; NUM2=`echo $* | cut -d: -f2`; \
-	cat $(RUNS_DIR)/$$NUM1*/debug-log.txt | sed -n -e '1,/TR 00002/p' | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.1.txt ; \
-	cat $(RUNS_DIR)/$$NUM2*/debug-log.txt | sed -n -e '1,/TR 00002/p' | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.2.txt ; \
+	CUTOFF_IT=`printf "%05d" $$(( $(COMPARE_ITERS) + 1 ))` ; \
+	cat $(RUNS_DIR)/$$NUM1*/debug-log.txt | sed -n -e "1,/TR $$CUTOFF_IT/p" | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.1.txt ; \
+	cat $(RUNS_DIR)/$$NUM2*/debug-log.txt | sed -n -e "1,/TR $$CUTOFF_IT/p" | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.2.txt ; \
 	$(DIFFTOOL) compare.1.txt compare.2.txt
