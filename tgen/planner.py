@@ -254,7 +254,7 @@ class ASearchPlanner(SentencePlanner):
         @param da: the input dialogue act
         @param max_iter: maximum number of iterations for generation
         @param gold_ttree: a gold t-tree to check if it matches the current candidate
-        @rtype: list
+        @rtype: tuple
         @return: the resulting open and close lists
         """
         # TODO add future cost ?
