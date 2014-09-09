@@ -101,9 +101,7 @@ class Evaluator(object):
     a total score using f1(), precision(), recall(), and p_r_f1()."""
 
     def __init__(self):
-        self.correct = {eval_type: 0 for eval_type in EvalTypes}
-        self.gold = {eval_type: 0 for eval_type in EvalTypes}
-        self.predicted = {eval_type: 0 for eval_type in EvalTypes}
+        self.reset()
 
     def append(self, gold_tree, pred_tree):
         for eval_type in EvalTypes:
@@ -136,6 +134,9 @@ class ASearchListsAnalyzer(object):
     """Analysis of the final open and close lists of the A*search generator."""
 
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.total = 0
         self.gold_best = 0
         self.gold_on_close = 0
