@@ -12,7 +12,8 @@ candgen_train -- train candidate generator (probability distributions)
     - arguments: [-p prune_threshold] train-das train-ttrees output-model
 
 percrank_train -- train perceptron global ranker
-    - arguments: [-d debug-output] [-c candgen-model] [-s data-portion] ranker-config train-das train-ttrees output-model
+    - arguments: [-d debug-output] [-c candgen-model] [-s data-portion] [-j parallel-jobs] [-w parallel-work-dir] \\
+                 ranker-config train-das train-ttrees output-model
 
 sample_gen -- generate using the given candidate generator
     - arguments: [-n trees-per-da] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
@@ -26,6 +27,7 @@ import random
 import sys
 from getopt import getopt
 import platform
+import os
 
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
@@ -41,6 +43,7 @@ from tgen.rank import PerceptronRanker
 from tgen.planner import SamplingPlanner, ASearchPlanner
 from tgen.eval import p_r_f1_from_counts, tp_fp_fn, f1_from_counts, ASearchListsAnalyzer, \
     EvalTypes, Evaluator
+from tgen.parallel_percrank_train import ParallelPerceptronRanker
 
 
 def candgen_train(args):
@@ -61,9 +64,12 @@ def candgen_train(args):
 
 
 def percrank_train(args):
-    opts, files = getopt(args, 'c:d:s:')
+    opts, files = getopt(args, 'c:d:s:j:w:')
     candgen_model = None
     train_size = 1.0
+    parallel = False
+    jobs_number = 0
+    work_dir = None
 
     for opt, arg in opts:
         if opt == '-d':
@@ -72,6 +78,11 @@ def percrank_train(args):
             train_size = float(arg)
         elif opt == '-c':
             candgen_model = arg
+        elif opt == '-j':
+            parallel = True
+            jobs_number = int(arg)
+        elif opt == '-w':
+            work_dir = arg
 
     if len(files) != 4:
         sys.exit(__doc__)
@@ -82,7 +93,13 @@ def percrank_train(args):
     rank_config = Config(fname_rank_config)
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
-    ranker = PerceptronRanker(rank_config)
+    if not parallel:
+        ranker = PerceptronRanker(rank_config)
+    else:
+        rank_config['jobs_number'] = jobs_number
+        if work_dir is None:
+            work_dir, _ = os.path.split(fname_rank_config)
+        ranker = ParallelPerceptronRanker(rank_config, work_dir)
     ranker.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
     ranker.save_to_file(fname_rank_model)
 
