@@ -24,6 +24,13 @@ TRY_DIR    = $(RUNS_DIR)/$(TRY_NUM)_$(DATE)_$(RUN_NAME)# experiment output direc
 ifdef D # Shortcut D -> DESC
   DESC := $(D)
 endif
+ifdef J # Shortcut J -> JOBS
+  JOBS := $(J)
+endif
+
+ifdef JOBS
+  PARALLEL := -j $(JOBS)
+endif
 
 # Input data file defaults
 
@@ -121,7 +128,7 @@ percrank_train:
 	# run the experiment
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) percrank_train -d $(TRY_DIR)/debug-log.txt -c $(TRY_DIR)/candgen.pickle.gz  \
-		-s $(TRAIN_PORTION) \
+		-s $(TRAIN_PORTION) $(PARALLEL) \
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/log.txt
 
