@@ -66,16 +66,6 @@ class PerceptronRanker(Ranker):
             self.feats.extend(cfg['features'])
         self.feats = Features(self.feats)
 
-        # these will be used just during training
-        self.train_trees = None
-        self.train_feats = None
-        self.train_sents = None
-        self.train_das = None
-
-        self.asearch_planner = None
-        self.sampling_planner = None
-        self.candgen = None
-
     def score(self, cand_ttree, da):
         return self._score(self._extract_feats(cand_ttree, da))
 

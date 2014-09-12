@@ -10,10 +10,11 @@ Parallel training for Perceptron ranker (using Qsub & RPyC).
 from __future__ import unicode_literals
 from collections import deque, namedtuple
 import sys
-from time import sleep
 from threading import Thread
 import socket
 import cPickle as pickle
+import time
+import datetime
 
 import numpy as np
 from rpyc import Service, connect, async
@@ -22,7 +23,8 @@ from rpyc.utils.server import ThreadPoolServer
 from flect.cluster import Job
 
 from rank import PerceptronRanker
-from tgen.logf import log_info
+from tgen.logf import log_info, set_debug_stream, log_debug
+from alex.components.nlg.tectotpl.core.util import file_stream
 
 
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
@@ -88,19 +90,26 @@ class ParallelPerceptronRanker(PerceptronRanker):
         # spawn training jobs
         log_info('Spawning jobs...')
         for j in xrange(self.jobs_number):
-            job = Job(code='run_worker("%s", %d)' % (self.host, self.port),
-                      header='from tgen.parallel_percrank_train import run_worker',
+            job = Job(header='from tgen.parallel_percrank_train import run_worker',
+                      code=('run_worker("%s", %d, "%s")' %
+                            (self.host, self.port, "PRT%02d.debug-out.txt" % j)),
                       name="PRT%02d" % j,
                       work_dir=self.work_dir)
             job.submit(self.job_memory)
             self.jobs.append(job)
-        # wait for free services / assign computation
+        # run the training iterations
         try:
             for iter_no in xrange(1, self.passes + 1):
+
                 log_info('Iteration %d...' % iter_no)
+                log_debug('\n***\nTR%05d:' % iter_no)
+
+                iter_start_time = time.clock()
                 cur_portion = 0
                 results = [None] * self.data_portions
-                while cur_portion < self.data_portions:
+                w_dump = pickle.dumps(self.w, protocol=pickle.HIGHEST_PROTOCOL)
+                # wait for free services / assign computation
+                while cur_portion < self.data_portions or self.pending_requests:
                     # check if some of the pending computations have finished
                     for sc, req_portion, req in list(self.pending_requests):
                         if req.ready:
@@ -108,8 +117,8 @@ class ParallelPerceptronRanker(PerceptronRanker):
                             if req.error:
                                 log_info('Error found on request: IT %d PORTION %d, WORKER %s:%d' %
                                          (iter_no, req_portion, sc.host, sc.port))
-                            results[req_portion] = req.value
-                            self.pending_requests.remove(sc, req_portion, req)
+                            results[req_portion] = pickle.loads(req.value)
+                            self.pending_requests.remove((sc, req_portion, req))
                             self.free_services.append(sc)
                     # check for free services and assign new computation
                     while cur_portion < self.data_portions and self.free_services:
@@ -117,14 +126,18 @@ class ParallelPerceptronRanker(PerceptronRanker):
                         log_info('Assigning request %d / %d to %s:%d' %
                                  (iter_no, cur_portion, sc.host, sc.port))
                         train_func = async(sc.conn.root.training_iter)
-                        req = train_func(self.w, iter_no, *self._get_portion_bounds(cur_portion))
+                        req = train_func(w_dump, iter_no, *self._get_portion_bounds(cur_portion))
                         self.pending_requests.add((sc, cur_portion, req))
                         cur_portion += 1
                     # sleep for a while
-                    sleep(self.poll_interval)
+                    time.sleep(self.poll_interval)
                 # now gather the results and take an average, set it as new w
                 self.w = np.average(results, axis=0)
-            # kill all jobs
+
+                iter_end_time = time.clock()
+                log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
+                log_debug(self._feat_val_str(self.w), '\n***')
+        # kill all jobs
         finally:
             for job in self.jobs:
                 job.delete()
@@ -180,6 +193,8 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.asearch_planner = self.asearch_planner
         percrank.sampling_planner = self.sampling_planner
         percrank.candgen = self.candgen
+        percrank.lists_analyzer = self.lists_analyzer
+        percrank.evaluator = self.evaluator
         return percrank
 
 
@@ -201,7 +216,7 @@ class PercRankTrainingService(Service):
                  (iter_no, data_offset, data_len))
         # import current feature weights
         percrank = self.percrank
-        percrank.w = w
+        percrank.w = pickle.loads(w)
         # save rest of the training data to temporary variables, set just the
         # required portion for computation
         all_train_das = percrank.train_das
@@ -221,10 +236,13 @@ class PercRankTrainingService(Service):
         percrank.train_sents = all_train_sents
         # return the result of the computation
         log_info('Training iteration %d / %d / %d done.' % (iter_no, data_offset, data_len))
-        return percrank.w
+        return pickle.dumps(percrank.w, pickle.HIGHEST_PROTOCOL)
 
 
-def run_worker(head_host, head_port):
+def run_worker(head_host, head_port, debug_out=None):
+    # setup debugging output, if applicable
+    if debug_out is not None:
+        set_debug_stream(file_stream(debug_out, mode='w'))
     # start the server (in the background)
     log_info('Creating worker server...')
     server = ThreadPoolServer(service=PercRankTrainingService, nbThreads=1)
