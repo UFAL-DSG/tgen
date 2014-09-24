@@ -70,9 +70,7 @@ class PerceptronRanker(Ranker):
         return self._score(self._extract_feats(cand_ttree, da))
 
     def _score(self, cand_feats):
-        ret = np.dot(self.w, cand_feats)
-        log_debug('SCORING: ' + str(hash(tuple(self.w))) + ' * ' + str(hash(tuple(cand_feats))) + ' = ' + str(ret))
-        return ret
+        return np.dot(self.w, cand_feats)
 
     def _extract_feats(self, ttree, da):
         return self.normalizer.transform(
@@ -168,14 +166,9 @@ class PerceptronRanker(Ranker):
 
             # update weights if the system doesn't give the highest score to the right one
             if top_cand_idx != 0:
-                log_info('UPDATING WEIGHTS: ' + str(hash(tuple(self.w))))
                 self.w += (self.alpha * gold_feats -
                            self.alpha * cands[top_cand_idx])
-                log_debug('UPDATED  WEIGHTS: ' + str(hash(tuple(self.w))))
                 iter_errs += 1
-                log_debug('ITER ERRS: %d' % iter_errs)
-            else:
-                log_debug('NO WEIGHTS UPDATE.')
 
         iter_acc = (1.0 - (iter_errs / float(len(self.train_trees))))
         log_debug(self._feat_val_str(self.w), '\n***')
