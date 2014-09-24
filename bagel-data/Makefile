@@ -53,8 +53,11 @@ Tgen experiments
 - Use 'make desc' to list experiments with descriptions.
 
 - Use 'make percrank_train' to run a new percrank training
-  experiment (set TRAIN_PORTION to a fraction of the training
-  data to be used).
+  experiment
+  - set TRAIN_PORTION to a fraction of the training
+    data to be used
+  - set J/JOBS to the number of parallel jobs to be used
+    in a parallel training setup
 
 - Use 'make asearch_gen' to run A*search generation
   (set PERCRANK_MODEL to the model you want to use).
