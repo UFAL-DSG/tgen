@@ -25,6 +25,7 @@ from flect.cluster import Job
 from rank import PerceptronRanker
 from tgen.logf import log_info, set_debug_stream, log_debug
 from alex.components.nlg.tectotpl.core.util import file_stream
+from tgen.planner import ASearchPlanner
 
 
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
@@ -193,6 +194,11 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.asearch_planner = self.asearch_planner
         percrank.sampling_planner = self.sampling_planner
         percrank.candgen = self.candgen
+        # make a new planner so that it links back to the new ranker copy
+        percrank.asearch_planner = ASearchPlanner({'candgen': percrank.candgen,
+                                                   'language': percrank.language,
+                                                   'selector': percrank.selector,
+                                                   'ranker': percrank})
         percrank.lists_analyzer = self.lists_analyzer
         percrank.evaluator = self.evaluator
         return percrank
