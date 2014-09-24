@@ -4,6 +4,11 @@
 """
 Parallel training for Perceptron ranker (using Qsub & RPyC).
 
+When run as main, this file will start a worker and register with the address given
+in command-line parameters.
+
+Usage: ./parallel_percrank_train.py <head-address> <head-port>
+
 @todo: Local training on multiple cores should not be hard to implement.
 """
 
@@ -21,11 +26,12 @@ from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
 
 from flect.cluster import Job
+from alex.components.nlg.tectotpl.core.util import file_stream
 
 from rank import PerceptronRanker
-from tgen.logf import log_info, set_debug_stream, log_debug
-from alex.components.nlg.tectotpl.core.util import file_stream
-from tgen.planner import ASearchPlanner
+from logf import log_info, set_debug_stream, log_debug
+from planner import ASearchPlanner
+from tgen.logf import log_warn
 
 
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
@@ -105,7 +111,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
                 log_info('Iteration %d...' % iter_no)
                 log_debug('\n***\nTR%05d:' % iter_no)
 
-                iter_start_time = time.clock()
+                iter_start_time = time.time()
                 cur_portion = 0
                 results = [None] * self.data_portions
                 w_dump = pickle.dumps(self.w, protocol=pickle.HIGHEST_PROTOCOL)
@@ -135,7 +141,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
                 # now gather the results and take an average, set it as new w
                 self.w = np.average(results, axis=0)
 
-                iter_end_time = time.clock()
+                iter_end_time = time.time()
                 log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
                 log_debug(self._feat_val_str(self.w), '\n***')
         # kill all jobs
@@ -146,7 +152,21 @@ class ParallelPerceptronRanker(PerceptronRanker):
     def _init_server(self):
         """Initializes a server that registers new workers."""
         registrar_class = get_worker_registrar_for(self)
-        self.server = ThreadPoolServer(service=registrar_class, nbThreads=1, port=self.port)
+        n_tries = 0
+        self.server = None
+        last_error = None
+        while self.server is None and n_tries < 10:
+            try:
+                n_tries += 1
+                self.server = ThreadPoolServer(service=registrar_class, nbThreads=1, port=self.port)
+            except socket.error as e:
+                log_warn('Port %d in use, trying to use a higher port...' % self.port)
+                self.port += 1
+                last_error = e
+        if self.server is None:
+            if last_error is not None:
+                raise last_error
+            raise Exception('Could not initialize server')
         self.services = set()
         self.free_services = deque()
         self.pending_requests = set()
@@ -202,6 +222,11 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.lists_analyzer = self.lists_analyzer
         percrank.evaluator = self.evaluator
         return percrank
+
+    def save_to_file(self, model_fname):
+        """Saving just the "plain" perceptron ranker model to a file; discarding all the
+        parallel stuff that can't be stored in a pickle anyway."""
+        super(ParallelPerceptronRanker, self).save_to_file(self.get_plain_percrank(), model_fname)
 
 
 class PercRankTrainingService(Service):
