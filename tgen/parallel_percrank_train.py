@@ -226,7 +226,8 @@ class ParallelPerceptronRanker(PerceptronRanker):
     def save_to_file(self, model_fname):
         """Saving just the "plain" perceptron ranker model to a file; discarding all the
         parallel stuff that can't be stored in a pickle anyway."""
-        super(ParallelPerceptronRanker, self).save_to_file(self.get_plain_percrank(), model_fname)
+        percrank = self.get_plain_percrank()
+        percrank.save_to_file(model_fname)
 
 
 class PercRankTrainingService(Service):
