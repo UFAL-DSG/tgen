@@ -3,20 +3,21 @@
 #
 
 SHELL=/bin/bash
-TREEX_DIR=/home/odusek/treex
-
 
 %-text.yaml.gz: %-text.treex.gz
 	treex -Len Read::Treex from=$< Write::YAML to=$@
 
-%-text.treex.gz: %-text.txt
-	treex -Len Read::Sentences from=$< $(TREEX_DIR)/devel/en2en/scenarios/en_analysis.scen Misc::JoinBundles Write::Treex to=$@
+%-text.treex.gz: %-text.txt %-abstr.txt
+	treex -Len Read::Sentences from=$< en_analysis.scen \
+	    Misc::AbstractDialogueSlots slots='name pricerange area near food phone addr postcode' abstraction_file=$*-abstr.txt \
+	    Write::Treex to=$@
 
-all-text.txt: ACL10-inform-training.txt convert.pl
-	./convert.pl $< all-{das,text}.txt
+all-abstr.txt: all-das.txt
+
+all-text.txt: all-das.txt
 
 all-das.txt: ACL10-inform-training.txt convert.pl
-	./convert.pl $< all-{das,text}.txt
+	./convert.pl -a 'name pricerange area near food phone addr postcode' $< all-{das,text,abstr}.txt
 
 train-%.txt: all-%.txt
 	head -n 362 $< > $@
