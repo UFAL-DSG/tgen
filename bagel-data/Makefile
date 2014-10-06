@@ -43,6 +43,7 @@ TRAIN_DAS = data/train-das.txt
 TRAIN_TREES = data/train-text.pickle.gz
 TEST_DAS = data/test-das.txt
 TEST_TREES = data/test-text.pickle.gz
+SURFACE_SCEN = surface/en_synthesis.scen
 
 # Help text
 
@@ -149,7 +150,8 @@ asearch_gen:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz -d $(TRY_DIR)/debug-log.txt \
 		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
-		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt' \
+		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
+		treex Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz $(SURFACE_SCEN) Write::Treex' \
 		2>&1 | tee $(TRY_DIR)/log.txt
 
 
