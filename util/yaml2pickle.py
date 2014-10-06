@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from tgen.futil import read_ttrees
 import sys
 
