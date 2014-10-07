@@ -36,7 +36,7 @@ def collect_counts(ttree, eval_type=EvalTypes.NODE):
     return counts
 
 
-def tp_fp_fn(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
+def corr_pred_gold(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
     """Given a golden tree and a predicted tree, this counts correctly
     predicted nodes (true positives), all predicted nodes (true + false
     positives), and all golden nodes (true positives + false negatives).
@@ -59,25 +59,25 @@ def tp_fp_fn(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
 
 def precision(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
     # # correct / # predicted
-    correct, predicted, _ = tp_fp_fn(gold_ttree, pred_ttree, eval_type)
+    correct, predicted, _ = corr_pred_gold(gold_ttree, pred_ttree, eval_type)
     return correct / float(predicted)
 
 
 def recall(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
     # # correct / # gold
-    correct, _, gold = tp_fp_fn(gold_ttree, pred_ttree, eval_type)
+    correct, _, gold = corr_pred_gold(gold_ttree, pred_ttree, eval_type)
     return correct / float(gold)
 
 
 def f1(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
-    return f1_from_counts(tp_fp_fn(gold_ttree, pred_ttree, eval_type))
+    return f1_from_counts(corr_pred_gold(gold_ttree, pred_ttree, eval_type))
 
 
-def f1_from_counts(correct, gold, predicted):
-    return p_r_f1_from_counts(correct, gold, predicted)[2]
+def f1_from_counts(correct, predicted, gold):
+    return p_r_f1_from_counts(correct, predicted, gold)[2]
 
 
-def p_r_f1_from_counts(correct, gold, predicted):
+def p_r_f1_from_counts(correct, predicted, gold):
     """Return precision, recall, and F1 given counts of true positives (correct),
     total predicted nodes, and total gold nodes.
 
@@ -105,7 +105,7 @@ class Evaluator(object):
 
     def append(self, gold_tree, pred_tree):
         for eval_type in EvalTypes:
-            correct, predicted, gold = tp_fp_fn(gold_tree, pred_tree, eval_type)
+            correct, predicted, gold = corr_pred_gold(gold_tree, pred_tree, eval_type)
             self.correct[eval_type] += correct
             self.predicted[eval_type] += predicted
             self.gold[eval_type] += gold
@@ -126,8 +126,8 @@ class Evaluator(object):
 
     def p_r_f1(self, eval_type=EvalTypes.NODE):
         return p_r_f1_from_counts(self.correct[eval_type],
-                                  self.gold[eval_type],
-                                  self.predicted[eval_type])
+                                  self.predicted[eval_type],
+                                  self.gold[eval_type])
 
 
 class ASearchListsAnalyzer(object):

@@ -41,7 +41,7 @@ from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import SamplingPlanner, ASearchPlanner
-from tgen.eval import p_r_f1_from_counts, tp_fp_fn, f1_from_counts, ASearchListsAnalyzer, \
+from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearchListsAnalyzer, \
     EvalTypes, Evaluator
 from tgen.parallel_percrank_train import ParallelPerceptronRanker
 
@@ -149,14 +149,14 @@ def sample_gen(args):
         for gold_tree, gen_trees in zip(gold_trees, chunk_list(gen_trees, num_to_generate)):
             # find best of predicted trees (in terms of F1)
             _, tc, tp, tg = max([(f1_from_counts(c, p, g), c, p, g) for c, p, g
-                                 in map(lambda gen_tree: tp_fp_fn(gold_tree, gen_tree),
+                                 in map(lambda gen_tree: corr_pred_gold(gold_tree, gen_tree),
                                         gen_trees)],
                                 key=lambda x: x[0])
             correct += tc
             predicted += tp
             gold += tg
         # evaluate oracle F1
-        log_info("Oracle Precision: %.6f, Recall: %.6f, F1: %.6f" % p_r_f1_from_counts(correct, gold, predicted))
+        log_info("Oracle Precision: %.6f, Recall: %.6f, F1: %.6f" % p_r_f1_from_counts(correct, predicted, gold))
     # write output
     if fname_ttrees_out is not None:
         log_info('Writing output...')
@@ -228,7 +228,7 @@ def asearch_gen(args):
         evaler = Evaluator()
         for eval_bundle, eval_ttree, gen_ttree in zip(eval_doc.bundles, eval_ttrees, gen_ttrees):
             add_bundle_text(eval_bundle, tgen.language, tgen.selector + 'Xscore',
-                            "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*tp_fp_fn(eval_ttree, gen_ttree)))
+                            "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
             evaler.append(eval_ttree, gen_ttree)
         log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
         log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
