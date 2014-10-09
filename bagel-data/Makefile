@@ -41,8 +41,10 @@ ASEARCH_CONFIG = config/asearch.py
 TRAIN_PORTION = 1.0
 TRAIN_DAS = data/train-das.txt
 TRAIN_TREES = data/train-text.pickle.gz
+TRAIN_ABSTR = data/train-abstr.txt
 TEST_DAS = data/test-das.txt
 TEST_TREES = data/test-text.pickle.gz
+TEST_ABSTR = data/test-abstr.txt
 SURFACE_SCEN = surface/en_synthesis.scen
 
 # Help text
@@ -151,7 +153,9 @@ asearch_gen:
 		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz -d $(TRY_DIR)/debug-log.txt \
 		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
-		treex Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz $(SURFACE_SCEN) Write::Treex' \
+		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
+			Misc::DeabstractDialogueSlots abstraction_file=$(TEST_ABSTR) \
+			$(SURFACE_SCEN) Write::Treex' \
 		2>&1 | tee $(TRY_DIR)/log.txt
 
 
