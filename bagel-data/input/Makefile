@@ -17,8 +17,13 @@ all-abstr.txt: all-das.txt
 
 all-text.txt: all-das.txt
 
+all-conc.txt: all-das.txt
+
 all-das.txt: ACL10-inform-training.txt convert.pl
-	./convert.pl -a $(ABSTRACTED) $< all-{das,text,abstr}.txt
+	./convert.pl -a $(ABSTRACTED) $< all-{das,text,abstr,conc}.txt
+
+%-conc.sgm: %-conc.txt
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=$@
 
 train-%.txt: all-%.txt
 	head -n 362 $< > $@
@@ -26,3 +31,5 @@ train-%.txt: all-%.txt
 test-%.txt: all-%.txt
 	tail -n 42 $< > $@
 
+grammatemes.tsv: train-text.treex.gz
+	treex -Len Read::Treex from=$< Print::GrammatemesForTgen to=$@
