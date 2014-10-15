@@ -14,7 +14,7 @@ T2A::EN::AddSubconjs
 T2A::EN::AddInfinitiveParticles
 T2A::EN::AddPhrasalVerbParticles
 T2A::EN::AddPossessiveMarkers
-T2A::EN::AddArticles
+T2A::EN::AddArticles grammateme_only=1
 
 T2A::EN::AddAuxVerbCompoundPassive
 T2A::EN::AddAuxVerbModalTense

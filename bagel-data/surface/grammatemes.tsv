@@ -1,269 +1,278 @@
-riverside n:attr	number=sg+sempos=n.denot
-call v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=ind
-. x	
-adj:compl	degcmp=pos+negation=neg0+sempos=adj.denot
-price n:attr	number=sg+sempos=n.denot
-restaurant_down n:obj	number=sg+sempos=n.denot
-river n:on+X	number=sg+sempos=n.denot
-suggest v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=cdn
-pricerange n:in+X	number=sg+sempos=n.denot
-fusion n:attr	number=sg+sempos=n.denot
-X n:by+X	number=sg+sempos=n.denot
-specialise v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-pricerange n:on+X	number=sg+sempos=n.denot
-food n:for+X	number=sg+sempos=n.denot
-v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-n:for_near+X	number=sg+sempos=n.denot
-venue n:of+X	number=pl+sempos=n.denot
-n:over_near+X	number=sg+sempos=n.denot
-riverfront adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-range n:obj	number=sg+sempos=n.denot
-french adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-visit v:fin	deontmod=perm+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-n:at+X	number=sg+sempos=n.denot
-provide v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-center n:in+X	number=sg+sempos=n.denot
-take_away v:in+fin	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-but x	
-n:over_in+X	number=sg+sempos=n.denot
-recommend v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-range n:in+X	number=sg+sempos=n.denot
-seafood n:obj	number=sg+sempos=n.denot
-nicely adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-X n:to+X	number=sg+sempos=n.denot
-italian adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-both n:attr	number=pl+sempos=n.pron.indef
-high adj:compl	degcmp=comp+negation=neg0+sempos=adj.denot
-eatery n:obj	number=sg+sempos=n.denot
-english adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-riverside n:near+X	number=sg+sempos=n.denot
-Riverside n:attr	number=sg+sempos=n.denot
-specialise v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-#PersPron n:attr	gender=nr+number=sg+person=1+sempos=n.pron.def.pers
-locate v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
-look v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-something n:obj	number=sg+sempos=n.denot
-n:about+X	number=sg+sempos=n.denot
-riverside adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-Contemporary n:attr	number=sg+sempos=n.denot
-river n:obj	number=sg+sempos=n.denot
-call v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
-Takeaway n:attr	number=sg+sempos=n.denot
-moderately adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-expensive adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-away adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-restaurant n:obj2	number=sg+sempos=n.denot
-also x	
-serve v:ger	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-japanese adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-v:ger	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-v:in+fin	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-X n:on+X	number=sg+sempos=n.denot
-adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-cuisine n:like+X	number=sg+sempos=n.denot
-x	
-food n:subj	number=sg+sempos=n.denot
-centre n:in+X	number=sg+sempos=n.denot
-cheaply adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-number n:subj	number=sg+sempos=n.denot
-restaurant n:attr	number=sg+sempos=n.denot
-X n:subj	number=sg+sempos=n.denot
-postcode n:in+X	number=sg+sempos=n.denot
-where adv	sempos=adv.pron.indef
-cheap adj:compl	degcmp=pos+negation=neg0+sempos=adj.denot
-price n:in+X	number=pl+sempos=n.denot
-price v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
-locate v:fin	deontmod=decl+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-centre n:attr	number=sg+sempos=n.denot
-area n:in+X	number=sg+sempos=n.denot
-alternative n:subj	number=sg+sempos=n.denot
-area n:of+X	number=sg+sempos=n.denot
-service n:obj	number=sg+sempos=n.denot
-X n:between+X	number=sg+sempos=n.denot
-n:by+X	number=sg+sempos=n.denot
-n:poss	gender=nr+number=pl+person=3+sempos=n.pron.def.pers
-or x	
-be v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-have v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-venue n:obj	number=pl+sempos=n.denot
-Continental n:attr	number=sg+sempos=n.denot
-locate v:rc	deontmod=decl+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-trip n:attr	number=sg+sempos=n.denot
-middle n:in+X	number=sg+sempos=n.denot
-n:subj	number=sg+sempos=n.denot
-constraint n:obj	number=pl+sempos=n.denot
-Cafe n:attr	number=sg+sempos=n.denot
-do v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=cdn
-too x	
-food n:near+X	number=sg+sempos=n.denot
-english-style adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-dining n:for+X	number=sg+sempos=n.denot
-be v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-eat v:to+inf	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-have v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-fastfood adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-reach v:rc	deontmod=poss+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-n:like+X	number=sg+sempos=n.denot
-takeaway n:obj	number=sg+sempos=n.denot
-Fusion n:attr	number=sg+sempos=n.denot
-n:to_to+X	number=sg+sempos=n.denot
-side n:along+X	number=sg+sempos=n.denot
-takeaway n:for+X	number=sg+sempos=n.denot
-Fastfood n:attr	number=sg+sempos=n.denot
-fine adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-river n:next_to+X	number=sg+sempos=n.denot
-visit v:rc	deontmod=perm+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-n:in+X	number=sg+sempos=n.denot
-food n:attr	number=sg+sempos=n.denot
-cheap adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-provide v:near+ger	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-cafe n:obj	number=sg+sempos=n.denot
-take_away v:fin	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-know v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-river n:near+X	number=sg+sempos=n.denot
-city n:poss	number=sg+sempos=n.denot
-one n:obj	sempos=n.quant.def
-match v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-number n:at+X	number=sg+sempos=n.denot
-take_out v:fin	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-n:next_to+X	number=sg+sempos=n.denot
-restaurant n:about+X	number=sg+sempos=n.denot
-style n:attr	number=sg+sempos=n.denot
-n:with+X	number=sg+sempos=n.denot
-n:of+X	number=sg+sempos=n.denot
-n:obj	number=sg+sempos=n.denot
-fashionable adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-take-away adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-takeaway n:attr	number=sg+sempos=n.denot
-good adj:attr	degcmp=sup+negation=neg0+sempos=adj.denot
-X n:obj1	number=sg+sempos=n.denot
-n:obj1	number=sg+sempos=n.denot
-about adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-n:elided	
-X n:for_near+X	number=sg+sempos=n.denot
-include v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-n:along+X	number=sg+sempos=n.denot
-n:to+X	number=sg+sempos=n.denot
-serve v:though+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-postcode n:attr	number=sg+sempos=n.denot
-centre n:obj	number=sg+sempos=n.denot
-affordable adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-guess v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=cdn
-take_away v:to+inf	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-city n:of+X	number=sg+sempos=n.denot
-centre n:near+X	number=sg+sempos=n.denot
-n:on+X	number=sg+sempos=n.denot
-v:at+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-which n:subj	indeftype=relat+number=sg+sempos=n.pron.indef
-n:near+X	number=sg+sempos=n.denot
-offer v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-English n:attr	number=sg+sempos=n.denot
-worth adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-dining n:in+X	number=sg+sempos=n.denot
-X n:near+X	number=sg+sempos=n.denot
-sorry adj:compl	degcmp=pos+negation=neg0+sempos=adj.denot
-v:for+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-#Cor n:elided	
-X n:of+X	number=sg+sempos=n.denot
-serve v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-contemporary adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-be v:for+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-v:to+inf	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-take-out adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-range v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-city n:attr	number=sg+sempos=n.denot
-and x	
-X n:at+X	number=sg+sempos=n.denot
-bit n:attr	number=sg+sempos=n.denot
-serve v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-close adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-riverside n:at+X	number=sg+sempos=n.denot
-X n:to_to+X	number=sg+sempos=n.denot
-restaurant n:of+X	number=pl+sempos=n.denot
-menu n:with+X	number=sg+sempos=n.denot
-reasonably adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-offer v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-pricy n:attr	number=sg+sempos=n.denot
-provide v:rc	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-bistro n:over_near+X	number=sg+sempos=n.denot
-v:near+ger	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-serve v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-v:if+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-#PersPron n:poss	gender=nr+number=pl+person=3+sempos=n.pron.def.pers
-seek v:if+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-indian adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-find v:rc	deontmod=poss+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-#PersPron n:subj	gender=nr+number=sg+person=1+sempos=n.pron.def.pers
-cuisine n:obj	number=sg+sempos=n.denot
-takeaway n:as+X	number=sg+sempos=n.denot
-n:attr	number=sg+sempos=n.denot
-food n:obj	number=sg+sempos=n.denot
-side n:on+X	number=sg+sempos=n.denot
-take v:fin	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-n:between+X	number=sg+sempos=n.denot
-riverside n:by+X	number=sg+sempos=n.denot
-moderate adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-find v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=post+verbmod=ind
-n:	sempos=???
-town n:of+X	number=sg+sempos=n.denot
-riverside n:on+X	number=sg+sempos=n.denot
-pizza n:obj	number=sg+sempos=n.denot
-area n:attr	number=sg+sempos=n.denot
-n:as+X	number=sg+sempos=n.denot
-X n:in+X	number=sg+sempos=n.denot
-Continental n:obj	number=sg+sempos=n.denot
-those n:attr	number=pl+sempos=n.pron.indef
-river n:by+X	number=sg+sempos=n.denot
-pricerange n:with+X	number=sg+sempos=n.denot
-X n:near_to+X	number=sg+sempos=n.denot
-upscale adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-upmarket adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-X n:over_in+X	number=sg+sempos=n.denot
-continental adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-v:though+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-seafood n:attr	number=sg+sempos=n.denot
-moderate adj:compl	degcmp=pos+negation=neg0+sempos=adj.denot
-v:attr	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
-restaurant n:subj	number=sg+sempos=n.denot
-service n:with+X	number=sg+sempos=n.denot
-food n:with+X	number=sg+sempos=n.denot
-be v:at+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-n:obj2	number=sg+sempos=n.denot
-riverside n:in+X	number=sg+sempos=n.denot
-Seafood n:attr	number=sg+sempos=n.denot
-cafe adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-side n:at+X	number=sg+sempos=n.denot
-may n:	sempos=???
-river n:of+X	number=sg+sempos=n.denot
-high-end adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-section n:near+X	number=sg+sempos=n.denot
-restaurant n:obj	number=sg+sempos=n.denot
-feel v:if+fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-adv	degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
-phone n:attr	number=sg+sempos=n.denot
-price n:subj	number=pl+sempos=n.denot
-chinese adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-fastfood n:attr	number=sg+sempos=n.denot
-food n:in+X	number=sg+sempos=n.denot
-; x	
-X n:obj	number=sg+sempos=n.denot
-venue n:about+X	number=sg+sempos=n.denot
-that n:subj	indeftype=relat+number=sg+sempos=n.pron.indef
-provide v:ger	deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
-price n:at+X	number=sg+sempos=n.denot
-n:for+X	number=sg+sempos=n.denot
-locality n:in+X	number=sg+sempos=n.denot
-French n:attr	number=sg+sempos=n.denot
-have v:fin	deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
-information n:obj	number=sg+sempos=n.denot
-whose n:attr	number=sg+sempos=n.pron.indef
-close adj:compl	degcmp=pos+negation=neg0+sempos=adj.denot
-fast adj:attr	degcmp=pos+negation=neg0+sempos=adj.denot
-chinese adj:compl	degcmp=pos+negation=neg0+sempos=adj.denot
-n:near_to+X	number=sg+sempos=n.denot
-how adv	sempos=adv.pron.indef
-no n:attr	number=sg+sempos=n.pron.indef
-place n:obj	number=pl+sempos=n.denot
-X n:attr	number=sg+sempos=n.denot
-cafe n:attr	number=sg+sempos=n.denot
+riverside n:near+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+provide v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+those n:attr	nodetype=complex+number=pl+sempos=n.pron.indef
+may v:fin	nodetype=complex+sempos=???
+takeaway n:obj	nodetype=complex+number=sg+sempos=n.denot
+trip n:attr	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+postcode n:attr	nodetype=complex+number=sg+sempos=n.denot
+riverfront adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+specialise v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+food n:obj	nodetype=complex+number=sg+sempos=n.denot
+restaurant n:of+X	nodetype=complex+number=pl+sempos=n.denot
+number n:at+X	nodetype=complex+number=sg+sempos=n.denot
+X-name n:subj	nodetype=complex+number=sg+sempos=n.denot
+Continental n:obj	nodetype=complex+number=sg+sempos=n.denot
+where adv	nodetype=complex+sempos=adv.pron.indef
+range v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+food n:with+X	nodetype=complex+number=sg+sempos=n.denot
+cuisine n:like+X	nodetype=complex+number=sg+sempos=n.denot
+river n:obj	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+riverside n:at+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+takeaway n:for+X	nodetype=complex+number=sg+sempos=n.denot
+n:attr	nodetype=complex+number=sg+sempos=n.denot
+food n:near+X	nodetype=complex+number=sg+sempos=n.denot
+locate v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
+v:ger	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+too x	nodetype=atom+
+serve v:ger	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+#PersPron n:obj	nodetype=complex+gender=nr+number=sg+person=1+sempos=n.pron.def.pers
+n:obj1	nodetype=complex+number=sg+sempos=n.denot
+eat v:to+inf	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+moderately adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+both n:attr	nodetype=complex+number=pl+sempos=n.pron.indef
+v:near+ger	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+alternative n:subj	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+takeaway n:as+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+n:along+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+look v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+phone n:attr	nodetype=complex+number=sg+sempos=n.denot
+n:near_to+X	nodetype=complex+number=sg+sempos=n.denot
+restaurant n:obj2	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+riverside n:on+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+section n:near+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+english-style adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+suggest v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=cdn
+X n:near+X	nodetype=complex+number=sg+sempos=n.denot
+middle n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+provide v:ger	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+n:by+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+price n:at+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+take_away v:in+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+moderate adj:compl	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+recommend v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+cafe adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+#Cor n:elided	nodetype=qcomplex+
+river n:by+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+fastfood n:attr	nodetype=complex+number=sg+sempos=n.denot
+area n:attr	nodetype=complex+number=sg+sempos=n.denot
+X-near n:to_to+X	nodetype=complex+number=sg+sempos=n.denot
+X n:subj	nodetype=complex+number=sg+sempos=n.denot
+food n:attr	nodetype=complex+number=sg+sempos=n.denot
+Cafe n:attr	nodetype=complex+number=sg+sempos=n.denot
+X n:over_in+X	nodetype=complex+number=sg+sempos=n.denot
+price n:attr	nodetype=complex+number=sg+sempos=n.denot
+reach v:rc	nodetype=complex+deontmod=poss+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+X-name n:obj	nodetype=complex+number=sg+sempos=n.denot
+cheaply adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+river n:on+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+#PersPron n:subj	nodetype=complex+gender=nr+number=sg+person=1+sempos=n.pron.def.pers
+city n:poss	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+no n:attr	nodetype=complex+number=sg+sempos=n.pron.indef
+guess v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=cdn
+price v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
+locality n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+be v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+X-addr n:at+X	nodetype=complex+number=sg+sempos=n.denot
+adj:compl	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+french adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+good adj:attr	nodetype=complex+degcmp=sup+negation=neg0+sempos=adj.denot
+upmarket adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+n:like+X	nodetype=complex+number=sg+sempos=n.denot
+adv:to+X	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+serve v:though+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+Seafood n:attr	nodetype=complex+number=sg+sempos=n.denot
+n:for_near+X	nodetype=complex+number=sg+sempos=n.denot
+provide v:near+ger	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+seafood n:attr	nodetype=complex+number=sg+sempos=n.denot
+call v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
+pricerange n:on+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+continental adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+match v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+how adv	nodetype=complex+sempos=adv.pron.indef
+n:of+X	nodetype=complex+number=sg+sempos=n.denot
+price n:subj	nodetype=complex+number=pl+sempos=n.denot
+english adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+take_out v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+n:over_in+X	nodetype=complex+number=sg+sempos=n.denot
+n:near+X	nodetype=complex+number=sg+sempos=n.denot
+X-name n:obj1	nodetype=complex+number=sg+sempos=n.denot
+venue n:obj	nodetype=complex+number=pl+sempos=n.denot
+specialise v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+visit v:rc	nodetype=complex+deontmod=perm+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+center n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+pricerange n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+high-end adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+feel v:if+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+place n:obj	nodetype=complex+number=pl+sempos=n.denot
+X-near n:by+X	nodetype=complex+number=sg+sempos=n.denot
+be v:at+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+have v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+city n:attr	nodetype=complex+number=sg+sempos=n.denot
+Takeaway n:attr	nodetype=complex+number=sg+sempos=n.denot
+but x	nodetype=coap+
+n:to_to+X	nodetype=complex+number=sg+sempos=n.denot
+n:subj	nodetype=complex+number=sg+sempos=n.denot
+take_away v:to+inf	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+v:if+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+take-out adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+French n:attr	nodetype=complex+number=sg+sempos=n.denot
+X-near n:between+X	nodetype=complex+number=sg+sempos=n.denot
+X-phone n:obj	nodetype=complex+number=sg+sempos=n.denot
+something n:obj	nodetype=complex+number=sg+sempos=n.denot
+X n:in+X	nodetype=complex+number=sg+sempos=n.denot
+city n:of+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+Riverside n:attr	nodetype=complex+number=sg+sempos=n.denot
+style n:attr	nodetype=complex+number=sg+sempos=n.denot
+bistro n:over_near+X	nodetype=complex+number=sg+sempos=n.denot
+be v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+postcode n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+fast adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+sorry adj:compl	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+and x	nodetype=coap+
+dining n:in+X	nodetype=complex+number=sg+sempos=n.denot
+cheap adj:compl	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+be v:for+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+seek v:if+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+Fusion n:attr	nodetype=complex+number=sg+sempos=n.denot
+also x	nodetype=atom+
+whose n:attr	nodetype=complex+number=sg+sempos=n.pron.indef
+X-near n:near+X	nodetype=complex+number=sg+sempos=n.denot
+n:for+X	nodetype=complex+number=sg+sempos=n.denot
+one n:obj	nodetype=complex+sempos=n.quant.def
+food n:for+X	nodetype=complex+number=sg+sempos=n.denot
+indian adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+call v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=ind
+side n:on+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+venue n:about+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+service n:obj	nodetype=complex+number=sg+sempos=n.denot
+n:obj2	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+serve v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+locate v:fin	nodetype=complex+deontmod=decl+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+find v:fin	nodetype=complex+deontmod=poss+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+or x	nodetype=coap+
+restaurant n:attr	nodetype=complex+number=sg+sempos=n.denot
+adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+English n:attr	nodetype=complex+number=sg+sempos=n.denot
+about adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+cafe n:attr	nodetype=complex+number=sg+sempos=n.denot
+Continental n:attr	nodetype=complex+number=sg+sempos=n.denot
+v:for+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+expensive adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+river n:of+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+locate v:rc	nodetype=complex+deontmod=decl+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+price n:in+X	nodetype=complex+number=pl+sempos=n.denot
+find v:rc	nodetype=complex+deontmod=poss+diathesis=pas+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+#PersPron n:poss	nodetype=complex+gender=nr+number=pl+person=3+sempos=n.pron.def.pers
+fusion n:attr	nodetype=complex+number=sg+sempos=n.denot
+upscale adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+cheap adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+n:elided	nodetype=qcomplex+
+service n:with+X	nodetype=complex+number=sg+sempos=n.denot
+n:obj	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+X-near n:subj	nodetype=complex+number=sg+sempos=n.denot
+nicely adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+riverside n:by+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+close adj:compl	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+X-near n:attr	nodetype=complex+number=sg+sempos=n.denot
+italian adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+restaurant n:obj	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+riverside n:attr	nodetype=complex+number=sg+sempos=n.denot
+centre n:near+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+provide v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+take-away adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+food n:in+X	nodetype=complex+number=sg+sempos=n.denot
+n:next_to+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+town n:of+X	nodetype=complex+number=sg+sempos=n.denot
+affordable adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=ant+verbmod=nil
+offer v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+chinese adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+close adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+dining n:for+X	nodetype=complex+number=sg+sempos=n.denot
+n:as+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+range n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+japanese adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+high adj:compl	nodetype=complex+degcmp=comp+negation=neg0+sempos=adj.denot
+n:poss	nodetype=complex+gender=nr+number=pl+person=3+sempos=n.pron.def.pers
+number n:subj	nodetype=complex+number=sg+sempos=n.denot
+reasonably adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+visit v:fin	nodetype=complex+deontmod=perm+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+constraint n:obj	nodetype=complex+number=pl+sempos=n.denot
+contemporary adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+include v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+offer v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+X n:of+X	nodetype=complex+number=sg+sempos=n.denot
+v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+x	nodetype=coap+
+; x	nodetype=qcomplex+
+take_away v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+cuisine n:obj	nodetype=complex+number=sg+sempos=n.denot
+river n:near+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+food n:subj	nodetype=complex+number=sg+sempos=n.denot
+restaurant n:subj	nodetype=complex+number=sg+sempos=n.denot
+river n:next_to+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+fine adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+takeaway n:attr	nodetype=complex+number=sg+sempos=n.denot
+serve v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+X-near n:near_to+X	nodetype=complex+number=sg+sempos=n.denot
+do v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=cdn
+Fastfood n:attr	nodetype=complex+number=sg+sempos=n.denot
+bit n:attr	nodetype=complex+number=sg+sempos=n.denot
+menu n:with+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+area n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+fastfood adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+v:though+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+n:about+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+serve v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+v:to+inf	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+X-phone n:at+X	nodetype=complex+number=sg+sempos=n.denot
+v:in+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+pricy n:attr	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+close adv:to+X	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+cafe n:obj	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+centre n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+take v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+pizza n:obj	nodetype=complex+number=sg+sempos=n.denot
+moderate adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+n:between+X	nodetype=complex+number=sg+sempos=n.denot
+information n:obj	nodetype=complex+number=sg+sempos=n.denot
+X-name n:attr	nodetype=complex+number=sg+sempos=n.denot
+centre n:obj	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+which n:subj	nodetype=complex+indeftype=relat+number=sg+sempos=n.pron.indef
+have v:attr	nodetype=complex+deontmod=decl+diathesis=act+dispmod=nil+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=nil+verbmod=nil
+riverside adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+seafood n:obj	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+area n:of+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+away adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+side n:at+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+fashionable adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+riverside n:in+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+restaurant_down n:obj	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+worth adj:attr	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+n:on+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+X-postcode n:in+X	nodetype=complex+number=sg+sempos=n.denot
+n:over_near+X	nodetype=complex+number=sg+sempos=n.denot
+X-near n:to+X	nodetype=complex+number=sg+sempos=n.denot
+Contemporary n:attr	nodetype=complex+number=sg+sempos=n.denot
+range n:obj	nodetype=complex+number=sg+sempos=n.denot
+have v:rc	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+know v:fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+X-near n:for_near+X	nodetype=complex+number=sg+sempos=n.denot
+chinese adj:compl	nodetype=complex+degcmp=pos+negation=neg0+sempos=adj.denot
+centre n:attr	nodetype=complex+number=sg+sempos=n.denot
+pricerange n:with+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+side n:along+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+X-postcode n:attr	nodetype=complex+number=sg+sempos=n.denot
+restaurant n:about+X	nodetype=complex+definiteness=indefinite+number=sg+sempos=n.denot
+X-addr n:on+X	nodetype=complex+number=sg+sempos=n.denot
+n:at+X	nodetype=complex+definiteness=definite+number=sg+sempos=n.denot
+v:at+fin	nodetype=complex+deontmod=decl+diathesis=act+dispmod=disp0+iterativeness=it0+negation=neg0+resultative=res0+sempos=v+tense=sim+verbmod=ind
+adv	nodetype=complex+degcmp=pos+negation=neg0+sempos=adv.denot.grad.neg
+X n:attr	nodetype=complex+number=sg+sempos=n.denot
+venue n:of+X	nodetype=complex+number=pl+sempos=n.denot
+n:with+X	nodetype=complex+number=sg+sempos=n.denot
+eatery n:obj	nodetype=complex+number=sg+sempos=n.denot
+n:to+X	nodetype=complex+number=sg+sempos=n.denot
+that n:subj	nodetype=complex+indeftype=relat+number=sg+sempos=n.pron.indef
