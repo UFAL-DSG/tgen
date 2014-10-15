@@ -6,7 +6,7 @@ W2A::EN::FixTokenization
 W2A::EN::TagMorce
 W2A::EN::FixTags
 W2A::EN::Lemmatize
-A2N::EN::StanfordNamedEntities model=ner-eng-ie.crf-3-all2008.ser.gz
+A2N::EN::NameTag
 A2N::EN::DistinguishPersonalNames
 W2A::MarkChunks
 W2A::EN::ParseMST model=conll_mcd_order2_0.01.model
@@ -20,6 +20,8 @@ W2A::EN::FixDicendiVerbs
 W2A::EN::SetAfunAuxCPCoord
 W2A::EN::SetAfun
 W2A::FixQuotes
+A2A::ConvertTagsInterset input_driver=EN::Penn
+A2A::EN::EnhanceInterset
 A2T::EN::MarkEdgesToCollapse
 A2T::EN::MarkEdgesToCollapseNeg
 A2T::BuildTtree
@@ -38,9 +40,10 @@ A2T::EN::MarkRelClauseCoref
 A2T::EN::MarkDspRoot
 A2T::MarkParentheses
 A2T::SetNodetype
-A2T::EN::SetFormeme
+A2T::EN::SetFormemeInterset
 A2T::EN::SetTense
 A2T::EN::SetGrammatemes
+A2T::SetGrammatemesFromAux
 A2T::SetSentmod
 A2T::EN::RehangSharedAttr
 A2T::EN::SetVoice
