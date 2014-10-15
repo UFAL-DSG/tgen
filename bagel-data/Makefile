@@ -12,6 +12,7 @@ else
   ACTIVATE = echo -n
 endif
 DIFFTOOL = vimdiff
+MTEVAL = ../util/mteval-v11b.pl
 COMPARE_ITERS = 1# setting last iteration to be compared in log comparison
 
 # Runs directories
@@ -42,9 +43,11 @@ TRAIN_PORTION = 1.0
 TRAIN_DAS = data/train-das.txt
 TRAIN_TREES = data/train-text.pickle.gz
 TRAIN_ABSTR = data/train-abstr.txt
+TRAIN_CONC = data/train-conc.sgm
 TEST_DAS = data/test-das.txt
 TEST_TREES = data/test-text.pickle.gz
 TEST_ABSTR = data/test-abstr.txt
+TEST_CONC = data/test-conc.sgm
 SURFACE_SCEN = surface/en_synthesis.scen
 
 # Help text
@@ -96,6 +99,8 @@ desc:
 		if echo $$file | grep 'asearch_gen' >/dev/null 2>&1; then \
 			score=`grep -i "Node precision" $$file/T.* $$file/log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
 			echo -en "\t$$score"; \
+			bleu=`grep -i '^NIST ' $$file/T.* $$file/log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;' | tr -d '\n'`; \
+			echo -en "\t$$bleu"; \
 		fi; \
 		echo; \
 	done
@@ -155,7 +160,9 @@ asearch_gen:
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
 			Misc::DeabstractDialogueSlots abstraction_file=$(TEST_ABSTR) \
-			$(SURFACE_SCEN) Write::Treex' \
+			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
+			$(SURFACE_SCEN) Write::Treex Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
+		$(MTEVAL) -r $(TEST_CONC) -t $(TRY_DIR)/out-text.sgm' \
 		2>&1 | tee $(TRY_DIR)/log.txt
 
 

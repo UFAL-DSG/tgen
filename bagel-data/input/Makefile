@@ -23,7 +23,7 @@ all-das.txt: ACL10-inform-training.txt convert.pl
 	./convert.pl -a $(ABSTRACTED) $< all-{das,text,abstr,conc}.txt
 
 %-conc.sgm: %-conc.txt
-	treex -Len Read::Sentences from=$< Write::SgmMTEval to=$@
+	treex -Len Read::Sentences from=$< Util::Eval document='$$.set_path(""); $$.set_file_stem("$*");' Write::SgmMTEval to=$@ set_id=BAGEL sys_id=manual add_header=refset
 
 train-%.txt: all-%.txt
 	head -n 362 $< > $@
