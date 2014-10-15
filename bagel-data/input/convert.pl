@@ -14,7 +14,7 @@ use Treex::Core::Document;
 use Treex::Core::Log;
 
 my $abstr_slots_str = '';
-if ( not GetOptions( "abstract|abstr|a=s" => \$abstr_slots_str ) or @ARGV != 4 ) {
+if ( not GetOptions( "abstract|abstr|a=s" => \$abstr_slots_str ) or @ARGV != 5 ) {
     die('Usage: ./convert.pl input output-das output-text output-abstraction');
 }
 my %abstr_slots = map { $_ => 1 } split( /[, ]+/, $abstr_slots_str );
@@ -23,6 +23,7 @@ open( my $in,       '<:utf8', $ARGV[0] );
 open( my $out_das,  '>:utf8', $ARGV[1] );
 open( my $out_text, '>:utf8', $ARGV[2] );
 open( my $out_abst, '>:utf8', $ARGV[3] );
+open( my $out_conc, '>:utf8', $ARGV[4] );
 
 Treex::Core::Log::log_set_error_level('WARN');
 my $tokenizer = Treex::Core::Scenario->new(
@@ -52,12 +53,12 @@ while ( my $line = <$in> ) {
                 $slot_vals{$slot} = [];
             }
             push @{ $slot_vals{$slot} }, $val;
-            if (defined($abstr_slots{$slot})){
+            if ( defined( $abstr_slots{$slot} ) ) {
                 $da_line .= "inform($slot=X-$slot)&";
             }
             else {
                 $da_line .= "inform($slot=$val)&";
-            }            
+            }
         }
         $da_line =~ s/&*$//;
         $da_line .= "\n";
@@ -78,7 +79,7 @@ while ( my $line = <$in> ) {
         $sent =~ s/\[ /[/g;
         $sent =~ s/ \]/]/g;
         @tokens = split / /, $sent;
-        $sent = '';
+        $sent   = '';
         my $abstr    = '';
         my $in_abstr = 0;
         my $i        = 0;
@@ -116,9 +117,13 @@ while ( my $line = <$in> ) {
         $sent =~ s/\s*$//;
         $abstr =~ s/\s*$//;
 
+        # produce de-abstracted sentence where X's are replaced by the actual values
+        my $conc_sent = deabstract( $sent, $abstr );
+
         print {$out_das} $da_line;
         print {$out_text} $sent . "\n";
         print {$out_abst} $abstr . "\n";
+        print {$out_conc} $conc_sent . "\n";
 
         print STDERR ".";
         $da_line   = '';
@@ -144,4 +149,30 @@ sub tokenize {
     # retrieve tokens
     my $atree = $zone->get_atree();
     return map { $_->form } $atree->get_descendants( { ordered => 1 } );
+}
+
+# produce de-abstracted sentence where X's are replaced by the actual values
+sub deabstract {
+    my ( $sent, $abstr ) = @_;
+
+    my $i         = 0;
+    my $conc_sent = '';
+    foreach my $token ( split / /, $sent ) {
+
+        # X = to be deabstracted
+        if ( $token eq 'X' ) {
+            my ($val) = ( $abstr =~ /=([^:]*):$i-[0-9]+/ );
+            $val =~ s/^"//;
+            $val =~ s/"$//;
+            $conc_sent .= $val . ' ';
+        }
+
+        # other tokens
+        else {
+            $conc_sent .= $token . ' ';
+        }
+        $i++;
+    }
+    $conc_sent =~ s/\s*$//;
+    return $conc_sent;
 }
