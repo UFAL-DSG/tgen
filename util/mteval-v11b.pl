@@ -1,6 +1,8 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
  
 use strict;
+use warnings;
+use Carp::Always;
  
 #################################
 # History:
@@ -78,14 +80,12 @@ use strict;
 my ($date, $time) = date_time_stamp();
 print "MT evaluation scorer began on $date at $time\n";
 print "command line:  ", $0, " ", join(" ", @ARGV), "\n";
-my $usage = "\n\nUsage: $0 [-h] -r <ref_file> -s src_file -t <tst_file>\n\n".
+my $usage = "\n\nUsage: $0 [-h] -r <ref_file> -t <tst_file>\n\n".
     "Description:  This Perl script evaluates MT system performance.\n".
     "\n".
     "Required arguments:\n".
     "  -r <ref_file> is a file containing the reference translations for\n".
     "      the documents to be evaluated.\n".
-    "  -s <src_file> is a file containing the source documents for which\n".
-    "      translations are to be evaluated\n".
     "  -t <tst_file> is a file containing the translations to be evaluated\n".
     "\n".
     "Optional arguments:\n".
@@ -100,12 +100,11 @@ my $usage = "\n\nUsage: $0 [-h] -r <ref_file> -s src_file -t <tst_file>\n\n".
     "  -h prints this help message to STDOUT\n".
     "\n";
  
-use vars qw ($opt_r $opt_s $opt_t $opt_d $opt_h $opt_b $opt_n $opt_c $opt_x);
+use vars qw ($opt_r $opt_t $opt_d $opt_h $opt_b $opt_n $opt_c $opt_x);
 use Getopt::Std;
 getopts ('r:s:t:d:hbncx:');
 die $usage if defined($opt_h);
 die "Error in command line:  ref_file not defined$usage" unless defined $opt_r;
-die "Error in command line:  src_file not defined$usage" unless defined $opt_s;
 die "Error in command line:  tst_file not defined$usage" unless defined $opt_t;
 my $max_Ngram = 9;
 my $detail = defined $opt_d ? $opt_d : 0;
@@ -117,22 +116,21 @@ if (defined $opt_n) { $METHOD = "NIST"; }
 my $method;
  
 my ($ref_file) = $opt_r;
-my ($src_file) = $opt_s;
 my ($tst_file) = $opt_t;
  
 ######
 # Global variables
-my ($src_lang, $tgt_lang, @tst_sys, @ref_sys); # evaluation parameters
+my ($tgt_lang, @tst_sys, @ref_sys); # evaluation parameters
 my (%tst_data, %ref_data); # the data -- with structure:  {system}{document}[segments]
-my ($src_id, $ref_id, $tst_id); # unique identifiers for ref and tst translation sets
+my ($ref_id, $tst_id); # unique identifiers for ref and tst translation sets
 my %eval_docs;     # document information for the evaluation data set
 my %ngram_info;    # the information obtained from (the last word in) the ngram
  
 ######
-# Get source document ID's
-($src_id) = get_source_info ($src_file);
- 
-######
+
+# load eval_docs
+get_source_info($ref_file);
+
 # Get reference translations
 ($ref_id) = get_MT_data (\%ref_data, "RefSet", $ref_file);
  
@@ -153,12 +151,11 @@ my %BLEUmt = ();
  
 ######
 # Evaluate
-print "  Evaluation of $src_lang-to-$tgt_lang translation using:\n";
+print "  Evaluation of $tgt_lang using:\n";
 my $cum_seg = 0;
 foreach my $doc (sort keys %eval_docs) {
     $cum_seg += @{$eval_docs{$doc}{SEGS}};
 }
-print "    src set \"$src_id\" (", scalar keys %eval_docs, " docs, $cum_seg segs)\n";
 print "    ref set \"$ref_id\" (", scalar keys %ref_data, " refs)\n";
 print "    tst set \"$tst_id\" (", scalar keys %tst_data, " systems)\n\n";
  
@@ -203,19 +200,12 @@ sub get_source_info {
     $data .= $_ while <FILE>;
     close (FILE);
  
-#get source set info
+#get source set info    
     die "\n\nFATAL INPUT ERROR:  no 'src_set' tag in src_file '$file'\n\n"
-        unless ($tag, $span, $data) = extract_sgml_tag_and_span ("SrcSet", $data);
+        unless ($tag, $span, $data) = extract_sgml_tag_and_span ("RefSet", $data);
  
-    die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
+     die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
         unless ($id) = extract_sgml_tag_attribute ($name="SetID", $tag);
- 
-    die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
-        unless ($src) = extract_sgml_tag_attribute ($name="SrcLang", $tag);
-    die "\n\nFATAL INPUT ERROR:  $name ('$src') in file '$file' inconsistent\n"
-        ."                    with $name in previous input data ('$src_lang')\n\n"
-            unless (not defined $src_lang or $src eq $src_lang);
-    $src_lang = $src;
  
 #get doc info -- ID and # of segs
     $data = $span;
@@ -242,7 +232,7 @@ sub get_source_info {
 sub get_MT_data {
  
     my ($docs, $set_tag, $file) = @_;
-    my ($name, $id, $src, $tgt, $sys, $doc);
+    my ($name, $id, $tgt, $sys, $doc);
     my ($tag, $span, $data);
  
 #read data from file
@@ -255,12 +245,6 @@ sub get_MT_data {
     while (($tag, $span, $data) = extract_sgml_tag_and_span ($set_tag, $data)) {
         die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n" unless
             ($id) = extract_sgml_tag_attribute ($name="SetID", $tag);
- 
-        die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n" unless
-            ($src) = extract_sgml_tag_attribute ($name="SrcLang", $tag);
-        die "\n\nFATAL INPUT ERROR:  $name ('$src') in file '$file' inconsistent\n"
-            ."                    with $name of source ('$src_lang')\n\n"
-                unless $src eq $src_lang;
          
         die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n" unless
             ($tgt) = extract_sgml_tag_attribute ($name="TrgLang", $tag);
