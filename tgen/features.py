@@ -11,6 +11,7 @@ as well as an object that handles them.
 
 from collections import defaultdict
 import re
+import inspect
 from functools import partial
 
 
@@ -196,6 +197,43 @@ def dai_presence(tree, context):
     return ret
 
 
+def slot_presence(tree, context):
+    """Return 1 for all DA slots in the given context.
+
+    @rtype: dict
+    @return: dictionary with keys composed of DA slots and values equal to 1
+    """
+    ret = {}
+    for dai in context['da']:
+        ret[dai.name] = 1
+    return ret
+
+
+def slot_count(tree, context):
+    """Return the number of times the specified slot occurs in the DA.
+
+    @rtype: dict
+    @return: dictionary with keys composed of DA slots and values giving their number of occurrences
+    """
+    ret = defaultdict(int)
+    for dai in context['da']:
+        ret[dai.name] += 1
+    return ret
+
+
+def difference(tree, context, attribs):
+    """A meta-features that will produce differences of two numeric features.
+
+    @rtype: dict
+    @return: dictionary with keys composed of original names and values equal to value differences
+    """
+    ret = defaultdict(float)
+    for key1, val1 in context['feats'][attribs[0]].iteritems():
+        for key2, val2 in context['feats'][attribs[0]].iteritems():
+            ret[key1 + '---' + key2] = val1 - val2
+    return ret
+
+
 def combine(tree, context, attribs):
     """A meta-feature combining n-tuples of other features (as found in context['feats']).
 
@@ -238,38 +276,19 @@ class Features(object):
             except:
                 pass
 
-            feat_func = None
-            # bias
-            if func_name.lower() == 'bias':
-                feat_func = bias
-            # node features
-            elif func_name.lower() == 'count':
-                feat_func = partial(count, attribs=func_params)
-            elif func_name.lower() == 'presence':
-                feat_func = partial(presence, attribs=func_params)
-            elif func_name.lower() == 'dai_presence':
-                feat_func = dai_presence
-            elif func_name.lower() == 'dependency':
-                feat_func = partial(dependency, attribs=func_params)
-            elif func_name.lower() == 'dir_dependency':
-                feat_func = partial(dir_dependency, attribs=func_params)
-            # tree shape features
-            elif func_name.lower() == 'depth':
-                feat_func = depth
-            elif func_name.lower() == 'tree_size':
-                feat_func = tree_size
-            elif func_name.lower() == 'max_children':
-                feat_func = max_children
-            elif func_name.lower() == 'nodes_per_dai':
-                feat_func = nodes_per_dai
-            elif func_name.lower() == 'rep_nodes_per_rep_dai':
-                feat_func = rep_nodes_per_rep_dai
-            elif func_name.lower() == 'rep_nodes':
-                feat_func = rep_nodes
-            elif func_name.lower() == 'combine':
-                feat_func = partial(combine, attribs=func_params)
-            else:
+            try:
+                feat_func = globals()[func_name]
+            except KeyError:
                 raise Exception('Unknown feature function:' + feat)
+
+            arg_num = len(inspect.getargspec(feat_func).args)
+            if arg_num == 2:
+                pass
+            elif arg_num == 3:
+                feat_func = partial(feat_func, attribs=func_params)
+            else:
+                raise Exception('Feature function %s has an invalid number of arguments (%d)' %
+                                (feat, arg_num))
 
             features.append((label, feat_func))
 
