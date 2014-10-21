@@ -68,6 +68,9 @@ Tgen experiments
 - Use 'make asearch_gen' to run A*search generation
   (set PERCRANK_MODEL to the model you want to use).
 
+- Use 'make asearch_gen-XXX' to directly test the model
+  trained from experiment number XXX.
+
 - Use 'make compare-X:Y' to compare the logs of runs X
   and Y (set COMPARE_ITERS to the number of iterations you
   want to compare).
@@ -92,14 +95,15 @@ export HELP_MESSAGE
 help:
 	@echo "$$HELP_MESSAGE" | egrep --color '^(\s*make.*|)'
 
+# List all experiments, find scores in logs (of various versions)
 desc:
 	@ls -d $(RUNS_DIR)/* | sort | while read file; do \
 		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
 		cat $$file/ABOUT | tr  '\n' ' '; \
-		if echo $$file | grep 'asearch_gen' >/dev/null 2>&1; then \
-			score=`grep -i "Node precision" $$file/T.* $$file/log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
+		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
+			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
 			echo -en "\t$$score"; \
-			bleu=`grep -i '^NIST ' $$file/T.* $$file/log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;' | tr -d '\n'`; \
+			bleu=`grep -i '^NIST ' $$file/T.* $$file/{asearch_gen,}log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;' | tr -d '\n'`; \
 			echo -en "\t$$bleu"; \
 		fi; \
 		echo; \
@@ -142,7 +146,7 @@ percrank_train:
 		$(TGEN) percrank_train -d $(TRY_DIR)/debug-log.txt -c $(TRY_DIR)/candgen.pickle.gz  \
 		-s $(TRAIN_PORTION) $(PARALLEL) \
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
-		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/log.txt
+		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
 
 asearch_gen: RUN_NAME := asearch_gen
@@ -153,18 +157,34 @@ asearch_gen:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
+	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP)
+
+asearch_gen-%:
+	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
+	$(eval TRY_NUM := $*)
+	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
+	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
+	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
+	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP)
+
+asearch_gen_process: RUN_NAME := asearch_gen
+asearch_gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz -d $(TRY_DIR)/debug-log.txt \
 		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
-			Misc::DeabstractDialogueSlots abstraction_file=$(TEST_ABSTR) \
+			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt \
+			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
-			$(SURFACE_SCEN) Write::Treex Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
-		$(MTEVAL) -r $(TEST_CONC) -t $(TRY_DIR)/out-text.sgm' \
-		2>&1 | tee $(TRY_DIR)/log.txt
-
+			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
+		$(MTEVAL) -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
+		2>&1 | tee $(TRY_DIR)/asearch_gen.log.txt
 
 compare_logs-%:
 	NUM1=`echo $* | cut -d: -f1`; NUM2=`echo $* | cut -d: -f2`; \
