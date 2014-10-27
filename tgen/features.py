@@ -13,6 +13,7 @@ from collections import defaultdict
 import re
 import inspect
 from functools import partial
+from itertools import combinations
 
 
 # Helper functions
@@ -159,8 +160,8 @@ def presence(tree, context, attribs):
 
 def dependency(tree, context, attribs):
     """Return 1 for all dependency pairs of the given attribute found in the given tree.
-    @rtype: : dict
-    @return dictionary with keys for values of the attribute and values equal to 1
+    @rtype: dict
+    @return: dictionary with keys for values of the attribute and values equal to 1
     """
     ret = {}
     for idx, parent_idx in enumerate(tree.parents):
@@ -172,8 +173,8 @@ def dependency(tree, context, attribs):
 
 def dir_dependency(tree, context, attribs):
     """Same as :py:func:`dependency`, but includes edge direction (L/R).
-    @rtype: : dict
-    @return dictionary with keys for values of the attribute and values equal to 1
+    @rtype: dict
+    @return: dictionary with keys for values of the attribute and values equal to 1
     """
     ret = {}
     for idx, parent_idx in enumerate(tree.parents):
@@ -182,6 +183,53 @@ def dir_dependency(tree, context, attribs):
         ret[attribs_val(tree, idx, attribs) + '/' +
             dep_dir(tree, idx) + '/' +
             attribs_val(tree, parent_idx, attribs)] = 1
+    return ret
+
+
+def siblings(tree, context, attribs):
+    """Return 1 for all node pairs that are siblings in the given tree
+    @rtype:  dict
+    @return: dictionary with keys for values of the attribute and values equal to 1
+    """
+    parents = defaultdict(list)
+    for idx, parent_idx in enumerate(tree.parents):
+        parents[parent_idx].append(idx)
+    ret = {}
+    for siblings in parents.itervalues():
+        for sibl1, sibl2 in combinations(siblings, 2):
+            ret[attribs_val(tree, sibl1, attribs) + '-x-' + attribs_val(tree, sibl2, attribs)] = 1
+    return ret
+
+
+def bigrams(tree, context, attribs):
+    """Return 1 for all node bigrams (in order)
+    @rtype: dict
+    @return: dictionary with one key ('') and the target number as a value
+    """
+    attr_1 = attribs_val(tree, 0, attribs)
+    ret = {}
+    for idx in xrange(1, len(tree)):
+        attr = attribs_val(tree, idx, attribs)
+        ret[attr_1 + '->-' + attr] = 1
+        attr_1 = attr
+    return ret
+
+
+def trigrams(tree, context, attribs):
+    """Return 1 for all node trigrams (in order)
+    @rtype: dict
+    @return: dictionary with one key ('') and the target number as a value
+    """ 
+    if len(tree) < 3:
+        return {}
+    attr_1 = attribs_val(tree, 0, attribs)
+    attr_2 = attribs_val(tree, 1, attribs)
+    ret = {}
+    for idx in xrange(2, len(tree)):
+        attr = attribs_val(tree, idx, attribs)
+        ret[attr_2 + '->-' + attr_1 + '->-' + attr] = 1
+        attr_2 = attr_1
+        attr_1 = attr
     return ret
 
 

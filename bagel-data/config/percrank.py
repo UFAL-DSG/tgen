@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 
 
 config = {
+          'averaging': True,
           'alpha': 0.1,
           'passes': 50,
           'features': [
@@ -14,6 +15,7 @@ config = {
                        'formeme-numc: presence formeme num_children',
                        'lemma-formeme-numc: presence t_lemma formeme num_children',
                        'dai: dai_presence',
+                       'slot: slot_presence',
                        'lemma+dai: combine lemma dai',
                        'formeme+dai: combine formeme dai',
                        'lemma-formeme+dai: combine lemma-formeme dai',
@@ -32,6 +34,22 @@ config = {
                        'dirdep-lemma-formeme: dir_dependency t_lemma formeme',
                        'dirdep-lemma-formeme+dai: combine dirdep-lemma-formeme dai',
                        'tree-size: tree_size',
+                       'slot-lemma: combine slot lemma',
+                       'count-lemma: count t_lemma',
+                       'count-slot: slot_count',
+                       'diff-count-lemma-slot: difference count-lemma count-slot',
+                       'siblings-lemma: siblings t_lemma',
+                       'siblings-formeme: siblings formeme',
+                       'siblings-lemma-formeme: siblings t_lemma formeme',
+                       'siblings-lemma-formeme+dai: combine siblings-lemma-formeme dai',
+                       'bigrams-lemma: bigrams t_lemma',
+                       'bigrams-formeme: bigrams formeme',
+                       'bigrams-lemma-formeme: bigrams t_lemma formeme',
+                       'bigrams-lemma-formeme+dai: combine bigrams-lemma-formeme dai',
+                       #'trigrams-lemma: trigrams t_lemma',
+                       #'trigrams-formeme: trigrams formeme',
+                       #'trigrams-lemma-formeme: trigrams t_lemma formeme',
+                       #'trigrams-lemma-formeme+dai: combine trigrams-lemma-formeme dai',
                        ],
           'rival_number': 1,
           'rival_gen_strategy': ['gen_cur_weights'],
