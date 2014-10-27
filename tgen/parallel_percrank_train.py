@@ -140,10 +140,15 @@ class ParallelPerceptronRanker(PerceptronRanker):
                     time.sleep(self.poll_interval)
                 # now gather the results and take an average, set it as new w
                 self.w = np.average(results, axis=0)
+                self.w_after_iter.append(np.copy(self.w))  # store a copy of w for averaging
 
                 iter_end_time = time.time()
                 log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
                 log_debug(self._feat_val_str(self.w), '\n***')
+
+            # after all iterations: average weights if set to do so
+            if self.averaging is True:
+                self.w = np.average(self.w_after_iter, axis=0)
         # kill all jobs
         finally:
             for job in self.jobs:

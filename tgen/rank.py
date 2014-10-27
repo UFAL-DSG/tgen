@@ -47,6 +47,7 @@ class PerceptronRanker(Ranker):
     def __init__(self, cfg):
         if not cfg:
             cfg = {}
+        self.w_after_iter = []
         self.w = None
         self.feats = ['bias: bias']
         self.vectorizer = None
@@ -56,6 +57,7 @@ class PerceptronRanker(Ranker):
         self.rival_number = cfg.get('rival_number', 10)
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
+        self.averaging = cfg.get('averaging', False)
         self.rival_gen_strategy = cfg.get('rival_gen_strategy', ['other_inst'])
         self.rival_gen_max_iter = cfg.get('rival_gen_max_iter', 50)
         self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
@@ -82,6 +84,9 @@ class PerceptronRanker(Ranker):
         self._init_training(das_file, ttree_file, data_portion)
         for iter_no in xrange(1, self.passes + 1):
             self._training_iter(iter_no)
+        # averaged perceptron – average the weights obtained after each iteration
+        if self.averaging is True:
+            self.w = np.average(self.w_after_iter, axis=0)
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Initialize training (read input files, reset weights, reset
@@ -129,6 +134,7 @@ class PerceptronRanker(Ranker):
 
         # initialize weights
         self.w = np.ones(self.train_feats.shape[1])
+        # self.w = np.array([random.gauss(0, self.alpha) for _ in xrange(self.train_feats.shape[1])])
 
         log_debug('\n***\nINIT:')
         log_debug(self._feat_val_str(self.w))
@@ -171,6 +177,7 @@ class PerceptronRanker(Ranker):
                 iter_errs += 1
 
         iter_acc = (1.0 - (iter_errs / float(len(self.train_trees))))
+        self.w_after_iter.append(np.copy(self.w))  # store a copy of the current weights for averaging
         log_debug(self._feat_val_str(self.w), '\n***')
         log_debug('ITER ACCURACY: %.3f' % iter_acc)
 
