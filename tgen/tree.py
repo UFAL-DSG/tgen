@@ -139,7 +139,6 @@ class TreeNode(object):
         return [TreeNode(self.tree, child_idx)
                 for child_idx in self.tree.children_idxs(self.node_idx)]
 
-    # @jit
     def get_depth(self):
         return self.tree.node_depth(self.node_idx)
 
@@ -159,7 +158,6 @@ class TreeNode(object):
     def t_lemma(self):
         return self.tree.nodes[self.node_idx].t_lemma
 
-    # @jit
     def get_attr(self, attr_name):
         return getattr(self.tree.nodes[self.node_idx], attr_name)
 
@@ -194,3 +192,6 @@ class TreeNode(object):
 
     def __le__(self, other):
         return self.node_idx <= other.node_idx
+
+    def __len__(self):
+        return len(self.tree)
