@@ -68,16 +68,19 @@ class PerceptronRanker(Ranker):
             self.feats.extend(cfg['features'])
         self.feats = Features(self.feats)
 
-    def score(self, cand_ttree, da):
-        return self._score(self._extract_feats(cand_ttree, da))
+    def score(self, cand_tree, da):
+        """Score the given tree in the context of the given dialogue act.
+        @param cand_tree: the candidate tree to be scored, as a TreeData object
+        @param da: a DialogueAct object representing the input dialogue act
+        """
+        return self._score(self._extract_feats(cand_tree, da))
 
     def _score(self, cand_feats):
         return np.dot(self.w, cand_feats)
 
-    def _extract_feats(self, ttree, da):
+    def _extract_feats(self, tree, da):
         return self.normalizer.transform(
-                        self.vectorizer.transform(
-                                [self.feats.get_features(ttree, {'da': da})]))[0]
+            self.vectorizer.transform([self.feats.get_features(tree, {'da': da})]))[0]
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run training on the given training data."""
@@ -97,11 +100,11 @@ class PerceptronRanker(Ranker):
         log_info('Reading t-trees from ' + ttree_file + '...')
         ttree_doc = read_ttrees(ttree_file)
         self.train_sents = sentences_from_doc(ttree_doc, self.language, self.selector)
-        ttrees = trees_from_doc(ttree_doc, self.language, self.selector)
+        trees = trees_from_doc(ttree_doc, self.language, self.selector)
 
         # make training data smaller if necessary
-        train_size = int(round(data_portion * len(ttrees)))
-        self.train_trees = ttrees[:train_size]
+        train_size = int(round(data_portion * len(trees)))
+        self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
         log_info('Using %d training instances.' % train_size)
 
@@ -159,10 +162,12 @@ class PerceptronRanker(Ranker):
             scores = [self._score(cand) for cand in cands]
             top_cand_idx = scores.index(max(scores))
 
-            # find the top-scoring generated tree, evaluate F-score against gold t-tree
+            # find the top-scoring generated tree, evaluate against gold t-tree
             # (disregarding whether it was selected as the best one)
             self.evaluator.append(TreeNode(gold_ttree),
-                                  TreeNode(rival_ttrees[scores[1:].index(max(scores[1:]))]))
+                                  TreeNode(rival_ttrees[scores[1:].index(max(scores[1:]))]),
+                                  scores[0],
+                                  max(scores[1:]))
 
             log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (tree_no, top_cand_idx, len(cands)))
             log_debug('SENT: %s' % self.train_sents[tree_no])
@@ -190,6 +195,8 @@ class PerceptronRanker(Ranker):
                  self.evaluator.p_r_f1(EvalTypes.DEP))
         log_info(' * Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' %
                  self.lists_analyzer.stats())
+        log_info(' * Tree size stats -- GOLD: %s\tPRED: %s\tDIFF: %s' % self.evaluator.tree_size_stats())
+        log_info(' * Score stats -- GOLD: %s\tPRED: %s\tDIFF: %s' % self.evaluator.score_stats())
         log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
 
     def _feat_val_str(self, vec, sep='\n', nonzero=False):

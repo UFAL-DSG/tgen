@@ -43,6 +43,7 @@ from tgen.rank import PerceptronRanker
 from tgen.planner import SamplingPlanner, ASearchPlanner
 from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearchListsAnalyzer, \
     EvalTypes, Evaluator
+from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelPerceptronRanker
 
 
@@ -220,18 +221,26 @@ def asearch_gen(args):
             lists_analyzer.append(gold_tree, open_list, close_list)
         log_info('Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' % lists_analyzer.stats())
 
-        # evaluate F-scores
+        # evaluate the generated trees against golden trees
         eval_ttrees = ttrees_from_doc(eval_doc, tgen.language, eval_selector)
         gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
 
         log_info('Evaluating...')
         evaler = Evaluator()
-        for eval_bundle, eval_ttree, gen_ttree in zip(eval_doc.bundles, eval_ttrees, gen_ttrees):
+        for eval_bundle, eval_ttree, gen_ttree, da in zip(eval_doc.bundles, eval_ttrees, gen_ttrees, das):
+            # add some stats about the tree directly into the output file
             add_bundle_text(eval_bundle, tgen.language, tgen.selector + 'Xscore',
                             "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
-            evaler.append(eval_ttree, gen_ttree)
+            # collect overall stats
+            evaler.append(eval_ttree,
+                          gen_ttree,
+                          ranker.score(TreeData.from_ttree(eval_ttree), da),
+                          ranker.score(TreeData.from_ttree(gen_ttree), da))
+        # print overall stats
         log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
         log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
+        log_info("Tree size stats: GOLD %s\tPRED %s\tDIFF %s" % evaler.tree_size_stats())
+        log_info("Score stats    : GOLD %s\tPRED %s\tDIFF %s" % evaler.score_stats())
     # just generate
     else:
         for da in das:

@@ -6,9 +6,10 @@ Evaluation (t-tree comparison functions).
 """
 
 from __future__ import unicode_literals
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from enum import Enum
 from tgen.logf import log_debug
+import numpy as np
 
 
 EvalTypes = Enum(b'EvalTypes', b'NODE DEP')
@@ -94,6 +95,22 @@ def p_r_f1_from_counts(correct, predicted, gold):
     return precision, recall, (2 * precision * recall) / (precision + recall)
 
 
+class Stats:
+    """A set of important statistic values, with simple access and printing."""
+
+    def __init__(self, data):
+        self.mean = np.mean(data)
+        self.min = min(data)
+        self.max = max(data)
+        self.median = np.median(data)
+        self.perc25 = np.percentile(data, 25)
+        self.perc75 = np.percentile(data, 75)
+
+    def __str__(self):
+        return " ".join("%s: %.3f" % (key.capitalize(), val)
+                        for key, val in self.__dict__.iteritems())
+
+
 class Evaluator(object):
     """A fancy object-oriented interface to computing node F-scores.
 
@@ -103,17 +120,26 @@ class Evaluator(object):
     def __init__(self):
         self.reset()
 
-    def append(self, gold_tree, pred_tree):
+    def append(self, gold_tree, pred_tree, gold_tree_score=0.0, pred_tree_score=0.0):
+        """Add a pair of golden and predicted tree to the current statistics.
+        @param gold_tree: a T or TreeNode object representing the golden tree
+        @param pred_tree: a T or TreeNode object representing the predicted tree
+        """
         for eval_type in EvalTypes:
             correct, predicted, gold = corr_pred_gold(gold_tree, pred_tree, eval_type)
             self.correct[eval_type] += correct
             self.predicted[eval_type] += predicted
             self.gold[eval_type] += gold
+        self.tree_sizes.append((len(gold_tree), len(pred_tree)))
+        self.scores.append((gold_tree_score, pred_tree_score))
 
     def reset(self):
+        """Zero out all current statistics, start from scratch."""
         self.correct = {eval_type: 0 for eval_type in EvalTypes}
         self.predicted = {eval_type: 0 for eval_type in EvalTypes}
         self.gold = {eval_type: 0 for eval_type in EvalTypes}
+        self.tree_sizes = []
+        self.scores = []
 
     def f1(self, eval_type=EvalTypes.NODE):
         return self.p_r_f1(eval_type)[2]
@@ -128,6 +154,24 @@ class Evaluator(object):
         return p_r_f1_from_counts(self.correct[eval_type],
                                   self.predicted[eval_type],
                                   self.gold[eval_type])
+
+    def tree_size_stats(self):
+        """Return current tree size statistics.
+        @rtype: a 3-tuple of Stats objects
+        @return: statistics for golden trees, predicted trees, and differences
+        """
+        return (Stats([inst[0] for inst in self.tree_sizes]),
+                Stats([inst[1] for inst in self.tree_sizes]),
+                Stats([inst[0] - inst[1] for inst in self.tree_sizes]))
+
+    def score_stats(self):
+        """Return tree score statistics.
+        @rtype: a 3-tuple of Stats objects
+        @return: statistics for golden trees, predicted trees, and differences
+        """
+        return (Stats([inst[0] for inst in self.scores]),
+                Stats([inst[1] for inst in self.scores]),
+                Stats([inst[0] - inst[1] for inst in self.scores]))
 
 
 class ASearchListsAnalyzer(object):
