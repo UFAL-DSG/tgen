@@ -231,6 +231,7 @@ def asearch_gen(args):
             # add some stats about the tree directly into the output file
             add_bundle_text(eval_bundle, tgen.language, tgen.selector + 'Xscore',
                             "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
+
             # collect overall stats
             evaler.append(eval_ttree,
                           gen_ttree,
@@ -239,8 +240,8 @@ def asearch_gen(args):
         # print overall stats
         log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
         log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
-        log_info("Tree size stats: GOLD %s\tPRED %s\tDIFF %s" % evaler.tree_size_stats())
-        log_info("Score stats    : GOLD %s\tPRED %s\tDIFF %s" % evaler.score_stats())
+        log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.tree_size_stats())
+        log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
     # just generate
     else:
         for da in das:
