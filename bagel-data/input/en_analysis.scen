@@ -20,7 +20,7 @@ W2A::EN::FixDicendiVerbs
 W2A::EN::SetAfunAuxCPCoord
 W2A::EN::SetAfun
 W2A::FixQuotes
-A2A::ConvertTagsInterset input_driver=EN::Penn
+A2A::ConvertTags input_driver=en::penn
 A2A::EN::EnhanceInterset
 A2T::EN::MarkEdgesToCollapse
 A2T::EN::MarkEdgesToCollapseNeg
@@ -43,7 +43,7 @@ A2T::SetNodetype
 A2T::EN::SetFormemeInterset
 A2T::EN::SetTense
 A2T::EN::SetGrammatemes
-A2T::SetGrammatemesFromAux
+A2T::SetGrammatemesFromAux # this adds definiteness information
 A2T::SetSentmod
 A2T::EN::RehangSharedAttr
 A2T::EN::SetVoice
