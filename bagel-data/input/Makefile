@@ -8,8 +8,8 @@ ABSTRACTED='name near phone addr postcode'
 %-text.yaml.gz: %-text.treex.gz
 	treex -Len Read::Treex from=$< Write::YAML to=$@
 
-%-text.treex.gz: %-text.txt %-abstr.txt
-	treex -Len Read::Sentences from=$< en_analysis.scen \
+%-text.treex.gz: %-text.txt %-conc.txt %-abstr.txt
+	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt en_analysis.scen \
 	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abstr.txt \
 	    Write::Treex to=$@
 
