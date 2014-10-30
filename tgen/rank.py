@@ -195,8 +195,10 @@ class PerceptronRanker(Ranker):
                  self.evaluator.p_r_f1(EvalTypes.DEP))
         log_info(' * Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' %
                  self.lists_analyzer.stats())
-        log_info(' * Tree size stats -- GOLD: %s\tPRED: %s\tDIFF: %s' % self.evaluator.tree_size_stats())
-        log_info(' * Score stats -- GOLD: %s\tPRED: %s\tDIFF: %s' % self.evaluator.score_stats())
+        log_info(' * Tree size stats:\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s' %
+                 self.evaluator.tree_size_stats())
+        log_info(' * Score stats\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s'
+                 % self.evaluator.score_stats())
         log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
 
     def _feat_val_str(self, vec, sep='\n', nonzero=False):
