@@ -100,15 +100,15 @@ class Stats:
 
     def __init__(self, data):
         self.mean = np.mean(data)
+        self.median = np.median(data)
         self.min = min(data)
         self.max = max(data)
-        self.median = np.median(data)
         self.perc25 = np.percentile(data, 25)
         self.perc75 = np.percentile(data, 75)
 
     def __str__(self):
-        return " ".join("%s: %.3f" % (key.capitalize(), val)
-                        for key, val in self.__dict__.iteritems())
+        return "\t".join("%s: %9.3f" % (key.capitalize(), getattr(self, key))
+                         for key in ['mean', 'median', 'min', 'max', 'perc25', 'perc75'])
 
 
 class Evaluator(object):
@@ -130,7 +130,8 @@ class Evaluator(object):
             self.correct[eval_type] += correct
             self.predicted[eval_type] += predicted
             self.gold[eval_type] += gold
-        self.tree_sizes.append((len(gold_tree), len(pred_tree)))
+        self.tree_sizes.append((len(gold_tree.get_descendants()),
+                                len(pred_tree.get_descendants())))
         self.scores.append((gold_tree_score, pred_tree_score))
 
     def reset(self):
