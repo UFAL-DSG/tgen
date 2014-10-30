@@ -1,0 +1,4 @@
+X is a restaurant .
+X is a bar .
+X is a Chinese restaurant .
+X is an Indian restaurant .

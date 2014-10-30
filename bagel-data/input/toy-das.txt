@@ -1,0 +1,4 @@
+inform(name="X-name")&inform(eattype=restaurant) 
+inform(name="X-name")&inform(eattype=bar) 
+inform(name="X-name")&inform(eattype=restaurant)&inform(food=Chinese)
+inform(name="X-name")&inform(eattype=restaurant)&inform(food=Indian) 

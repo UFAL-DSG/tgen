@@ -1,0 +1,4 @@
+name="Rest1"	eattype=restaurant:3-4
+name="Rest2"	eattype=bar:3-4
+name="Rest3"	food=Chinese:3-4	eattype=restaurant:4-5
+name="Rest4"	food=Indian:3-4	eattype=restaurant:4-5
