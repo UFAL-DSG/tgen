@@ -153,7 +153,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
 
                 # print statistics
                 log_debug(self._feat_val_str(self.w), '\n***')
-                self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.clock() - iter_start_time)))
+                self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.time() - iter_start_time)))
 
             # after all iterations: average weights if set to do so
             if self.averaging is True:
