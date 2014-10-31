@@ -95,6 +95,50 @@ def p_r_f1_from_counts(correct, predicted, gold):
     return precision, recall, (2 * precision * recall) / (precision + recall)
 
 
+# Adapted from http://rosettacode.org/wiki/Longest_common_subsequence#Python
+def longest_common_subseq(a, b):
+    """Find the longest common subsequence in an array of TreeNode-s,
+    @return: a tuple of TreeNode arrays, each containing nodes from one of the original arrays.
+    """
+    # dynamic programming, substring
+    lengths = [[0 for j in range(len(b) + 1)] for i in range(len(a) + 1)]
+    # row 0 and column 0 are initialized to 0 already
+    for i, x in enumerate(a):
+        for j, y in enumerate(b):
+            # check for node equality (t_lemma, formeme, precede/follow parent)
+            if (x.t_lemma == y.t_lemma and
+                    x.formeme == y.formeme and
+                    x.is_right_child == y.is_right_child):
+                lengths[i + 1][j + 1] = lengths[i][j] + 1
+            else:
+                lengths[i + 1][j + 1] = max(lengths[i + 1][j], lengths[i][j + 1])
+    # read the substring out from the matrix, from the end to the beginning
+    res_a = []
+    res_b = []
+    x, y = len(a), len(b)
+    while x != 0 and y != 0:
+        if lengths[x][y] == lengths[x - 1][y]:
+            x -= 1
+        elif lengths[x][y] == lengths[x][y - 1]:
+            y -= 1
+        else:
+            res_a.append(a[x - 1])
+            res_b.append(b[y - 1])
+            x -= 1
+            y -= 1
+    res_a.reverse()
+    res_b.reverse()
+    return res_a, res_b
+
+
+def common_subtree_size(a, b):
+    """Find the size of the common subtree of two TreeNode-s, starting from the root
+    (but not counting it)."""
+    common_ch_a, common_ch_b = longest_common_subseq(a.get_children(), b.get_children())
+    return len(common_ch_a) + sum(common_subtree_size(a_sub, b_sub)
+                                  for a_sub, b_sub in zip(common_ch_a, common_ch_b))
+
+
 class Stats:
     """A set of important statistic values, with simple access and printing."""
 
@@ -138,8 +182,10 @@ class Evaluator(object):
             self.correct[eval_type] += correct
             self.predicted[eval_type] += predicted
             self.gold[eval_type] += gold
-        self.tree_sizes.append((len(gold_tree.get_descendants()),
-                                len(pred_tree.get_descendants())))
+        gold_tree_size = len(gold_tree.get_descendants())
+        pred_tree_size = len(pred_tree.get_descendants())
+        common_subtree_size = common_subtree_size(gold_tree, pred_tree)
+        self.tree_sizes.append((gold_tree_size, pred_tree_size, common_subtree_size))
         self.scores.append((gold_tree_score, pred_tree_score))
 
     def merge(self, other):
@@ -173,6 +219,15 @@ class Evaluator(object):
         return (Stats([inst[0] for inst in self.tree_sizes]),
                 Stats([inst[1] for inst in self.tree_sizes]),
                 Stats([inst[0] - inst[1] for inst in self.tree_sizes]))
+
+    def common_subtree_stats(self):
+        """Return common subtree size statistics.
+        @rtype: a 3-tuple of Stats objects
+        @return: statistics for common subtree size + sizes of what's missing to full gold/predicted tree
+        """
+        return (Stats([inst[2] for inst in self.tree_sizes]),
+                Stats([inst[0] - inst[2] for inst in self.tree_sizes]),
+                Stats([inst[1] - inst[2] for inst in self.tree_sizes]))
 
     def score_stats(self):
         """Return tree score statistics.

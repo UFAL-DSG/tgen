@@ -209,6 +209,8 @@ class PerceptronRanker(Ranker):
                  self.lists_analyzer.stats())
         log_info(' * Tree size stats:\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s' %
                  self.evaluator.tree_size_stats())
+        log_info(' * Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s' %
+                 self.evaluator.common_subtree_stats())
         log_info(' * Score stats\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s'
                  % self.evaluator.score_stats())
         log_info(' * Duration: %s' % str(iter_duration))

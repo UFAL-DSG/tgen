@@ -242,6 +242,8 @@ def asearch_gen(args):
         log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
         log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.tree_size_stats())
         log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
+        log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
+                 evaler.common_subtree_stats())
     # just generate
     else:
         for da in das:

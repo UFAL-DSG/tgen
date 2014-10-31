@@ -158,6 +158,10 @@ class TreeNode(object):
     def t_lemma(self):
         return self.tree.nodes[self.node_idx].t_lemma
 
+    @property
+    def is_right_child(self):
+        return self.tree.parents < self.node_idx
+
     def get_attr(self, attr_name):
         return getattr(self.tree.nodes[self.node_idx], attr_name)
 
