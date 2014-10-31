@@ -6,7 +6,7 @@ Evaluation (t-tree comparison functions).
 """
 
 from __future__ import unicode_literals
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from enum import Enum
 from tgen.logf import log_debug
 import numpy as np

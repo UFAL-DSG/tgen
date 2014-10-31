@@ -11,6 +11,7 @@ import cPickle as pickle
 import random
 import time
 import datetime
+from collections import defaultdict
 
 from alex.components.nlg.tectotpl.core.util import file_stream
 
@@ -54,6 +55,7 @@ class PerceptronRanker(Ranker):
         self.normalizer = None
         self.alpha = cfg.get('alpha', 1)
         self.passes = cfg.get('passes', 5)
+        self.prune_feats = cfg.get('prune_feats', 1)
         self.rival_number = cfg.get('rival_number', 10)
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
@@ -112,6 +114,8 @@ class PerceptronRanker(Ranker):
         X = []
         for da, tree in zip(self.train_das, self.train_trees):
             X.append(self.feats.get_features(tree, {'da': da}))
+        if self.prune_feats > 1:
+            self._prune_features(X)
         # vectorize and normalize (+train normalizer and vectorizer)
         self.vectorizer = DictVectorizer(sparse=False)
         self.normalizer = StandardScaler(copy=False)
@@ -268,3 +272,16 @@ class PerceptronRanker(Ranker):
 
         # return all resulting candidates
         return rival_trees, rival_feats
+
+    def _prune_features(self, X):
+        """Prune features – remove all entries from X that involve features not having a
+        specified minimum occurrence count.
+        """
+        counts = defaultdict(int)
+        for inst in X:
+            for key in inst.iterkeys():
+                counts[key] += 1
+        for inst in X:
+            for key in inst.keys():
+                if counts[key] < self.prune_feats:
+                    del inst[key]
