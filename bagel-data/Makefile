@@ -5,7 +5,8 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
-QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem 8g --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP)# using OB's qsubmit script
+MEM = 8g
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
 else
@@ -70,6 +71,8 @@ Tgen experiments
 
 - Use 'make asearch_gen-XXX' to directly test the model
   trained from experiment number XXX.
+
+- Use 'make rerun-XXX' to re-run experiment number XXX.
 
 - Use 'make compare-X:Y' to compare the logs of runs X
   and Y (set COMPARE_ITERS to the number of iterations you
@@ -185,6 +188,12 @@ asearch_gen_process:
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
 		$(MTEVAL) -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
 		2>&1 | tee $(TRY_DIR)/asearch_gen.log.txt
+
+rerun-%:
+	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
+	$(eval TRY_NUM := $*)
+	COMMAND=`cat $(TRY_DIR)/T.* 2>/dev/null | sed '1,/^== Command/d;/^== Hard res/,$$d'` ; \
+		$(QSUBMIT) "$$COMMAND" 2>&1 | tee -a $(TRY_DIR)/asearch_gen.log.txt
 
 compare_logs-%:
 	NUM1=`echo $* | cut -d: -f1`; NUM2=`echo $* | cut -d: -f2`; \
