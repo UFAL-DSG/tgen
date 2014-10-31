@@ -32,6 +32,7 @@ from rank import PerceptronRanker
 from logf import log_info, set_debug_stream, log_debug
 from planner import ASearchPlanner
 from tgen.logf import log_warn
+from tgen.eval import ASearchListsAnalyzer, Evaluator
 
 
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
@@ -138,13 +139,21 @@ class ParallelPerceptronRanker(PerceptronRanker):
                         cur_portion += 1
                     # sleep for a while
                     time.sleep(self.poll_interval)
-                # now gather the results and take an average, set it as new w
-                self.w = np.average(results, axis=0)
+
+                # now gather the results and statistics
+                self.evaluator = Evaluator()
+                self.lists_analyzer = ASearchListsAnalyzer()
+                for _, evaluator, lists in results:  # merge statistics
+                    self.evaluator.merge(evaluator)
+                    self.lists_analyzer.merge(lists)
+
+                # take an average of weights; set it as new w
+                self.w = np.average([w for w, _, _ in results], axis=0)
                 self.w_after_iter.append(np.copy(self.w))  # store a copy of w for averaging
 
-                iter_end_time = time.time()
-                log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
+                # print statistics
                 log_debug(self._feat_val_str(self.w), '\n***')
+                self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.clock() - iter_start_time)))
 
             # after all iterations: average weights if set to do so
             if self.averaging is True:
@@ -265,7 +274,7 @@ class PercRankTrainingService(Service):
         all_train_sents = percrank.train_sents
         percrank.train_sents = percrank.train_sents[data_offset:data_offset + data_len]
         # do the actual computation (update w)
-        percrank._training_iter(iter_no)
+        evaluator, lists_analyzer = percrank._training_iter(iter_no)
         # return the rest of the training data to member variables
         percrank.train_das = all_train_das
         percrank.train_trees = all_train_trees
@@ -273,7 +282,7 @@ class PercRankTrainingService(Service):
         percrank.train_sents = all_train_sents
         # return the result of the computation
         log_info('Training iteration %d / %d / %d done.' % (iter_no, data_offset, data_len))
-        return pickle.dumps(percrank.w, pickle.HIGHEST_PROTOCOL)
+        return pickle.dumps((percrank.w, evaluator, lists_analyzer), pickle.HIGHEST_PROTOCOL)
 
 
 def run_worker(head_host, head_port, debug_out=None):

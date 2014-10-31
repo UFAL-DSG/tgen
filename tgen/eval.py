@@ -120,6 +120,14 @@ class Evaluator(object):
     def __init__(self):
         self.reset()
 
+    def reset(self):
+        """Zero out all current statistics, start from scratch."""
+        self.correct = {eval_type: 0 for eval_type in EvalTypes}
+        self.predicted = {eval_type: 0 for eval_type in EvalTypes}
+        self.gold = {eval_type: 0 for eval_type in EvalTypes}
+        self.tree_sizes = []
+        self.scores = []
+
     def append(self, gold_tree, pred_tree, gold_tree_score=0.0, pred_tree_score=0.0):
         """Add a pair of golden and predicted tree to the current statistics.
         @param gold_tree: a T or TreeNode object representing the golden tree
@@ -134,13 +142,14 @@ class Evaluator(object):
                                 len(pred_tree.get_descendants())))
         self.scores.append((gold_tree_score, pred_tree_score))
 
-    def reset(self):
-        """Zero out all current statistics, start from scratch."""
-        self.correct = {eval_type: 0 for eval_type in EvalTypes}
-        self.predicted = {eval_type: 0 for eval_type in EvalTypes}
-        self.gold = {eval_type: 0 for eval_type in EvalTypes}
-        self.tree_sizes = []
-        self.scores = []
+    def merge(self, other):
+        """Merge in statistics from another Evaluator object."""
+        for eval_type in EvalTypes:
+            self.correct[eval_type] += other.correct[eval_type]
+            self.predicted[eval_type] += other.predicted[eval_type]
+            self.gold[eval_type] += other.gold[eval_type]
+        self.tree_sizes.extend(other.tree_sizes)
+        self.scores.extend(other.scores)
 
     def f1(self, eval_type=EvalTypes.NODE):
         return self.p_r_f1(eval_type)[2]
@@ -174,6 +183,12 @@ class Evaluator(object):
                 Stats([inst[1] for inst in self.scores]),
                 Stats([inst[0] - inst[1] for inst in self.scores]))
 
+    def tree_accuracy(self):
+        """Return tree-level accuracy (percentage of gold trees scored higher or equal to
+        the best predicted tree."""
+        return (sum(1 for gold_score, pred_score in self.scores if gold_score >= pred_score) /
+                float(len(self.scores)))
+
 
 class ASearchListsAnalyzer(object):
     """Analysis of the final open and close lists of the A*search generator."""
@@ -182,12 +197,15 @@ class ASearchListsAnalyzer(object):
         self.reset()
 
     def reset(self):
+        """Zero all statistics."""
         self.total = 0
         self.gold_best = 0
         self.gold_on_close = 0
         self.gold_on_open = 0
 
     def append(self, gold_tree, open_list, close_list):
+        """Analyze the open and close lists of a generator for the presence of the gold-standard
+        tree and add the results to statistics."""
         self.total += 1
         best_tree = close_list.peek()[0]
         if gold_tree == best_tree:
@@ -200,7 +218,18 @@ class ASearchListsAnalyzer(object):
             self.gold_on_open += 1
             log_debug('GOLD TREE IS ON OPEN LIST')
 
+    def merge(self, other):
+        """Merge in another ASearchListsAnalyzer object."""
+        self.total += other.total
+        self.gold_best += other.gold_best
+        self.gold_on_close += other.gold_on_close
+        self.gold_on_open += other.gold_on_open
+
     def stats(self):
+        """Return statistics (as percentages): gold tree was best, gold tree was on
+        close list, gold tree was on open list.
+        @rtype: tuple
+        """
         tot = float(self.total)
         return (self.gold_best / tot,
                 self.gold_on_close / tot,

@@ -132,8 +132,8 @@ class PerceptronRanker(Ranker):
                                                    'ranker': self, })
 
         # initialize diagnostics
-        self.lists_analyzer = ASearchListsAnalyzer()
-        self.evaluator = Evaluator()
+        self.lists_analyzer = None
+        self.evaluator = None
 
         # initialize weights
         self.w = np.ones(self.train_feats.shape[1])
@@ -144,11 +144,14 @@ class PerceptronRanker(Ranker):
         log_info('Training ...')
 
     def _training_iter(self, iter_no):
+        """Run one training iteration, update weights (store them for possible averaging),
+        and return statistics.
+
+        @return: a tuple of Evaluator and ListsAnalyzer objects containing iteration statistics."""
 
         iter_start_time = time.clock()
-        iter_errs = 0
-        self.evaluator.reset()
-        self.lists_analyzer.reset()
+        self.evaluator = Evaluator()
+        self.lists_analyzer = ASearchListsAnalyzer()
 
         log_debug('\n***\nTR %05d:' % iter_no)
 
@@ -169,6 +172,7 @@ class PerceptronRanker(Ranker):
                                   scores[0],
                                   max(scores[1:]))
 
+            # debug print: candidate trees
             log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (tree_no, top_cand_idx, len(cands)))
             log_debug('SENT: %s' % self.train_sents[tree_no])
             log_debug('ALL CAND TREES:')
@@ -177,18 +181,22 @@ class PerceptronRanker(Ranker):
 
             # update weights if the system doesn't give the highest score to the right one
             if top_cand_idx != 0:
-                self.w += (self.alpha * gold_feats -
-                           self.alpha * cands[top_cand_idx])
-                iter_errs += 1
+                self.w += (self.alpha * gold_feats - self.alpha * cands[top_cand_idx])
 
-        iter_acc = (1.0 - (iter_errs / float(len(self.train_trees))))
-        self.w_after_iter.append(np.copy(self.w))  # store a copy of the current weights for averaging
+        # store a copy of the current weights for averaging
+        self.w_after_iter.append(np.copy(self.w))
+
+        # debug print: current weights and iteration accuracy
         log_debug(self._feat_val_str(self.w), '\n***')
-        log_debug('ITER ACCURACY: %.3f' % iter_acc)
+        log_debug('ITER ACCURACY: %.3f' % self.evaluator.tree_accuracy())
 
-        iter_end_time = time.clock()
+        # print and return statistics
+        self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.clock() - iter_start_time)))
+        return self.evaluator, self.lists_analyzer
 
-        log_info('Iteration %05d -- tree-level accuracy: %.4f' % (iter_no, iter_acc))
+    def _print_iter_stats(self, iter_no, iter_duration):
+        """Print iteration statistics from internal evaluator fields and given iteration duration."""
+        log_info('Iteration %05d -- tree-level accuracy: %.4f' % (iter_no, self.evaluator.tree_accuracy()))
         log_info(' * Generated trees NODE scores: P: %.4f, R: %.4f, F: %.4f' %
                  self.evaluator.p_r_f1())
         log_info(' * Generated trees DEP  scores: P: %.4f, R: %.4f, F: %.4f' %
@@ -199,7 +207,7 @@ class PerceptronRanker(Ranker):
                  self.evaluator.tree_size_stats())
         log_info(' * Score stats\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s'
                  % self.evaluator.score_stats())
-        log_info(' * Duration: %s' % str(datetime.timedelta(seconds=(iter_end_time - iter_start_time))))
+        log_info(' * Duration: %s' % str(iter_duration))
 
     def _feat_val_str(self, vec, sep='\n', nonzero=False):
         return sep.join(['%s: %.3f' % (name, weight)
