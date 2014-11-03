@@ -184,8 +184,8 @@ class Evaluator(object):
             self.gold[eval_type] += gold
         gold_tree_size = len(gold_tree.get_descendants())
         pred_tree_size = len(pred_tree.get_descendants())
-        common_subtree_size = common_subtree_size(gold_tree, pred_tree)
-        self.tree_sizes.append((gold_tree_size, pred_tree_size, common_subtree_size))
+        css = common_subtree_size(gold_tree, pred_tree)
+        self.tree_sizes.append((gold_tree_size, pred_tree_size, css))
         self.scores.append((gold_tree_score, pred_tree_score))
 
     def merge(self, other):
