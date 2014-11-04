@@ -13,10 +13,23 @@ use Treex::Core::Scenario;
 use Treex::Core::Document;
 use Treex::Core::Log;
 
-my $abstr_slots_str = '';
-if ( not GetOptions( "abstract|abstr|a=s" => \$abstr_slots_str ) or @ARGV != 5 ) {
+#
+# MAIN
+#
+
+my $abstr_slots_str   = '';
+my $skip_unabstracted = 0;
+
+if (not GetOptions(
+        "abstract|abstr|a=s"          => \$abstr_slots_str,
+        "skip-unabstracted|skip|skip" => \$skip_unabstracted,
+    )
+    or @ARGV != 5
+    )
+{
     die('Usage: ./convert.pl input output-das output-text output-abstraction');
 }
+
 my %abstr_slots = map { $_ => 1 } split( /[, ]+/, $abstr_slots_str );
 
 open( my $in,       '<:utf8', $ARGV[0] );
@@ -35,104 +48,26 @@ $tokenizer->start();
 
 my $da_line   = '';
 my %slot_vals = ();
+my @buf;
 
 while ( my $line = <$in> ) {
 
-    next if $line =~ /^ABSTRACT_DA/;
+    next if $line =~ /^\s*$/;
+    push @buf, $line;
 
-    if ( $line =~ /^FULL_DA/ ) {
-        $line =~ s/FULL_DA = //;
-
-        # convert the data format
-        $line =~ s/,(?! )/)&inform(/g;
-
-        # get values for the individual slots
-        while ( $line =~ m/inform\(([^=]*)=([^\&]*)\)/g ) {
-            my ( $slot, $val ) = ( $1, $2 );
-            if ( !$slot_vals{$slot} ) {
-                $slot_vals{$slot} = [];
-            }
-            push @{ $slot_vals{$slot} }, $val;
-            if ( defined( $abstr_slots{$slot} ) ) {
-                $da_line .= "inform($slot=X-$slot)&";
-            }
-            else {
-                $da_line .= "inform($slot=$val)&";
-            }
-        }
-        $da_line =~ s/&*$//;
-        $da_line .= "\n";
+    if ( $line =~ m/->/ ) {
+        process_instance(@buf);
+        @buf = ();
     }
-    elsif ( $line =~ /^->/ ) {
 
-        $line =~ s/-> "//;
-        $line =~ s/";//;
-
-        if ( $line !~ m/\.\s*$/ ) {    # add dots at the end of every sentence
-            $line =~ s/(\S)(\s*)$/$1\.$2/;
-        }
-
-        # tokenize using Treex
-        my @tokens = tokenize( $tokenizer, $line );
-        my $sent = join( ' ', @tokens );    # re-join additional slot info in []
-        $sent =~ s/ \+ /+/g;
-        $sent =~ s/\[ /[/g;
-        $sent =~ s/ \]/]/g;
-        @tokens = split / /, $sent;
-        $sent   = '';
-        my $abstr    = '';
-        my $in_abstr = 0;
-        my $i        = 0;
-
-        # produce output tokenized sentences along with abstraction instructions
-        foreach my $token (@tokens) {
-
-            if ( $token =~ /^\[(.*)\+.*\]/ ) {    # [slot+val] – need to abstract this
-
-                my $slot = $1;
-                my $val  = shift @{ $slot_vals{$slot} };
-                push @{ $slot_vals{$slot} }, $val;    # cycle the values (in case they repeat)
-                if ($in_abstr) {
-                    $abstr .= $i . "\t";
-                }
-                $abstr .= "$slot=$val:$i-";
-                $in_abstr = 1;
-            }
-            elsif ( $token =~ /^\[/ ) {               # [slot] or [] – just end previous abstraction
-                if ($in_abstr) {
-                    $abstr .= $i . "\t";
-                    $in_abstr = 0;
-                }
-            }
-            else {                                    # plain words
-                $sent .= $token . ' ';
-                $i++;
-            }
-        }
-        if ($in_abstr) {
-            $abstr .= $i;
-            $in_abstr = 0;
-        }
-
-        $sent =~ s/\s*$//;
-        $abstr =~ s/\s*$//;
-
-        # produce de-abstracted sentence where X's are replaced by the actual values
-        my $conc_sent = deabstract( $sent, $abstr );
-
-        print {$out_das} $da_line;
-        print {$out_text} $sent . "\n";
-        print {$out_abst} $abstr . "\n";
-        print {$out_conc} $conc_sent . "\n";
-
-        print STDERR ".";
-        $da_line   = '';
-        %slot_vals = ();
-    }
 }
 print STDERR "\n";
 
 $tokenizer->end();
+
+#
+# SUBROUTINES
+#
 
 sub tokenize {
     my ( $tokenizer, $sent ) = @_;
@@ -175,4 +110,154 @@ sub deabstract {
     }
     $conc_sent =~ s/\s*$//;
     return $conc_sent;
+}
+
+# Return first element of an array and push it to the end of the array (cycle through elements)
+sub shift_push {
+    my ($arr) = @_;
+    my $ret = shift @$arr;
+    push @$arr, $ret;
+    return $ret;
+}
+
+# Process one data instance: convert both DAs and text, print them to output
+sub process_instance {
+
+    my ( $full_da, $abstract_da, $text ) = @_;
+
+    # Get abstracted DA (to know what's abstracted and what isn't)
+    my $abstract_vals = get_abstract_vals($abstract_da);
+
+    # Convert DA text; abstract needed values
+    my ( $da_line, $full_vals ) = convert_da( $full_da, $abstract_vals );
+
+    # Produce abstract sentence according to abstraction settings
+    my ( $sent, $abstr ) = convert_text( $text, $full_vals );
+
+    # produce de-abstracted sentence where X's are replaced by the actual values
+    my $conc_sent = deabstract( $sent, $abstr );
+
+    # Print all outputs
+    print {$out_das} $da_line;
+    print {$out_text} $sent . "\n";
+    print {$out_abst} $abstr . "\n";
+    print {$out_conc} $conc_sent . "\n";
+
+    # Indicate progress
+    print STDERR ".";
+}
+
+# Retrieve abstract DA slot values
+sub get_abstract_vals {
+
+    my ($abstract_da) = @_;
+    my %slot_vals = ();
+
+    # prepare string format for value extraction
+    $abstract_da =~ s/ABSTRACT_DA = //;
+    $abstract_da =~ s/,(?! )/)&inform(/g;
+
+    # get values for the slots
+    while ( $abstract_da =~ m/inform\(([^=]*)=([^\&]*)\)/g ) {
+        my ( $slot, $val ) = ( $1, $2 );
+        if ( !$slot_vals{$slot} ) {
+            $slot_vals{$slot} = [];
+        }
+        push @{ $slot_vals{$slot} }, $val;
+    }
+
+    return ( \%slot_vals );
+}
+
+# Convert the full DA line – producing the output DA with abstractions according to global settings
+sub convert_da {
+
+    my ( $full_da_in, $abstract_vals ) = @_;
+    my $full_da_out = '';
+    my %slot_vals   = ();
+
+    # basic data format conversion
+    $full_da_in =~ s/FULL_DA = //;
+    $full_da_in =~ s/,(?! )/)&inform(/g;
+
+    # get values for the individual slots; abstract if required (according to settings)
+    while ( $full_da_in =~ m/inform\(([^=]*)=([^\&]*)\)/g ) {
+        my ( $slot, $val ) = ( $1, $2 );
+        my $abstract_val = shift_push $abstract_vals->{$slot};
+
+        if ( !$slot_vals{$slot} ) {
+            $slot_vals{$slot} = [];
+        }
+        push @{ $slot_vals{$slot} }, $val;
+        if ( defined( $abstr_slots{$slot} ) and ( !$skip_unabstracted or $abstract_val =~ /^"?X[0-9]+"?$/ ) ) {
+            $full_da_out .= "inform($slot=X-$slot)&";
+        }
+        else {
+            $full_da_out .= "inform($slot=$val)&";
+        }
+    }
+    $full_da_out =~ s/&*$//;
+    $full_da_out .= "\n";
+
+    return ( $full_da_out, \%slot_vals );
+}
+
+# Convert one text line (sentence), using abstraction according to global settings (+values from DA conversion)
+# Output abstract sentence + de-abstraction instructions
+sub convert_text {
+
+    my ( $sent, $da_vals ) = @_;
+
+    $sent =~ s/-> "//;
+    $sent =~ s/";//;
+
+    if ( $sent !~ m/\.\s*$/ ) {    # add dots at the end of every sentence
+        $sent =~ s/(\S)(\s*)$/$1\.$2/;
+    }
+
+    # tokenize using Treex, re-join slot info in []
+    my @tokens = tokenize( $tokenizer, $sent );
+    $sent = join( ' ', @tokens );
+    $sent =~ s/ \+ /+/g;
+    $sent =~ s/\[ /[/g;
+    $sent =~ s/ \]/]/g;
+    @tokens = split / /, $sent;
+    $sent = '';
+    my $abstr    = '';
+    my $in_abstr = 0;
+    my $i        = 0;
+
+    # produce output tokenized sentences along with abstraction instructions
+    foreach my $token (@tokens) {
+
+        if ( $token =~ /^\[(.*)\+.*\]/ ) {    # [slot+val] – need to abstract this
+
+            my $slot = $1;
+            my $val  = shift_push $da_vals->{$slot};    # cycle the values (in case they repeat)
+            if ($in_abstr) {
+                $abstr .= $i . "\t";
+            }
+            $abstr .= "$slot=$val:$i-";
+            $in_abstr = 1;
+        }
+        elsif ( $token =~ /^\[/ ) {                     # [slot] or [] – just end previous abstraction
+            if ($in_abstr) {
+                $abstr .= $i . "\t";
+                $in_abstr = 0;
+            }
+        }
+        else {                                          # plain words
+            $sent .= $token . ' ';
+            $i++;
+        }
+    }
+    if ($in_abstr) {
+        $abstr .= $i;
+        $in_abstr = 0;
+    }
+
+    $sent =~ s/\s*$//;
+    $abstr =~ s/\s*$//;
+
+    return ( $sent, $abstr );
 }
