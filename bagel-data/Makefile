@@ -12,6 +12,9 @@ ifdef PYPY
 else
   ACTIVATE = echo -n
 endif
+ifdef DEBUG
+  DEBUG_LOG = -d $(TRY_DIR)/debug-log.txt
+endif
 DIFFTOOL = vimdiff
 MTEVAL = ../util/mteval-v11b.pl
 COMPARE_ITERS = 1# setting last iteration to be compared in log comparison
@@ -73,6 +76,8 @@ Tgen experiments
   trained from experiment number XXX.
 
 - Use 'make rerun-XXX' to re-run experiment number XXX.
+  - Will find the last log file and select the experiment type
+    accordingly.
 
 - Use 'make compare-X:Y' to compare the logs of runs X
   and Y (set COMPARE_ITERS to the number of iterations you
@@ -104,9 +109,9 @@ desc:
 		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
 		cat $$file/ABOUT | tr  '\n' ' '; \
 		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
-			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
+			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
 			echo -en "\t$$score"; \
-			bleu=`grep -i '^NIST ' $$file/T.* $$file/{asearch_gen,}log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;' | tr -d '\n'`; \
+			bleu=`grep -i '^NIST ' $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;' | tr -d '\n'`; \
 			echo -en "\t$$bleu"; \
 		fi; \
 		echo; \
@@ -146,7 +151,7 @@ percrank_train:
 	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
 	# run the experiment
 	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) percrank_train -d $(TRY_DIR)/debug-log.txt -c $(TRY_DIR)/candgen.pickle.gz  \
+		$(TGEN) percrank_train $(DEBUG_LOG) -c $(TRY_DIR)/candgen.pickle.gz  \
 		-s $(TRAIN_PORTION) $(PARALLEL) \
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
@@ -178,7 +183,7 @@ asearch_gen_process: RUN_NAME := asearch_gen
 asearch_gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz -d $(TRY_DIR)/debug-log.txt \
+		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG) \
 		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
@@ -192,7 +197,10 @@ asearch_gen_process:
 rerun-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
 	$(eval TRY_NUM := $*)
-	COMMAND=`cat $(TRY_DIR)/T.* 2>/dev/null | sed '1,/^== Command/d;/^== Hard res/,$$d'` ; \
+	$(eval RUN_NAME := $(shell ls -t $(TRY_DIR)/T.* | head -n 1 | sed 's/.*\/T\.[0-9]\+\.//;s/\..*//;'))
+	# select last log file, extract command from it and run it
+	LAST_LOGFILE=`ls -t $(TRY_DIR)/T.* | head -n 1` ; \
+	COMMAND=`cat $$LAST_LOGFILE | sed '1,/^== Command/d;/^== Hard res/,$$d'` ; \
 		$(QSUBMIT) "$$COMMAND" 2>&1 | tee -a $(TRY_DIR)/asearch_gen.log.txt
 
 compare_logs-%:
