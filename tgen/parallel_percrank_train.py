@@ -31,7 +31,7 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 from rank import PerceptronRanker
 from logf import log_info, set_debug_stream, log_debug
 from planner import ASearchPlanner
-from tgen.logf import log_warn
+from tgen.logf import log_warn, debug_stream
 from tgen.eval import ASearchListsAnalyzer, Evaluator
 
 
@@ -98,9 +98,11 @@ class ParallelPerceptronRanker(PerceptronRanker):
         # spawn training jobs
         log_info('Spawning jobs...')
         for j in xrange(self.jobs_number):
+            # set up debugging logfile only if we have it on the head
+            debug_logfile = ('"PRT%02d.debug-out.txt"' % j) if debug_stream else 'None'
             job = Job(header='from tgen.parallel_percrank_train import run_worker',
-                      code=('run_worker("%s", %d, "%s")' %
-                            (self.host, self.port, "PRT%02d.debug-out.txt" % j)),
+                      code=('run_worker("%s", %d, %s)' %
+                            (self.host, self.port, debug_logfile)),
                       name="PRT%02d" % j,
                       work_dir=self.work_dir)
             job.submit(self.job_memory)
