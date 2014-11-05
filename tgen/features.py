@@ -158,6 +158,20 @@ def presence(tree, context, attribs):
     return ret
 
 
+def repeated(tree, context, attribs):
+    """Return 1 for all node attribute values whose count is greater than 1.
+    @rtype: dict
+    @return: dictionary with keys for values of the attribute and values equal to 1
+    """
+    ret = count(tree, context, attribs)
+    for key in ret.keys():
+        if ret[key] < 2:
+            del ret[key]
+        else:
+            ret[key] = 1
+    return ret
+
+
 def dependency(tree, context, attribs):
     """Return 1 for all dependency pairs of the given attribute found in the given tree.
     @rtype: dict
@@ -269,15 +283,46 @@ def slot_count(tree, context):
     return ret
 
 
+def slot_repeated(tree, context):
+    """Return 1 for all DA slots that are repeated in the given context.
+
+    @rtype: dict
+    @return: dictionary with keys composed of DA slots that occur repeatedly in the DA and 1 as values
+    """
+    ret = slot_count(tree, context)
+    for key in ret.keys():
+        if ret[key] < 2:
+            del ret[key]
+        else:
+            ret[key] = 1
+    return ret
+
+
+def set_difference(tree, context, attribs):
+    """A meta-feature that will produce the set difference of two boolean features
+    (will have keys set to 1 only for those features that occur in the first set but not in the
+    second).
+
+    @rtype: dict
+    @return: dictionary with keys for key occurring with the first feature but not the second, and \
+        keys equal to 1
+    """
+    ret = {}
+    for key, val in context['feats'][attribs[0]].iteritems():
+        if key not in context['feats'][attribs[1]]:
+            ret[key] = val
+    return ret
+
+
 def difference(tree, context, attribs):
-    """A meta-features that will produce differences of two numeric features.
+    """A meta-feature that will produce differences of two numeric features.
 
     @rtype: dict
     @return: dictionary with keys composed of original names and values equal to value differences
     """
     ret = defaultdict(float)
     for key1, val1 in context['feats'][attribs[0]].iteritems():
-        for key2, val2 in context['feats'][attribs[0]].iteritems():
+        for key2, val2 in context['feats'][attribs[1]].iteritems():
             ret[key1 + '---' + key2] = val1 - val2
     return ret
 
