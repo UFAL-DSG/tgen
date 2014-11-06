@@ -11,6 +11,7 @@ import cPickle as pickle
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.slu.da import DialogueAct
 from alex.components.nlg.tectotpl.block.read.yaml import YAML as YAMLReader
+from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 from tree import TreeData
 
 
@@ -42,6 +43,12 @@ def read_ttrees(ttree_file):
         pickle.Pickler(fh, pickle.HIGHEST_PROTOCOL).dump(ttrees)
         fh.close()
     return ttrees
+
+
+def write_ttrees(ttree_doc, fname):
+    """Write a t-tree Document object to a YAML file."""
+    writer = YAMLWriter(scenario=None, args={'to': fname})
+    writer.process_document(ttree_doc)
 
 
 def chunk_list(l, n):

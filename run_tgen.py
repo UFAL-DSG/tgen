@@ -31,13 +31,12 @@ import os
 
 from alex.components.nlg.tectotpl.core.util import file_stream
 from alex.components.nlg.tectotpl.core.document import Document
-from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
 
 from flect.config import Config
 
 from tgen.logf import log_info, set_debug_stream, log_debug
 from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
-    trees_from_doc, ttrees_from_doc
+    trees_from_doc, ttrees_from_doc, write_ttrees
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import SamplingPlanner, ASearchPlanner
@@ -161,8 +160,7 @@ def sample_gen(args):
     # write output
     if fname_ttrees_out is not None:
         log_info('Writing output...')
-        writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
-        writer.process_document(gen_doc)
+        write_ttrees(gen_doc, fname_ttrees_out)
 
 
 def asearch_gen(args):
@@ -252,8 +250,7 @@ def asearch_gen(args):
     # write output
     if fname_ttrees_out is not None:
         log_info('Writing output...')
-        writer = YAMLWriter(scenario=None, args={'to': fname_ttrees_out})
-        writer.process_document(gen_doc)
+        write_ttrees(gen_doc, fname_ttrees_out)
 
 
 if __name__ == '__main__':
