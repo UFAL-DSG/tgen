@@ -3,7 +3,11 @@
 #
 
 SHELL=/bin/bash
-ABSTRACTED='name near phone addr postcode'
+ABSTRACTED = 'name near phone addr postcode area'
+CONVERT_SETTINGS = -a $(ABSTRACTED) -s
+
+%-text.pickle.gz: %-text.yaml.gz
+	../../util/yaml2pickle.py $<
 
 %-text.yaml.gz: %-text.treex.gz
 	treex -Len Read::Treex from=$< Write::YAML to=$@
@@ -20,7 +24,7 @@ all-text.txt: all-das.txt
 all-conc.txt: all-das.txt
 
 all-das.txt: ACL10-inform-training.txt convert.pl
-	./convert.pl -a $(ABSTRACTED) $< all-{das,text,abstr,conc}.txt
+	./convert.pl $(CONVERT_SETTINGS) $< all-{das,text,abstr,conc}.txt
 
 %-conc.sgm: %-conc.txt
 	treex -Len Read::Sentences from=$< Util::Eval document='$$.set_path(""); $$.set_file_stem("$*");' Write::SgmMTEval to=$@ set_id=BAGEL sys_id=manual add_header=refset
