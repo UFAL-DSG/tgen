@@ -233,7 +233,7 @@ def trigrams(tree, context, attribs):
     """Return 1 for all node trigrams (in order)
     @rtype: dict
     @return: dictionary with one key ('') and the target number as a value
-    """ 
+    """
     if len(tree) < 3:
         return {}
     attr_1 = attribs_val(tree, 0, attribs)
