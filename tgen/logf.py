@@ -46,3 +46,9 @@ def log_debug(*args):
 def set_debug_stream(stream):
     global debug_stream
     debug_stream = stream
+
+
+def is_debug_stream():
+    """Return True if there is a debug stream (debug logfile) set up."""
+    global debug_stream
+    return debug_stream is not None

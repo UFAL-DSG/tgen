@@ -31,7 +31,7 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 from rank import PerceptronRanker
 from logf import log_info, set_debug_stream, log_debug
 from planner import ASearchPlanner
-from tgen.logf import log_warn, debug_stream
+from tgen.logf import log_warn, is_debug_stream
 from tgen.eval import ASearchListsAnalyzer, Evaluator
 
 
@@ -97,13 +97,14 @@ class ParallelPerceptronRanker(PerceptronRanker):
         self._init_server()
         # spawn training jobs
         log_info('Spawning jobs...')
+        host_short, _ = self.host.split('.', 1)  # short host name for job names
         for j in xrange(self.jobs_number):
             # set up debugging logfile only if we have it on the head
-            debug_logfile = ('"PRT%02d.debug-out.txt"' % j) if debug_stream else 'None'
+            debug_logfile = ('"PRT%02d.debug-out.txt"' % j) if is_debug_stream() else 'None'
             job = Job(header='from tgen.parallel_percrank_train import run_worker',
                       code=('run_worker("%s", %d, %s)' %
                             (self.host, self.port, debug_logfile)),
-                      name="PRT%02d" % j,
+                      name="PRT%02d-%s-%d" % (j, host_short, self.port),
                       work_dir=self.work_dir)
             job.submit(self.job_memory)
             self.jobs.append(job)
@@ -120,9 +121,12 @@ class ParallelPerceptronRanker(PerceptronRanker):
                 w_dump = pickle.dumps(self.w, protocol=pickle.HIGHEST_PROTOCOL)
                 # wait for free services / assign computation
                 while cur_portion < self.data_portions or self.pending_requests:
+                    log_debug('Starting loop over services.')
                     # check if some of the pending computations have finished
                     for sc, req_portion, req in list(self.pending_requests):
+                        log_debug('Checking %d' % req_portion)
                         if req.ready:
+                            log_debug('Ready %d' % req_portion)
                             log_info('Retrieved finished request %d / %d' % (iter_no, req_portion))
                             if req.error:
                                 log_info('Error found on request: IT %d PORTION %d, WORKER %s:%d' %
@@ -130,8 +134,10 @@ class ParallelPerceptronRanker(PerceptronRanker):
                             results[req_portion] = pickle.loads(req.value)
                             self.pending_requests.remove((sc, req_portion, req))
                             self.free_services.append(sc)
+                        log_debug('Done with %d' % req_portion)
                     # check for free services and assign new computation
                     while cur_portion < self.data_portions and self.free_services:
+                        log_debug('Assigning request %d' % cur_portion)
                         sc = self.free_services.popleft()
                         log_info('Assigning request %d / %d to %s:%d' %
                                  (iter_no, cur_portion, sc.host, sc.port))
@@ -139,7 +145,9 @@ class ParallelPerceptronRanker(PerceptronRanker):
                         req = train_func(w_dump, iter_no, *self._get_portion_bounds(cur_portion))
                         self.pending_requests.add((sc, cur_portion, req))
                         cur_portion += 1
+                        log_debug('Assigned %d' % cur_portion)
                     # sleep for a while
+                    log_debug('Sleeping.')
                     time.sleep(self.poll_interval)
 
                 # now gather the results and statistics
