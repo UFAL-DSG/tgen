@@ -120,6 +120,7 @@ class PerceptronRanker(Ranker):
         self.vectorizer = DictVectorizer(sparse=False)
         self.normalizer = StandardScaler(copy=False)
         self.train_feats = self.normalizer.fit_transform(self.vectorizer.fit_transform(X))
+        log_info('Features matrix shape: %s' % str(self.train_feats.shape))
 
         # initialize candidate generator + planner if needed
         if self.candgen_model is not None:
