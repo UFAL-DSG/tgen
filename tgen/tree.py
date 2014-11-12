@@ -78,7 +78,9 @@ class TreeData(object):
         return hash(tuple(self.nodes)) ^ hash(tuple(self.parents))
 
     def __eq__(self, other):
-        return self.parents == other.parents and self.nodes == other.nodes
+        return (self is other or
+                ((self.parents is other.parents or self.parents == other.parents) and
+                 (self.nodes is other.nodes or self.nodes == other.nodes)))
 
     def __unicode__(self):
         return ' '.join(['%d|%d|%s|%s' % (idx, parent_idx, node.t_lemma, node.formeme)
@@ -106,6 +108,21 @@ class TreeData(object):
         for parent_idx, tnode in zip(self.parents[1:], tnodes[1:]):
             tnode.parent = tnodes[parent_idx]
         return tnodes[0]
+
+    def get_subtree(self, node_idxs):
+        """Return a subtree of the current tree that only contains the nodes whose indexes
+        are given in the parameter.
+
+        @param node_idxs: a set of valid node indexes (integers) that are to be included in the \
+            returned subtree.
+        """
+        node_idxs |= set([0])
+        idx_mapping = {old_idx: new_idx for old_idx, new_idx in zip(node_idxs, range(len(node_idxs)))}
+        idx_mapping[-1] = -1  # “mapping” for technical roots
+        new_parents = [idx_mapping[parent] for idx, parent in enumerate(self.parents)
+                       if idx in node_idxs]
+        new_nodes = [node for idx, node in enumerate(self.nodes) if idx in node_idxs]
+        return TreeData(new_nodes, new_parents)
 
     def __lt__(self, other):
         """Comparing by node values, then by parents. Actually only needed to make
@@ -160,7 +177,7 @@ class TreeNode(object):
 
     @property
     def is_right_child(self):
-        return self.tree.parents < self.node_idx
+        return self.tree.parents[self.node_idx] < self.node_idx
 
     def get_attr(self, attr_name):
         return getattr(self.tree.nodes[self.node_idx], attr_name)
@@ -197,5 +214,12 @@ class TreeNode(object):
     def __le__(self, other):
         return self.node_idx <= other.node_idx
 
+    def __eq__(self, other):
+        return (self is other or
+                (self.node_idx == other.node_idx and (self.tree is other.tree or self.tree == other.tree)))
+
     def __len__(self):
         return len(self.tree)
+
+    def __hash__(self):
+        return hash(self.tree) ^ hash(self.node_idx)

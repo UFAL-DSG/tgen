@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 from collections import defaultdict
 from enum import Enum
 from tgen.logf import log_debug
+from tgen.tree import TreeNode
 import numpy as np
 
 
@@ -137,6 +138,53 @@ def common_subtree_size(a, b):
     common_ch_a, common_ch_b = longest_common_subseq(a.get_children(), b.get_children())
     return len(common_ch_a) + sum(common_subtree_size(a_sub, b_sub)
                                   for a_sub, b_sub in zip(common_ch_a, common_ch_b))
+
+
+# TODO cast these from TreeData to TreeNode; build this into tgen.tree somehow
+def common_subtree(a, b):
+    common_ch_a, common_ch_b = longest_common_subseq(a.get_children(), b.get_children())
+    append_a, append_b = [], []
+    for a_sub, b_sub in zip(common_ch_a, common_ch_b):
+        common_sub_a, common_sub_b = common_subtree(a_sub, b_sub)
+        append_a.extend(common_sub_a)
+        append_b.extend(common_sub_b)
+    return common_ch_a + append_a, common_ch_b + append_b
+
+
+def group_lists(l_long, l_short):
+    port_size, bigger_ports = divmod(len(l_long), len(l_short))
+    new_long = []
+    for port_no in xrange(len(l_short)):
+        if port_no < bigger_ports:
+            new_long.append(l_long[(port_size + 1) * port_no: (port_size + 1) * (port_no + 1)])
+        else:
+            new_long.append(l_long[port_size * port_no + bigger_ports:port_size * (port_no + 1) + bigger_ports])
+    return new_long, [[item] for item in l_short]
+
+
+def build_subtrees(tree, start_idxs, adding_idxs):
+    trees = []
+    start_idxs = set(map(lambda n: n.node_idx, start_idxs))
+    for add_list in adding_idxs:
+        start_idxs |= set(map(lambda n: n.node_idx, add_list))
+        trees.append(tree.get_subtree(start_idxs))
+    return trees
+
+
+def diffing_trees(a, b):
+    '''a and b are TreeNode's'''
+    common_a, common_b = common_subtree(a, b)
+    common_a.append(a)
+    common_b.append(b)
+    all_a = [TreeNode(a.tree, i) for i in xrange(len(a))]
+    all_b = [TreeNode(b.tree, i) for i in xrange(len(b))]
+    diff_a = sorted(list(set(all_a) - set(common_a)), cmp=lambda x, y: cmp(x.get_depth(), y.get_depth()))
+    diff_b = sorted(list(set(all_b) - set(common_b)), cmp=lambda x, y: cmp(x.get_depth(), y.get_depth()))
+    if len(diff_a) > len(diff_b):
+        diff_a, diff_b = group_lists(diff_a, diff_b)
+    elif len(diff_b) > len(diff_a):
+        diff_b, diff_a = group_lists(diff_b, diff_a)
+    return build_subtrees(a.tree, common_a, diff_a), build_subtrees(b.tree, common_b, diff_b)
 
 
 class Stats:
