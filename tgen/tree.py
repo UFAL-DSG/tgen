@@ -215,6 +215,10 @@ class TreeData(object):
                                    for idx_sub_a, idx_sub_b in zip(com_ch_a, com_ch_b))
 
     def common_subtree_size(self, other):
+        """Return the common subtree size of the two trees; the technical root is counted,
+        i.e. the common subtree size >= 1.
+        @rtype: integer
+        """
         return TreeData._common_subtree_size(self, 0, other, 0)
 
     @staticmethod
@@ -229,6 +233,9 @@ class TreeData(object):
         return com_ch_a + append_a, com_ch_b + append_b
 
     def common_subtree_idxs(self, other):
+        """Return indexes of nodes belonging to the common subtree of the two trees.
+        @return: a pair of lists of node indexes
+        """
         return TreeData._common_subtree_idxs(self, 0, other, 0)
 
     def diffing_trees(self, other):
