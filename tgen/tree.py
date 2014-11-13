@@ -8,7 +8,6 @@ Trees for generating.
 from __future__ import unicode_literals
 from collections import namedtuple, deque
 from alex.components.nlg.tectotpl.core.node import T
-from tgen.logf import log_debug
 
 
 __author__ = "Ondřej Dušek"
@@ -18,6 +17,28 @@ __date__ = "2014"
 class NodeData(namedtuple('NodeData', ['t_lemma', 'formeme'])):
     """This stores the actual data of a node, without parent-child information"""
     pass
+
+
+def _group_lists(l_long, l_short):
+    """Take two lists, a longer and a shorter one, and group them into equally long lists of
+    sublists. One of the resulting sublists is always composed of one-element sublists and
+    the other of longer sublists.
+
+    @param l_long: a "longer" list
+    @param l_short: a "shorter" list
+    @return: a pair of lists of sublists (in the order of parameters given)
+    """
+    port_size, bigger_ports = divmod(len(l_long), len(l_short))
+    if port_size == 0:  # call itself the other way round if l_long is actually shorter than l_short
+        l_short, l_long = _group_lists(l_short, l_long)
+        return l_long, l_short
+    new_long = []
+    for port_no in xrange(len(l_short)):
+        if port_no < bigger_ports:
+            new_long.append(l_long[(port_size + 1) * port_no: (port_size + 1) * (port_no + 1)])
+        else:
+            new_long.append(l_long[port_size * port_no + bigger_ports:port_size * (port_no + 1) + bigger_ports])
+    return new_long, [[item] for item in l_short]
 
 
 class TreeData(object):
@@ -73,6 +94,9 @@ class TreeData(object):
             depth += 1
         return depth
 
+    def is_right_child(self, node_idx):
+        return self.parents[node_idx] < node_idx
+
     def __hash__(self):
         # TODO: this is probably slow... make it faster, possibly replace the lists with tuples?
         return hash(tuple(self.nodes)) ^ hash(tuple(self.parents))
@@ -86,6 +110,9 @@ class TreeData(object):
         return ' '.join(['%d|%d|%s|%s' % (idx, parent_idx, node.t_lemma, node.formeme)
                          for idx, (parent_idx, node)
                          in enumerate(zip(self.parents, self.nodes))])
+
+    def __getitem__(self, idx):
+        return self.nodes[idx]
 
     def __str__(self):
         return unicode(self).encode('UTF-8', 'replace')
@@ -124,10 +151,101 @@ class TreeData(object):
         new_nodes = [node for idx, node in enumerate(self.nodes) if idx in node_idxs]
         return TreeData(new_nodes, new_parents)
 
+    def get_subtrees_list(self, start_idxs, adding_idxs):
+        """Return a list of subtrees that originate from the current tree; starting from a
+        subtree composed of nodes specified in start_idxs and gradually adding nodes specified
+        in adding_idxs.
+
+        Will not give the subtree with start_idxs only, starts with start_idxs and the first
+        element of adding_idxs.
+
+        @param start_idxs: list of indexes for a subtree to start with
+        @param adding_idxs: list of lists of indexes that are to be added stepwise
+        @return: a list of growing subtrees
+        """
+        trees = []
+        start_idxs = set(start_idxs)
+        for add_list in adding_idxs:
+            start_idxs |= set(add_list)
+            trees.append(self.get_subtree(start_idxs))
+        return trees
+
     def __lt__(self, other):
         """Comparing by node values, then by parents. Actually only needed to make
         calls to heapq in CandidateList deterministic."""
         return (self.nodes, self.parents) < (other.nodes, other.parents)
+
+    # Adapted from http://rosettacode.org/wiki/Longest_common_subsequence#Python
+    @staticmethod
+    def _longest_common_subseq(tree_a, idxs_a, tree_b, idxs_b):
+        # dynamic programming, substring
+        lengths = [[0 for j in range(len(idxs_b) + 1)] for i in range(len(idxs_a) + 1)]
+        # row 0 and column 0 are initialized to 0 already
+        for i, idx_a in enumerate(idxs_a):
+            for j, idx_b in enumerate(idxs_b):
+                # check for node equality (t_lemma, formeme, precede/follow parent)
+                if (tree_a[idx_a] == tree_b[idx_b] and
+                        tree_a.is_right_child(idx_a) == tree_b.is_right_child(idx_b)):
+                    lengths[i + 1][j + 1] = lengths[i][j] + 1
+                else:
+                    lengths[i + 1][j + 1] = max(lengths[i + 1][j], lengths[i][j + 1])
+        # read the substring out from the matrix, from the end to the beginning
+        res_a = []
+        res_b = []
+        i, j = len(idxs_a), len(idxs_b)
+        while i != 0 and j != 0:
+            if lengths[i][j] == lengths[i - 1][j]:
+                i -= 1
+            elif lengths[i][j] == lengths[i][j - 1]:
+                j -= 1
+            else:
+                res_a.append(idxs_a[i - 1])
+                res_b.append(idxs_b[j - 1])
+                i -= 1
+                j -= 1
+        res_a.reverse()
+        res_b.reverse()
+        return res_a, res_b
+
+    @staticmethod
+    def _common_subtree_size(tree_a, idx_a, tree_b, idx_b):
+        com_ch_a, com_ch_b = TreeData._longest_common_subseq(tree_a, tree_a.children_idxs(idx_a),
+                                                             tree_b, tree_b.children_idxs(idx_b))
+        return len(com_ch_a) + sum(TreeData._common_subtree_size(tree_a, idx_sub_a, tree_b, idx_sub_b)
+                                   for idx_sub_a, idx_sub_b in zip(com_ch_a, com_ch_b))
+
+    def common_subtree_size(self, other):
+        return TreeData._common_subtree_size(self, 0, other, 0)
+
+    @staticmethod
+    def _common_subtree_idxs(tree_a, idx_a, tree_b, idx_b):
+        com_ch_a, com_ch_b = TreeData._longest_common_subseq(tree_a, tree_a.children_idxs(idx_a),
+                                                             tree_b, tree_b.children_idxs(idx_b))
+        append_a, append_b = [], []
+        for idx_sub_a, idx_sub_b in zip(com_ch_a, com_ch_b):
+            com_sub_a, com_sub_b = TreeData._common_subtree(tree_a, idx_sub_a, tree_b, idx_sub_b)
+            append_a.extend(com_sub_a)
+            append_b.extend(com_sub_b)
+        return com_ch_a + append_a, com_ch_b + append_b
+
+    def common_subtree_idxs(self, other):
+        return TreeData._common_subtree_idxs(self, 0, other, 0)
+
+    def diffing_trees(self, other):
+        """Given two trees, find their common subtree and return a pair of lists of trees
+        that start with the common subtree and gradually diverge towards the original trees.
+        Both lists are of equal length; if one of the trees is bigger, the gradual subtree
+        changes in its list will be bigger.
+
+        @return: a pair of lists of TreeData
+        """
+        com_self, com_other = self.common_subtree_idxs(other)
+        compare_depth = lambda x, y: cmp(self.node_depth(x), self.node_depth(y))
+        diff_self = sorted(list(set(range(len(self))) - set(com_self)), cmp=compare_depth)
+        diff_other = sorted(list(set(range(len(self))) - set(com_other)), cmp=compare_depth)
+        diff_self, diff_other = _group_lists(diff_self, diff_other)
+        return (self.get_subtrees_list(com_self, diff_self),
+                other.get_subtrees_list(com_other, diff_other))
 
 
 class TreeNode(object):
