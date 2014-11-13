@@ -219,7 +219,7 @@ class TreeData(object):
         i.e. the common subtree size >= 1.
         @rtype: integer
         """
-        return TreeData._common_subtree_size(self, 0, other, 0)
+        return TreeData._common_subtree_size(self, -1, other, -1)
 
     @staticmethod
     def _common_subtree_idxs(tree_a, idx_a, tree_b, idx_b):
@@ -227,7 +227,7 @@ class TreeData(object):
                                                              tree_b, tree_b.children_idxs(idx_b))
         append_a, append_b = [], []
         for idx_sub_a, idx_sub_b in zip(com_ch_a, com_ch_b):
-            com_sub_a, com_sub_b = TreeData._common_subtree(tree_a, idx_sub_a, tree_b, idx_sub_b)
+            com_sub_a, com_sub_b = TreeData._common_subtree_idxs(tree_a, idx_sub_a, tree_b, idx_sub_b)
             append_a.extend(com_sub_a)
             append_b.extend(com_sub_b)
         return com_ch_a + append_a, com_ch_b + append_b
@@ -236,7 +236,11 @@ class TreeData(object):
         """Return indexes of nodes belonging to the common subtree of the two trees.
         @return: a pair of lists of node indexes
         """
-        return TreeData._common_subtree_idxs(self, 0, other, 0)
+        return TreeData._common_subtree_idxs(self, -1, other, -1)
+
+    def _compare_node_depth(self, idx_a, idx_b):
+        """Compare the depth of nodes at given indexes."""
+        return cmp(self.node_depth(idx_a), self.node_depth(idx_b))
 
     def diffing_trees(self, other):
         """Given two trees, find their common subtree and return a pair of lists of trees
@@ -244,12 +248,12 @@ class TreeData(object):
         Both lists are of equal length; if one of the trees is bigger, the gradual subtree
         changes in its list will be bigger.
 
-        @return: a pair of lists of TreeData
+        @rtype: a pair of lists of TreeData
+        @return: diverging lists of subtrees of self, other (in this order)
         """
         com_self, com_other = self.common_subtree_idxs(other)
-        compare_depth = lambda x, y: cmp(self.node_depth(x), self.node_depth(y))
-        diff_self = sorted(list(set(range(len(self))) - set(com_self)), cmp=compare_depth)
-        diff_other = sorted(list(set(range(len(self))) - set(com_other)), cmp=compare_depth)
+        diff_self = sorted(list(set(range(len(self))) - set(com_self)), cmp=self._compare_node_depth)
+        diff_other = sorted(list(set(range(len(other))) - set(com_other)), cmp=other._compare_node_depth)
         diff_self, diff_other = _group_lists(diff_self, diff_other)
         return (self.get_subtrees_list(com_self, diff_self),
                 other.get_subtrees_list(com_other, diff_other))

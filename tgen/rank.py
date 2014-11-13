@@ -65,6 +65,7 @@ class PerceptronRanker(Ranker):
         self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
         self.rival_gen_beam_size = cfg.get('rival_gen_beam_size')
         self.candgen_model = cfg.get('candgen_model')
+        self.diffing_trees = cfg.get('diffing_trees', False)
         # initialize feature functions
         if 'features' in cfg:
             self.feats.extend(cfg['features'])
@@ -162,31 +163,39 @@ class PerceptronRanker(Ranker):
 
         for tree_no in xrange(len(self.train_trees)):
             # obtain some 'rival', alternative incorrect candidates
-            gold_ttree, gold_feats = self.train_trees[tree_no], self.train_feats[tree_no]
-            rival_ttrees, rival_feats = self._get_rival_candidates(tree_no)
+            gold_tree, gold_feats = self.train_trees[tree_no], self.train_feats[tree_no]
+            rival_trees, rival_feats = self._get_rival_candidates(tree_no)
             cands = [gold_feats] + rival_feats
 
             # score them along with the right one
             scores = [self._score(cand) for cand in cands]
             top_cand_idx = scores.index(max(scores))
+            top_rival_tree = rival_trees[scores[1:].index(max(scores[1:]))]
 
             # find the top-scoring generated tree, evaluate against gold t-tree
             # (disregarding whether it was selected as the best one)
-            self.evaluator.append(TreeNode(gold_ttree),
-                                  TreeNode(rival_ttrees[scores[1:].index(max(scores[1:]))]),
-                                  scores[0],
-                                  max(scores[1:]))
+            self.evaluator.append(TreeNode(gold_tree), TreeNode(top_rival_tree), scores[0], max(scores[1:]))
 
             # debug print: candidate trees
             log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (tree_no, top_cand_idx, len(cands)))
             log_debug('SENT: %s' % self.train_sents[tree_no])
             log_debug('ALL CAND TREES:')
-            for ttree, score in zip([gold_ttree] + rival_ttrees, scores):
+            for ttree, score in zip([gold_tree] + rival_trees, scores):
                 log_debug("%.3f" % score, "\t", ttree)
 
             # update weights if the system doesn't give the highest score to the right one
             if top_cand_idx != 0:
-                self.w += (self.alpha * gold_feats - self.alpha * cands[top_cand_idx])
+                # discount trees leading to the generated one and add trees leading to the gold one
+                if self.diffing_trees:
+                    good_trees, bad_trees = gold_tree.diffing_trees(top_rival_tree)
+                    da = self.train_das[tree_no]
+                    for good_tree, bad_tree in zip(good_trees, bad_trees):
+                        good_feats = self._extract_feats(good_tree, da)
+                        bad_feats = self._extract_feats(bad_tree, da)
+                        self.w += (self.alpha * good_feats - self.alpha * bad_feats)
+                # just discount the best generated tree and add the gold tree
+                else:
+                    self.w += (self.alpha * gold_feats - self.alpha * cands[top_cand_idx])
 
         # store a copy of the current weights for averaging
         self.w_after_iter.append(np.copy(self.w))
@@ -222,14 +231,14 @@ class PerceptronRanker(Ranker):
                          if not nonzero or weight != 0])
 
     def _get_rival_candidates(self, tree_no):
-        """Generate some rival candidates for a DA and the correct (gold) t-tree,
+        """Generate some rival candidates for a DA and the correct (gold) tree,
         given the current rival generation strategy (self.rival_gen_strategy).
 
         TODO: checking for trees identical to the gold one slows down the process
 
         @param tree_no: the index of the current training data item (tree, DA)
-        @rtype: tuple
-        @return: an array of rival t-trees and an array of the corresponding features
+        @rtype: tuple of two lists: one of TreeData's, one of arrays
+        @return: an array of rival trees and an array of the corresponding features
         """
         da = self.train_das[tree_no]
         train_trees = self.train_trees

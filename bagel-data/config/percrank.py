@@ -9,6 +9,7 @@ config = {
           'alpha': 0.1,
           'passes': 50,
           'prune_feats': 1,  # pruning harms => do not use it
+          'diffing_trees': 1,  # use diffing trees (leading to the good one instead of the bad one)
           'features': [
                        'lemma: presence t_lemma',
                        'formeme: presence formeme',
