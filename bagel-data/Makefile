@@ -15,9 +15,8 @@ endif
 ifdef DEBUG
   DEBUG_LOG = -d $(TRY_DIR)/debug-log.txt
 endif
-DIFFTOOL = vimdiff
 MTEVAL = ../util/mteval-v11b.pl
-COMPARE_ITERS = 1# setting last iteration to be compared in log comparison
+LOG_CUTOFF= 10000
 
 # Runs directories
 RUNS_DIR  := runs# main directory for experiment outputs
@@ -203,9 +202,10 @@ rerun-%:
 	COMMAND=`cat $$LAST_LOGFILE | sed '1,/^== Command/d;/^== Hard res/,$$d'` ; \
 		$(QSUBMIT) "$$COMMAND" 2>&1 | tee -a $(TRY_DIR)/asearch_gen.log.txt
 
-compare_logs-%:
-	NUM1=`echo $* | cut -d: -f1`; NUM2=`echo $* | cut -d: -f2`; \
-	CUTOFF_IT=`printf "%05d" $$(( $(COMPARE_ITERS) + 1 ))` ; \
-	cat $(RUNS_DIR)/$$NUM1*/debug-log.txt | sed -n -e "1,/TR $$CUTOFF_IT/p" | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.1.txt ; \
-	cat $(RUNS_DIR)/$$NUM2*/debug-log.txt | sed -n -e "1,/TR $$CUTOFF_IT/p" | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > compare.2.txt ; \
-	$(DIFFTOOL) compare.1.txt compare.2.txt
+norm_log:
+	if [[ -z "$(LOGFILE)" ]]; then \
+	    echo "LOGFILE must be set." ; \
+	    exit 1; \
+	fi; \
+	cat $(LOGFILE) | head -n $(LOG_CUTOFF) | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > $(LOGFILE).norm ; \
+
