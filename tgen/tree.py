@@ -144,6 +144,7 @@ class TreeData(object):
             returned subtree.
         """
         node_idxs |= set([0])
+        node_idxs = sorted(node_idxs)
         idx_mapping = {old_idx: new_idx for old_idx, new_idx in zip(node_idxs, range(len(node_idxs)))}
         idx_mapping[-1] = -1  # “mapping” for technical roots
         new_parents = [idx_mapping[parent] for idx, parent in enumerate(self.parents)
@@ -254,6 +255,9 @@ class TreeData(object):
         com_self, com_other = self.common_subtree_idxs(other)
         diff_self = sorted(list(set(range(len(self))) - set(com_self)), cmp=self._compare_node_depth)
         diff_other = sorted(list(set(range(len(other))) - set(com_other)), cmp=other._compare_node_depth)
+        # one tree is a subtree of the other – back-off to returning self, other
+        if not diff_other or not diff_self:
+            return ([self], [other])
         diff_self, diff_other = _group_lists(diff_self, diff_other)
         return (self.get_subtrees_list(com_self, diff_self),
                 other.get_subtrees_list(com_other, diff_other))
