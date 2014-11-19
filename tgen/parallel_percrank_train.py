@@ -238,6 +238,9 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.asearch_planner = self.asearch_planner
         percrank.sampling_planner = self.sampling_planner
         percrank.candgen = self.candgen
+        percrank.averaging = self.averaging
+        percrank.prune_feats = self.prune_feats
+        percrank.diffing_trees = self.diffing_trees
         # make a new planner so that it links back to the new ranker copy
         percrank.asearch_planner = ASearchPlanner({'candgen': percrank.candgen,
                                                    'language': percrank.language,
