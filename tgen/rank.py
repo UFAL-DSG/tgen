@@ -102,13 +102,14 @@ class PerceptronRanker(Ranker):
         das = read_das(das_file)
         log_info('Reading t-trees from ' + ttree_file + '...')
         ttree_doc = read_ttrees(ttree_file)
-        self.train_sents = sentences_from_doc(ttree_doc, self.language, self.selector)
+        sents = sentences_from_doc(ttree_doc, self.language, self.selector)
         trees = trees_from_doc(ttree_doc, self.language, self.selector)
 
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(trees)))
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
+        self.train_sents = sents[:train_size]
         log_info('Using %d training instances.' % train_size)
 
         # precompute training data features
@@ -192,10 +193,18 @@ class PerceptronRanker(Ranker):
                     for good_tree, bad_tree in zip(good_trees, bad_trees):
                         good_feats = self._extract_feats(good_tree, da)
                         bad_feats = self._extract_feats(bad_tree, da)
-                        self.w += (self.alpha * good_feats - self.alpha * bad_feats)
+                        if self.diffing_trees == 'weighted':
+                            good_tree_w = len(good_tree) / float(len(gold_tree))
+                            bad_tree_w = len(bad_tree) / float(len(top_rival_tree))
+                        else:
+                            good_tree_w = 1
+                            bad_tree_w = 1
+                        self.w += self.alpha * good_tree_w * good_feats
+                        self.w -= self.alpha * bad_tree_w * bad_feats
                 # just discount the best generated tree and add the gold tree
                 else:
                     self.w += (self.alpha * gold_feats - self.alpha * cands[top_cand_idx])
+                # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
 
         # store a copy of the current weights for averaging
         self.w_after_iter.append(np.copy(self.w))

@@ -5,11 +5,13 @@ from __future__ import unicode_literals
 
 
 config = {
+          # NB: when introducing a new setting, don't forget that it needs to be passed to
+          #     worker instances through ParallelPerceptronRanker.get_plain_percrank()
           'averaging': True,
           'alpha': 0.1,
           'passes': 50,
           'prune_feats': 1,  # pruning harms => do not use it
-          'diffing_trees': 1,  # use diffing trees (leading to the good one instead of the bad one)
+          'diffing_trees': 'weighted',  # use diffing trees (leading to the good one instead of the bad one): False/True/'weighted'
           'features': [
                        'lemma: presence t_lemma',
                        'formeme: presence formeme',
