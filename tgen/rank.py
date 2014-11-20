@@ -212,7 +212,7 @@ class PerceptronRanker(Ranker):
             # add good trees (leading to gold)
             for good_tree in good_trees:
                 good_feats = self._extract_feats(good_tree, da)
-                if discount:
+                if discount is not None:
                     good_feats -= discount
                 good_tree_w = 1
                 if self.diffing_trees.endswith('weighted'):
@@ -221,7 +221,7 @@ class PerceptronRanker(Ranker):
             # discount bad trees (leading to the generated one)
             for bad_tree in bad_trees:
                 bad_feats = self._extract_feats(bad_tree, da)
-                if discount:
+                if discount is not None:
                     bad_feats -= discount
                 bad_tree_w = 1
                 if self.diffing_trees.endswith('weighted'):
