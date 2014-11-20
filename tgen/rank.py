@@ -186,25 +186,8 @@ class PerceptronRanker(Ranker):
 
             # update weights if the system doesn't give the highest score to the right one
             if top_cand_idx != 0:
-                # discount trees leading to the generated one and add trees leading to the gold one
-                if self.diffing_trees:
-                    good_trees, bad_trees = gold_tree.diffing_trees(top_rival_tree)
-                    da = self.train_das[tree_no]
-                    for good_tree, bad_tree in zip(good_trees, bad_trees):
-                        good_feats = self._extract_feats(good_tree, da)
-                        bad_feats = self._extract_feats(bad_tree, da)
-                        if self.diffing_trees == 'weighted':
-                            good_tree_w = len(good_tree) / float(len(gold_tree))
-                            bad_tree_w = len(bad_tree) / float(len(top_rival_tree))
-                        else:
-                            good_tree_w = 1
-                            bad_tree_w = 1
-                        self.w += self.alpha * good_tree_w * good_feats
-                        self.w -= self.alpha * bad_tree_w * bad_feats
-                # just discount the best generated tree and add the gold tree
-                else:
-                    self.w += (self.alpha * gold_feats - self.alpha * cands[top_cand_idx])
-                # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
+                self._update_weights(self.train_das[tree_no], gold_tree, top_rival_tree,
+                                     gold_feats, cands[top_cand_idx])
 
         # store a copy of the current weights for averaging
         self.w_after_iter.append(np.copy(self.w))
@@ -216,6 +199,38 @@ class PerceptronRanker(Ranker):
         # print and return statistics
         self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.clock() - iter_start_time)))
         return self.evaluator, self.lists_analyzer
+
+    def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
+        # discount trees leading to the generated one and add trees leading to the gold one
+        if self.diffing_trees:
+            good_trees, bad_trees = good_tree.diffing_trees(bad_tree,
+                                                            symmetric=self.diffing_trees.startswith('sym'))
+            # TODO discount common subtree off all features
+            discount = None
+            if 'nocom' in self.diffing_trees:
+                discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), da)
+            # add good trees (leading to gold)
+            for good_tree in good_trees:
+                good_feats = self._extract_feats(good_tree, da)
+                if discount:
+                    good_feats -= discount
+                good_tree_w = 1
+                if self.diffing_trees.endswith('weighted'):
+                    good_tree_w = len(good_tree) / float(len(good_tree))
+                self.w += self.alpha * good_tree_w * good_feats
+            # discount bad trees (leading to the generated one)
+            for bad_tree in bad_trees:
+                bad_feats = self._extract_feats(bad_tree, da)
+                if discount:
+                    bad_feats -= discount
+                bad_tree_w = 1
+                if self.diffing_trees.endswith('weighted'):
+                    bad_tree_w = len(bad_tree) / float(len(bad_tree))
+                self.w -= self.alpha * bad_tree_w * bad_feats
+        # just discount the best generated tree and add the gold tree
+        else:
+            self.w += (self.alpha * good_feats - self.alpha * bad_feats)
+        # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
 
     def _print_iter_stats(self, iter_no, iter_duration):
         """Print iteration statistics from internal evaluator fields and given iteration duration."""

@@ -140,11 +140,16 @@ class TreeData(object):
         """Return a subtree of the current tree that only contains the nodes whose indexes
         are given in the parameter.
 
-        @param node_idxs: a set of valid node indexes (integers) that are to be included in the \
-            returned subtree.
+        @param node_idxs: a set or list of valid node indexes (integers) that are to be included \
+            in the returned subtree. If a list is given, it may be changed.
         """
-        node_idxs |= set([0])
-        node_idxs = sorted(node_idxs)
+        if isinstance(node_idxs, set):
+            node_idxs |= set([0])
+            node_idxs = sorted(node_idxs)
+        else:
+            if 0 not in node_idxs:
+                node_idxs.append(0)
+            node_idxs.sort()
         idx_mapping = {old_idx: new_idx for old_idx, new_idx in zip(node_idxs, range(len(node_idxs)))}
         idx_mapping[-1] = -1  # “mapping” for technical roots
         new_parents = [idx_mapping[parent] for idx, parent in enumerate(self.parents)
@@ -239,26 +244,40 @@ class TreeData(object):
         """
         return TreeData._common_subtree_idxs(self, -1, other, -1)
 
+    def get_common_subtree(self, other):
+        """Create a new subtree, composed of nodes that this tree shares with the other tree."""
+        idxs, _ = self.common_subtree_idxs(other)
+        return self.get_subtree(idxs)
+
     def _compare_node_depth(self, idx_a, idx_b):
         """Compare the depth of nodes at given indexes."""
         return cmp(self.node_depth(idx_a), self.node_depth(idx_b))
 
-    def diffing_trees(self, other):
+    def diffing_trees(self, other, symmetric=False):
         """Given two trees, find their common subtree and return a pair of lists of trees
         that start with the common subtree and gradually diverge towards the original trees.
-        Both lists are of equal length; if one of the trees is bigger, the gradual subtree
-        changes in its list will be bigger.
 
+        If `symmetric' is set, both lists will have equal length; if one of the trees is bigger,
+        the gradual subtree changes in its list will be bigger.
+
+        @param symmetric: return tree lists of the same length?
         @rtype: a pair of lists of TreeData
         @return: diverging lists of subtrees of self, other (in this order)
         """
         com_self, com_other = self.common_subtree_idxs(other)
         diff_self = sorted(list(set(range(len(self))) - set(com_self)), cmp=self._compare_node_depth)
         diff_other = sorted(list(set(range(len(other))) - set(com_other)), cmp=other._compare_node_depth)
-        # one tree is a subtree of the other – back-off to returning self, other
-        if not diff_other or not diff_self:
-            return ([self], [other])
-        diff_self, diff_other = _group_lists(diff_self, diff_other)
+        # symmetric list lengths
+        if symmetric:
+            # one tree is a subtree of the other – back-off to returning self, other
+            if not diff_other or not diff_self:
+                return ([self], [other])
+            diff_self, diff_other = _group_lists(diff_self, diff_other)
+        # just all possible trees on the paths (lists may be empty)
+        else:
+            diff_self = [[i] for i in diff_self]
+            diff_other = [[i] for i in diff_other]
+
         return (self.get_subtrees_list(com_self, diff_self),
                 other.get_subtrees_list(com_other, diff_other))
 
