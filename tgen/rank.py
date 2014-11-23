@@ -203,29 +203,33 @@ class PerceptronRanker(Ranker):
     def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
         # discount trees leading to the generated one and add trees leading to the gold one
         if self.diffing_trees:
-            good_trees, bad_trees = good_tree.diffing_trees(bad_tree,
-                                                            symmetric=self.diffing_trees.startswith('sym'))
+            good_sts, bad_sts = good_tree.diffing_trees(bad_tree,
+                                                        symmetric=self.diffing_trees.startswith('sym'))
             # TODO discount common subtree off all features
             discount = None
             if 'nocom' in self.diffing_trees:
                 discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), da)
             # add good trees (leading to gold)
-            for good_tree in good_trees:
-                good_feats = self._extract_feats(good_tree, da)
+            for good_st in good_sts:
+                good_feats = self._extract_feats(good_st, da)
                 if discount is not None:
                     good_feats -= discount
                 good_tree_w = 1
                 if self.diffing_trees.endswith('weighted'):
-                    good_tree_w = len(good_tree) / float(len(good_tree))
+                    good_tree_w = len(good_st) / float(len(good_tree))
                 self.w += self.alpha * good_tree_w * good_feats
             # discount bad trees (leading to the generated one)
-            for bad_tree in bad_trees:
-                bad_feats = self._extract_feats(bad_tree, da)
+            if 'nobad' in self.diffing_trees:
+                bad_sts = []
+            elif 'onebad' in self.diffing_trees:
+                bad_sts = [bad_tree]
+            for bad_st in bad_sts:
+                bad_feats = self._extract_feats(bad_st, da)
                 if discount is not None:
                     bad_feats -= discount
                 bad_tree_w = 1
                 if self.diffing_trees.endswith('weighted'):
-                    bad_tree_w = len(bad_tree) / float(len(bad_tree))
+                    bad_tree_w = len(bad_st) / float(len(bad_tree))
                 self.w -= self.alpha * bad_tree_w * bad_feats
         # just discount the best generated tree and add the gold tree
         else:

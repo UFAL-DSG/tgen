@@ -11,7 +11,7 @@ config = {
           'alpha': 0.1,
           'passes': 50,
           'prune_feats': 1,  # pruning harms => do not use it
-          'diffing_trees': 'weighted',  # use diffing trees (leading to the good one instead of the bad one): False/True/'weighted'
+          'diffing_trees': False,  # False - sym/asym - nocommon? - nobad/onebad? - weighted?
           'features': [
                        'lemma: presence t_lemma',
                        'formeme: presence formeme',
