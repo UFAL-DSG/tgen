@@ -46,24 +46,28 @@ my $tokenizer = Treex::Core::Scenario->new(
 );
 $tokenizer->start();
 
-my $da_line   = '';
-my %slot_vals = ();
 my @buf;
+my @instances = ();
 
+print STDERR "Processing";
 while ( my $line = <$in> ) {
 
     next if $line =~ /^\s*$/;
     push @buf, $line;
 
     if ( $line =~ m/->/ ) {
-        process_instance(@buf);
+        push @instances, process_instance(@buf);
         @buf = ();
     }
 
 }
-print STDERR "\n";
-
 $tokenizer->end();
+
+print STDERR "\nOutput...\n";
+
+foreach my $instance ( sort { $a->{da} cmp $b->{da} || length $a->{text} <=> length $b->{text} } @instances ) {
+    print_instance($instance);
+}
 
 #
 # SUBROUTINES
@@ -120,7 +124,7 @@ sub shift_push {
     return $ret;
 }
 
-# Process one data instance: convert both DAs and text, print them to output
+# Process one data instance: convert both DAs and text, return the result as a hash reference
 sub process_instance {
 
     my ( $full_da, $abstract_da, $text ) = @_;
@@ -137,14 +141,25 @@ sub process_instance {
     # produce de-abstracted sentence where X's are replaced by the actual values
     my $conc_sent = deabstract( $sent, $abstr );
 
-    # Print all outputs
-    print {$out_das} $da_line;
-    print {$out_text} $sent . "\n";
-    print {$out_abst} $abstr . "\n";
-    print {$out_conc} $conc_sent . "\n";
-
     # Indicate progress
     print STDERR ".";
+
+    # return the result in a hash
+    return {
+        'da'   => $da_line,
+        'text' => $sent,
+        'abst' => $abstr,
+        'conc' => $conc_sent,
+    };
+}
+
+sub print_instance {
+    my ( $instance ) = @_;
+
+    print {$out_das} $instance->{da},    "\n";
+    print {$out_text} $instance->{text}, "\n";
+    print {$out_abst} $instance->{abst}, "\n";
+    print {$out_conc} $instance->{conc}, "\n";
 }
 
 # Retrieve abstract DA slot values
@@ -197,7 +212,6 @@ sub convert_da {
         }
     }
     $full_da_out =~ s/&*$//;
-    $full_da_out .= "\n";
 
     return ( $full_da_out, \%slot_vals );
 }
