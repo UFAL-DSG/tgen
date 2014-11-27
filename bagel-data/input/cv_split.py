@@ -40,14 +40,14 @@ def write_data(dir, fname_base, fname_repl, data):
 
 def main(argv):
 
-    opts, files = getopt(argv, 'n:c:')
+    opts, files = getopt(argv, 'f:c:d:')
 
     folds = 10
     chunk_size = 2
     dir_prefix = 'cv'
 
     for opt, arg in opts:
-        if opt == '-n':
+        if opt == '-f':
             folds = int(arg)
         elif opt == '-c':
             chunk_size = int(arg)
