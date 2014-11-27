@@ -23,7 +23,8 @@ RUNS_DIR  := runs# main directory for experiment outputs
 TRY_NUM   := $(shell perl -e '$$m=0; for(<$(RUNS_DIR)/*>){/\/(\d+)_/ and $$1 > $$m and $$m=$$1;} printf "%03d", $$m+1;')# experiment number
 RUN_NAME  := experiment# default name, to be overridden by targets
 DATE      := $(shell date +%Y-%m-%d_%H-%M-%S)
-TRY_DIR    = $(RUNS_DIR)/$(TRY_NUM)_$(DATE)_$(RUN_NAME)# experiment output directory
+TRY_DIR    = $(RUNS_DIR)/$(TRY_NUM)_$(DATE)_$(RUN_NAME)/$(CV_NUM)# experiment output directory
+CV_NUMS   := cv00 cv01 cv02 cv03 cv04 cv05 cv06 cv07 cv08 cv09
 
 ifdef D # Shortcut D -> DESC
   DESC := $(D)
@@ -38,20 +39,24 @@ endif
 
 # Input data file defaults
 
-CANDGEN_MODEL = model/candgen.pickle.gz
-PERCRANK_MODEL = model/percrank.pickle.gz
+CANDGEN_MODEL = model/$(CV_NUM)/candgen.pickle.gz
+#PERCRANK_MODEL = model/percrank.pickle.gz
 PERCRANK_CONFIG = config/percrank.py
 ASEARCH_CONFIG = config/asearch.py
 TRAIN_PORTION = 1.0
-TRAIN_DAS = data/train-das.txt
-TRAIN_TREES = data/train-text.pickle.gz
-TRAIN_ABSTR = data/train-abstr.txt
-TRAIN_CONC = data/train-conc.sgm
-TEST_DAS = data/test-das.txt
-TEST_TREES = data/test-text.pickle.gz
-TEST_ABSTR = data/test-abstr.txt
-TEST_CONC = data/test-conc.sgm
+TRAIN_DAS = data/$(CV_NUM)/train-das.txt
+TRAIN_TREES = data/$(CV_NUM)/train-text.pickle.gz
+TRAIN_ABSTR = data/$(CV_NUM)/train-abstr.txt
+TRAIN_CONC = data/$(CV_NUM)/train-conc.sgm
+TEST_DAS = data/$(CV_NUM)/test-das.txt
+TEST_TREES = data/$(CV_NUM)/test-text.pickle.gz
+TEST_ABSTR = data/$(CV_NUM)/test-abstr.txt
+TEST_CONC = data/$(CV_NUM)/test-conc.sgm
 SURFACE_SCEN = surface/en_synthesis.scen
+
+ifdef CV_NUM
+    TEST_CONC = data/$(CV_NUM)/test-text.sgm
+endif
 
 # Help text
 
@@ -141,6 +146,15 @@ prepare_dir:
 
 # Main targets
 
+cv_run: RUN_NAME := cv_run
+cv_run: prepare_dir
+cv_run:
+	for CV_NUM in $(CV_NUMS); do \
+		make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM JOBS=$(JOBS) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
+		make asearch_gen TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP='--hold $$JOB_NUM' ; \
+	done
+
 percrank_train: RUN_NAME := percrank_train
 percrank_train: prepare_dir
 percrank_train:
@@ -167,7 +181,7 @@ asearch_gen:
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP) CV_NUM=$(CV_NUM)
 
 asearch_gen-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
@@ -177,7 +191,7 @@ asearch_gen-%:
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP) CV_NUM=$(CV_NUM)
 
 asearch_gen_process: RUN_NAME := asearch_gen
 asearch_gen_process:
