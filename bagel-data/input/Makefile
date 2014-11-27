@@ -51,9 +51,9 @@ cv: all-das.txt all-text.txt all-abstr.txt
 			Util::SetGlobal selector=ref1 en_analysis.scen \
 			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.1-abstr.txt \
 			Write::Treex ; \
-		treex -Len Read::Treex from=$$CV/train-text.treex.gz Write::Treex to=$$CV/train-text.yaml.gz ; \
+		treex -Len Read::Treex from=$$CV/train-text.treex.gz Write::YAML to=$$CV/train-text.yaml.gz ; \
 		../../util/yaml2pickle.py $$CV/train-text.yaml.gz ; \
-		treex -Len Read::Treex from=$$CV/test-text.treex.gz Write::Treex to=$$CV/test-text.yaml.gz ; \
+		treex -Len Read::Treex from=$$CV/test-text.treex.gz Write::YAML to=$$CV/test-text.yaml.gz ; \
 		../../util/yaml2pickle.py $$CV/test-text.yaml.gz ; \
 		echo '<refset setid="BAGEL" srclang="any" trglang="en">' > $$CV/test-text.sgm ; \
 		treex -Len Read::Sentences from="$$CV/test.0-text.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_0 >> $$CV/test-text.sgm ; \
