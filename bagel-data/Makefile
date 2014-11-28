@@ -54,8 +54,14 @@ TEST_ABSTR = data/$(CV_NUM)/test-abstr.txt
 TEST_CONC = data/$(CV_NUM)/test-conc.sgm
 SURFACE_SCEN = surface/en_synthesis.scen
 
+XS_INSTEAD = 0
+EVAL_SELECTOR = ""
+
 ifdef CV_NUM
     TEST_CONC = data/$(CV_NUM)/test-text.sgm
+    XS_INSTEAD = 1
+    EVAL_SELECTOR = ref0
+    TEST_ABSTR = data/$(CV_NUM)/test.0-abstr.txt
 endif
 
 # Help text
@@ -64,28 +70,39 @@ define HELP_MESSAGE
 Tgen experiments
 ================
 
-- Use 'make desc' to list experiments with descriptions.
+make desc
+* List experiments with descriptions and (possibly) scores.
 
-- Use 'make percrank_train' to run a new percrank training
-  experiment
+make percrank_train [J=XX] D='Description'
+* Run a new percrank training experiment
   - set TRAIN_PORTION to a fraction of the training
     data to be used
   - set J/JOBS to the number of parallel jobs to be used
     in a parallel training setup
 
-- Use 'make asearch_gen' to run A*search generation
+make asearch_gen D='Description'
+* Run A*search generation
   (set PERCRANK_MODEL to the model you want to use).
 
-- Use 'make asearch_gen-XXX' to directly test the model
-  trained from experiment number XXX.
+make asearch_gen-XXX
+* Directly test the model trained from experiment number 
+  XXX.
 
-- Use 'make rerun-XXX' to re-run experiment number XXX.
+make rerun-XXX
+* Re-run experiment number XXX.
   - Will find the last log file and select the experiment type
     accordingly.
 
-- Use 'make compare-X:Y' to compare the logs of runs X
-  and Y (set COMPARE_ITERS to the number of iterations you
-  want to compare).
+make norm_log LOGFILE=path/to/debug.log
+* Normalize debug log files for diffing (stripping dates)
+  - Set LOG_CUTOFF to adjust the number of lines where the logs
+    will be cut off.
+
+make cv J=[XX] D='Description'
+* Run a 10-fold cross-validation experiment where percrank
+  training is directly followed by A*search generation.
+
+---
 
 Use QP='--console' if you want the job to run interactively instead
 of submitting to the cluster.
@@ -152,7 +169,7 @@ cv_run:
 	for CV_NUM in $(CV_NUMS); do \
 		make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM JOBS=$(JOBS) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-		make asearch_gen TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP='--hold $$JOB_NUM' ; \
+		make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM" ; \
 	done
 
 percrank_train: RUN_NAME := percrank_train
@@ -181,7 +198,17 @@ asearch_gen:
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP) CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+
+
+asearch_gen_cv: RUN_NAME := asearch_gen.$(CV_NUM)
+asearch_gen_cv:
+	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
+	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
+	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
+	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 asearch_gen-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
@@ -191,17 +218,18 @@ asearch_gen-%:
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP=$(QP) CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 asearch_gen_process: RUN_NAME := asearch_gen
 asearch_gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG) \
+		-s $(EVAL_SELECTOR) \
 		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
-			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt \
+			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
