@@ -1,6 +1,11 @@
 #!/usr/bin/env perl
 #
-# Converting Bagel data set to our DA format.
+# Converting BAGEL data set to our DA format.
+#
+# Usage: ./convert.pl [-a slot1,slot2] [-s] input output-das output-text output-abstraction
+#
+# -a = list of slots to be abstracted (replaced with "X-slot")
+# -s = skip values that are not abstracted in the ABSTRACT_DA lines in the actual BAGEL data.
 #
 
 use strict;

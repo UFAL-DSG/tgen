@@ -2,8 +2,8 @@
 # coding=utf-8
 
 """
-Cross-validation split of data
-------------------------------
+Cross-validation split of BAGEL data
+------------------------------------
 
 Will produce train-test splits for all cross-validation folds, each
 in its own subdirectory.
@@ -81,7 +81,6 @@ def main(argv):
             # create directories
             for fold_no in xrange(folds):
                 os.mkdir(dir_prefix + "%02d" % fold_no)
-
             
         # output as train and test into all CV portions
         fold_size, bigger_folds = divmod(len(data), folds)
