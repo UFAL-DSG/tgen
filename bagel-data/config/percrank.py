@@ -12,6 +12,7 @@ config = {
           'passes': 50,
           'prune_feats': 1,  # pruning harms => do not use it
           'diffing_trees': False,  # False - sym/asym - nocommon? - nobad/onebad? - weighted?
+                                   # (do not use nobad/onebad, it hurts badly)
           'features': [
                        'lemma: presence t_lemma',
                        'formeme: presence formeme',
