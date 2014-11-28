@@ -7,3 +7,4 @@ test-*.txt
 test-conc.sgm
 test-text.treex.gz
 test-text.yaml.gz
+cv0*

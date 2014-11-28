@@ -5,3 +5,4 @@
 *.yaml.gz
 *.pickle.gz
 *.pyc
+.*.swp
