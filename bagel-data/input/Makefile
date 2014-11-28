@@ -59,6 +59,9 @@ cv: all-das.txt all-text.txt all-abstr.txt
 		treex -Len Read::Sentences from="$$CV/test.0-text.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_0 >> $$CV/test-text.sgm ; \
 		treex -Len Read::Sentences from="$$CV/test.1-text.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_1 >> $$CV/test-text.sgm ; \
 		echo '</refset>' >> $$CV/test-text.sgm ; \
+		rm $$CV/train.1-das.txt $$CV/test.1-das.txt ; \
+		mv $$CV/train.0-das.txt $$CV/train-das.txt ; \
+		mv $$CV/test.0-das.txt $$CV/test-das.txt ; \
 	done
 	
 
