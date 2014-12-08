@@ -98,7 +98,7 @@ make norm_log LOGFILE=path/to/debug.log
   - Set LOG_CUTOFF to adjust the number of lines where the logs
     will be cut off.
 
-make cv J=[XX] D='Description'
+make cv_run J=[XX] D='Description'
 * Run a 10-fold cross-validation experiment where percrank
   training is directly followed by A*search generation.
 

@@ -166,7 +166,7 @@ def sample_gen(args):
 def asearch_gen(args):
     """A*search generation"""
 
-    opts, files = getopt(args, 'e:d:w:c:')
+    opts, files = getopt(args, 'e:d:w:c:s:')
     eval_file = None
     fname_ttrees_out = None
     cfg_file = None

@@ -16,6 +16,7 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 
 from futil import read_das, read_ttrees
 from tree import TreeNode, NodeData
+from tgen.logf import log_warn
 
 
 class RandomCandidateGenerator(object):
@@ -61,7 +62,7 @@ class RandomCandidateGenerator(object):
             # counts for formeme/lemma given dai
             for dai in da:
                 for tnode in ttree.get_descendants():
-                    if not dai in form_counts:
+                    if dai not in form_counts:
                         form_counts[dai] = defaultdict(Counter)
                     form_counts[dai][tnode.parent.formeme][(tnode.formeme, tnode.t_lemma, tnode > tnode.parent)] += 1
             # counts for number of children
@@ -94,11 +95,11 @@ class RandomCandidateGenerator(object):
         """Get merged CDFs for the DAIs in the given DA."""
         merged_counts = defaultdict(Counter)
         for dai in da:
-            try:
-                for parent_formeme in self.form_counts[dai]:
+            for parent_formeme in self.form_counts[dai]:
+                try:
                     merged_counts[parent_formeme].update(self.form_counts[dai][parent_formeme])
-            except KeyError:
-                raise Exception('DAI ' + unicode(dai) + ' unknown!')
+                except KeyError:
+                    log_warn('DAI ' + unicode(dai) + ' unknown, empty CDF.')
         return self.cdfs_from_counts(merged_counts)
 
     def cdfs_from_counts(self, counts):
