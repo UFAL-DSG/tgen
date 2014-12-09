@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 use warnings;
 use strict;
@@ -124,14 +124,12 @@ binmode STDERR, ":utf8";
 my ($date, $time) = date_time_stamp();
 print "MT evaluation scorer began on $date at $time\n";
 print "command line:  ", $0, " ", join(" ", @ARGV), "\n";
-my $usage = "\n\nUsage: $0 -r <ref_file> -s <src_file> -t <tst_file>\n\n".
+my $usage = "\n\nUsage: $0 -r <ref_file> -t <tst_file>\n\n".
     "Description:  This Perl script evaluates MT system performance.\n".
     "\n".
     "Required arguments:\n".
     "  -r <ref_file> is a file containing the reference translations for\n".
     "      the documents to be evaluated.\n".
-    "  -s <src_file> is a file containing the source documents for which\n".
-    "      translations are to be evaluated\n".
     "  -t <tst_file> is a file containing the translations to be evaluated\n".
     "\n".
     "Optional arguments:\n".
@@ -158,10 +156,9 @@ my $usage = "\n\nUsage: $0 -r <ref_file> -s <src_file> -t <tst_file>\n\n".
     "  --no-smoothing : disable smoothing on BLEU scores\n" .
     "\n";
  
-use vars qw ($opt_r $opt_s $opt_t $opt_d $opt_h $opt_b $opt_n $opt_c $opt_x $opt_e);
+use vars qw ($opt_r $opt_t $opt_d $opt_h $opt_b $opt_n $opt_c $opt_x $opt_e);
 use Getopt::Long;
 my $ref_file = '';
-my $src_file = '';
 my $tst_file = '';
 my $detail = 0;
 my $help = '';
@@ -176,7 +173,6 @@ our $opt_b = '';
 our $opt_n = '';
 GetOptions(
 	'r=s' => \$ref_file,
-	's=s' => \$src_file,
 	't=s' => \$tst_file,
 	'd:i' => \$detail,
 	'h|help' => \$help,
@@ -193,7 +189,6 @@ GetOptions(
 die $usage if $help;
 
 die "Error in command line:  ref_file not defined$usage" unless ( $ref_file );
-die "Error in command line:  src_file not defined$usage" unless ( $src_file );
 die "Error in command line:  tst_file not defined$usage" unless ( $tst_file );
 my $BLEU_BP;
 if ( !( $brevity_penalty cmp 'closest' ) )
@@ -223,15 +218,15 @@ my $method;
  
 ######
 # Global variables
-my ($src_lang, $tgt_lang, @tst_sys, @ref_sys); # evaluation parameters
+my ($tgt_lang, @tst_sys, @ref_sys); # evaluation parameters
 my (%tst_data, %ref_data); # the data -- with structure:  {system}{document}{segments}
-my ($src_id, $ref_id, $tst_id); # unique identifiers for ref and tst translation sets
+my ($ref_id, $tst_id); # unique identifiers for ref and tst translation sets
 my %eval_docs;     # document information for the evaluation data set
 my %ngram_info;    # the information obtained from (the last word in) the ngram
 
 ######
-# Get source document ID's
-($src_id) = get_source_info ($src_file);
+# Load eval_docs
+get_source_info ($ref_file);
 
 ######
 # Get reference translations
@@ -256,13 +251,12 @@ my %BLEUOverall;
 
 ######
 # Evaluate
-print "  Evaluation of $src_lang-to-$tgt_lang translation using:\n";
+print "  Evaluation of $tgt_lang using:\n";
 my $cum_seg = 0;
 foreach my $doc (sort keys %eval_docs)
 {
 	$cum_seg += scalar( keys( %{$eval_docs{$doc}{SEGS}} ) );
 }
-print "    src set \"$src_id\" (", scalar keys %eval_docs, " docs, $cum_seg segs)\n";
 print "    ref set \"$ref_id\" (", scalar keys %ref_data, " refs)\n";
 print "    tst set \"$tst_id\" (", scalar keys %tst_data, " systems)\n\n";
  
@@ -319,9 +313,6 @@ sub get_source_info
 		my $currentSet = $root->first_child( 'srcset' );
 		die "Source XML file '$file' does not contain the 'srcset' element" if ( not $currentSet );
 		$id = $currentSet->{ 'att' }->{ 'setid' } or die "No 'setid' attribute value in '$file'";
-		$src = $currentSet->{ 'att' }->{ 'srclang' } or die "No srcset 'srclang' attribute value in '$file'";
-		die "Not the same srclang attribute values across sets" unless ( not defined $src_lang or $src eq $src_lang );
-		$src_lang = $src;
 		foreach my $currentDoc ( $currentSet->get_xpath( './/doc' ) )
 		{
 			my $docID = $currentDoc->{ 'att' }->{ 'docid' } or die "No document 'docid' attribute value in '$file'";
@@ -343,17 +334,11 @@ sub get_source_info
 
 		#get source set info
 		die "\n\nFATAL INPUT ERROR:  no 'src_set' tag in src_file '$file'\n\n"
-			unless ($tag, $span, $data) = extract_sgml_tag_and_span ("SrcSet", $data);
+			unless ($tag, $span, $data) = extract_sgml_tag_and_span ("RefSet", $data);
 		die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
 			unless ($id) = extract_sgml_tag_attribute ($name="SetID", $tag);
-		die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
-			unless ($src) = extract_sgml_tag_attribute ($name="SrcLang", $tag);
-		die "\n\nFATAL INPUT ERROR:  $name ('$src') in file '$file' inconsistent\n"
-			."                    with $name in previous input data ('$src_lang')\n\n"
-			unless (not defined $src_lang or $src eq $src_lang);
-		$src_lang = $src;
 
-		#get doc info -- ID and # of segs
+                #get doc info -- ID and # of segs
 		$data = $span;
 		while (($tag, $span, $data) = extract_sgml_tag_and_span ("Doc", $data))
 		{
@@ -384,7 +369,7 @@ sub get_source_info
 sub get_MT_data
 {
 	my ($docs, $set_tag, $file) = @_;
-	my ($name, $id, $src, $tgt, $sys, $doc, $seg);
+	my ($name, $id, $tgt, $sys, $doc, $seg);
 	my ($tag, $span, $data);
 
 	# Extension of the file determines the parser used:
@@ -398,9 +383,7 @@ sub get_MT_data
 		foreach my $currentSet ( $root->get_xpath( 'refset' ), $root->get_xpath( 'tstset' ) )
 		{
 			$id = $currentSet->{ 'att' }->{ 'setid' } or die "No 'setid' attribute value in '$file'";
-			$src = $currentSet->{ 'att' }->{ 'srclang' } or die "No 'srclang' attribute value in '$file'";
 			$tgt = $currentSet->{ 'att' }->{ 'trglang' } or die "No 'trglang' attribute value in '$file'";
-			die "Not the same 'srclang' attribute value across sets" unless ( $src eq $src_lang );
 			die "Not the same 'trglang' attribute value across sets" unless ( ( not defined $tgt_lang ) or ( $tgt = $tgt_lang ) );
 			$tgt_lang = $tgt;
 			my $sys;
@@ -438,11 +421,6 @@ sub get_MT_data
 		{
 			die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
 				unless ($id) = extract_sgml_tag_attribute ($name="SetID", $tag);
-			die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
-				unless ($src) = extract_sgml_tag_attribute ($name="SrcLang", $tag);
-			die "\n\nFATAL INPUT ERROR:  $name ('$src') in file '$file' inconsistent\n"
-				."                    with $name of source ('$src_lang')\n\n"
-				unless $src eq $src_lang;
 			die "\n\nFATAL INPUT ERROR:  no tag attribute '$name' in file '$file'\n\n"
 				unless ($tgt) = extract_sgml_tag_attribute ($name="TrgLang", $tag);
 			die "\n\nFATAL INPUT ERROR:  $name ('$tgt') in file '$file' inconsistent\n"
@@ -484,8 +462,6 @@ sub check_MT_data
 {
 	@tst_sys = sort keys %tst_data;
 	@ref_sys = sort keys %ref_data;
-
-	die "Not the same 'setid' attribute values across files" unless ( ( $src_id eq $tst_id ) && ( $src_id eq $ref_id ) );
 
 #every evaluation document must be represented for every system and every reference
 	foreach my $doc (sort keys %eval_docs)
