@@ -16,6 +16,7 @@ ifdef DEBUG
   DEBUG_LOG = -d $(TRY_DIR)/debug-log.txt
 endif
 MTEVAL = ../util/mteval-v11b.pl
+AVERAGE_SCORES = ../util/average_scores.pl
 LOG_CUTOFF= 10000
 
 # Runs directories
@@ -49,6 +50,7 @@ TRAIN_TREES = data/$(CV_NUM)/train-text.pickle.gz
 TRAIN_ABSTR = data/$(CV_NUM)/train-abstr.txt
 TRAIN_CONC = data/$(CV_NUM)/train-conc.sgm
 TEST_DAS = data/$(CV_NUM)/test-das.txt
+TEST_REF = data/$(CV_NUM)/test-das.sgm
 TEST_TREES = data/$(CV_NUM)/test-text.pickle.gz
 TEST_ABSTR = data/$(CV_NUM)/test-abstr.txt
 TEST_CONC = data/$(CV_NUM)/test-conc.sgm
@@ -169,8 +171,17 @@ cv_run:
 	for CV_NUM in $(CV_NUMS); do \
 		make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM JOBS=$(JOBS) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-		make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM" ; \
+		make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
 	done
+
+cv_score-%:
+	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
+	$(eval TRY_NUM := $*)
+	make cv_score TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
+
+cv_score:
+	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+
 
 percrank_train: RUN_NAME := percrank_train
 percrank_train: prepare_dir
@@ -195,6 +206,7 @@ asearch_gen:
 	cp $(PERCRANK_MODEL) $(TRY_DIR)/percrank.pickle.gz
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
+	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
@@ -205,6 +217,7 @@ asearch_gen_cv: RUN_NAME := asearch_gen.$(CV_NUM)
 asearch_gen_cv:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
+	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
@@ -215,6 +228,7 @@ asearch_gen-%:
 	$(eval TRY_NUM := $*)
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
+	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
@@ -233,7 +247,7 @@ asearch_gen_process:
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
-		$(MTEVAL) -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
+		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
 		2>&1 | tee $(TRY_DIR)/asearch_gen.log.txt
 
 rerun-%:
