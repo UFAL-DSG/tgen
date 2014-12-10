@@ -95,11 +95,11 @@ class RandomCandidateGenerator(object):
         """Get merged CDFs for the DAIs in the given DA."""
         merged_counts = defaultdict(Counter)
         for dai in da:
-            for parent_formeme in self.form_counts[dai]:
-                try:
+            try:
+                for parent_formeme in self.form_counts[dai]:
                     merged_counts[parent_formeme].update(self.form_counts[dai][parent_formeme])
-                except KeyError:
-                    log_warn('DAI ' + unicode(dai) + ' unknown, empty CDF.')
+            except KeyError:
+                log_warn('DAI ' + unicode(dai) + ' unknown, adding nothing to CDF.')
         return self.cdfs_from_counts(merged_counts)
 
     def cdfs_from_counts(self, counts):
