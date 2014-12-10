@@ -62,6 +62,8 @@ cv: all-das.txt all-text.txt all-abstr.txt
 		rm $$CV/train.1-das.txt $$CV/test.1-das.txt ; \
 		mv $$CV/train.0-das.txt $$CV/train-das.txt ; \
 		mv $$CV/test.0-das.txt $$CV/test-das.txt ; \
+		treex -Len Read::Sentences from="$$CV/test-das.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=source add_header=srcset to=$$CV/test-das.sgm ; \
+		sed -i 's/docid="[^"]*"/docid="test"/;' $$CV/test-das.sgm $$CV/test-text.sgm ; \
 	done
 	
 
