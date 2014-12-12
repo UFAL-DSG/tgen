@@ -13,7 +13,7 @@ candgen_train -- train candidate generator (probability distributions)
 
 percrank_train -- train perceptron global ranker
     - arguments: [-d debug-output] [-c candgen-model] [-s data-portion] [-j parallel-jobs] [-w parallel-work-dir] \\
-                 ranker-config train-das train-ttrees output-model
+                 [-e experiment_id] ranker-config train-das train-ttrees output-model
 
 sample_gen -- generate using the given candidate generator
     - arguments: [-n trees-per-da] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
@@ -64,12 +64,13 @@ def candgen_train(args):
 
 
 def percrank_train(args):
-    opts, files = getopt(args, 'c:d:s:j:w:')
+    opts, files = getopt(args, 'c:d:s:j:w:e:')
     candgen_model = None
     train_size = 1.0
     parallel = False
     jobs_number = 0
     work_dir = None
+    experiment_id = None
 
     for opt, arg in opts:
         if opt == '-d':
@@ -83,6 +84,8 @@ def percrank_train(args):
             jobs_number = int(arg)
         elif opt == '-w':
             work_dir = arg
+        elif opt == '-e':
+            experiment_id = arg
 
     if len(files) != 4:
         sys.exit(__doc__)
@@ -99,7 +102,7 @@ def percrank_train(args):
         rank_config['jobs_number'] = jobs_number
         if work_dir is None:
             work_dir, _ = os.path.split(fname_rank_config)
-        ranker = ParallelPerceptronRanker(rank_config, work_dir)
+        ranker = ParallelPerceptronRanker(rank_config, work_dir, experiment_id)
     ranker.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
     ranker.save_to_file(fname_rank_model)
 

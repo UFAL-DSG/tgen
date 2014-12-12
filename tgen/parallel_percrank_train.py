@@ -68,7 +68,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
 
     DEFAULT_PORT = 25125
 
-    def __init__(self, cfg, work_dir):
+    def __init__(self, cfg, work_dir, experiment_id=None):
         # initialize base class
         super(ParallelPerceptronRanker, self).__init__(cfg)
         # initialize myself
@@ -79,6 +79,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         self.port = cfg.get('port', self.DEFAULT_PORT)
         self.host = socket.getfqdn()
         self.poll_interval = cfg.get('poll_interval', 1)
+        self.experiment_id = experiment_id if experiment_id is not None else ''
         # this will be needed when running
         self.server = None
         self.server_thread = None
@@ -104,7 +105,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
             job = Job(header='from tgen.parallel_percrank_train import run_worker',
                       code=('run_worker("%s", %d, %s)' %
                             (self.host, self.port, debug_logfile)),
-                      name="PRT%02d-%s-%d" % (j, host_short, self.port),
+                      name=self.experiment_id + ("PRT%02d-%s-%d" % (j, host_short, self.port)),
                       work_dir=self.work_dir)
             job.submit(self.job_memory)
             self.jobs.append(job)

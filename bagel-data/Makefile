@@ -61,10 +61,10 @@ XS_INSTEAD = 0
 EVAL_SELECTOR = ""
 
 ifdef CV_NUM
-    TEST_CONC = data/$(CV_NUM)/test-text.sgm
+    TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-text.sgm
     XS_INSTEAD = 1
     EVAL_SELECTOR = ref0
-    TEST_ABSTR = data/$(CV_NUM)/test.0-abstr.txt
+    TEST_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/test.0-abstr.txt
 endif
 
 # Help text
@@ -198,7 +198,7 @@ percrank_train:
 	# run the experiment
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) percrank_train $(DEBUG_LOG) -c $(TRY_DIR)/candgen.pickle.gz  \
-		-s $(TRAIN_PORTION) $(PARALLEL) \
+		-s $(TRAIN_PORTION) $(PARALLEL) -e "T.$(TRY_NUM)" \
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
