@@ -140,7 +140,7 @@ sub process_instance {
     # Convert DA text; abstract needed values
     my ( $da_line, $full_vals ) = convert_da( $full_da, $abstract_vals );
 
-    # Produce abstract sentence according to abstraction settings
+    # Produce tokenized sentence and abstraction instructions according to abstraction settings
     my ( $sent, $abstr ) = convert_text( $text, $full_vals );
 
     # produce de-abstracted sentence where X's are replaced by the actual values
