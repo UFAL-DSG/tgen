@@ -10,7 +10,7 @@ CONVERT_SETTINGS = -a $(ABSTRACTED) -s
 
 %-text.treex.gz: %-text.txt %-conc.txt %-abstr.txt
 	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt en_analysis.scen \
-		Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abstr.txt \
+		Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abstr.txt x_only=1 \
 	 	Write::Treex to=$@
 
 all-abstr.txt: all-das.txt
@@ -40,16 +40,25 @@ grammatemes.tsv: train-text.treex.gz
 cv: all-das.txt all-text.txt all-abstr.txt
 	./cv_split.py -f 10 -c 2 -d cv all-das.txt all-text.txt all-abstr.txt
 	for CV in cv0*; do \
-		treex -Len Read::Sentences from=$$CV/train.0-text.txt en_analysis.scen \
-			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/train.0-abstr.txt \
+		if [ -z "$(FULL_TRAINING)" ]; then \
+			mv $$CV/train.0-das.txt $$CV/train-das.txt ; \
+			mv $$CV/train.0-abstr.txt $$CV/train-abstr.txt ; \
+			mv $$CV/train.0-text.txt $$CV/train-text.txt ; \
+		else \
+			cat $$CV/train.*-das.txt > $$CV/train-das.txt ; \
+			cat $$CV/train.*-abstr.txt > $$CV/train-abstr.txt ; \
+			cat $$CV/train.*-text.txt > $$CV/train-text.txt ; \
+		fi ; \
+		treex -Len Read::Sentences from=$$CV/train-text.txt en_analysis.scen \
+			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/train-abstr.txt x_only=1 \
 			Write::Treex to=$$CV/train-text.treex.gz ; \
 		treex -Len Read::AlignedSentences en_ref0=$$CV/test.0-text.txt en_ref1=$$CV/test.1-text.txt \
 			Util::SetGlobal selector=ref0 en_analysis.scen \
-			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.0-abstr.txt \
+			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.0-abstr.txt x_only=1 \
 			Write::Treex to=$$CV/test-text.treex.gz ; \
 		treex -Len Read::Treex from=$$CV/test-text.treex.gz \
 			Util::SetGlobal selector=ref1 en_analysis.scen \
-			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.1-abstr.txt \
+			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.1-abstr.txt x_only=1 \
 			Write::Treex ; \
 		treex -Len Read::Treex from=$$CV/train-text.treex.gz Write::YAML to=$$CV/train-text.yaml.gz ; \
 		../../util/yaml2pickle.py $$CV/train-text.yaml.gz ; \
@@ -60,7 +69,6 @@ cv: all-das.txt all-text.txt all-abstr.txt
 		treex -Len Read::Sentences from="$$CV/test.1-text.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_1 >> $$CV/test-text.sgm ; \
 		echo '</refset>' >> $$CV/test-text.sgm ; \
 		rm $$CV/train.1-das.txt $$CV/test.1-das.txt ; \
-		mv $$CV/train.0-das.txt $$CV/train-das.txt ; \
 		mv $$CV/test.0-das.txt $$CV/test-das.txt ; \
 		treex -Len Read::Sentences from="$$CV/test-das.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=source add_header=srcset to=$$CV/test-das.sgm ; \
 		sed -i 's/docid="[^"]*"/docid="test"/;' $$CV/test-das.sgm $$CV/test-text.sgm ; \
