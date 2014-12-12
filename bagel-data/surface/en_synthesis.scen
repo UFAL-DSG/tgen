@@ -28,6 +28,7 @@ T2A::EN::AddIntroPunct
 T2A::EN::AddAppositionPunct
 T2A::EN::AddPhrasalPunct
 
+T2A::EN::FixLemmas
 T2A::EN::GenerateWordforms
 T2A::EN::IndefArticlePhonetics
 
