@@ -275,7 +275,7 @@ norm_log:
 candgen_train:
 	for D in training1 training2; do \
 	    for CV in cv0{0,1,2,3,4,5,6,7,8,9}; do \
-	    	mkdir -p model/$D/$CV; \
-		../run_tgen.py candgen_train data/$D/$CV/train-das.txt data/$D/$CV/train-text.pickle.gz model/$D/$CV/candgen.pickle.gz; \
+		mkdir -p model/$$D/$$CV; \
+		../run_tgen.py candgen_train $(CANDGEN_PARAMS) data/$$D/$$CV/train-das.txt data/$$D/$$CV/train-text.pickle.gz model/$$D/$$CV/candgen.pickle.gz; \
 		done; \
 	done
