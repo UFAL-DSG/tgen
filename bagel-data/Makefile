@@ -272,3 +272,10 @@ norm_log:
 	fi; \
 	cat $(LOGFILE) | head -n $(LOG_CUTOFF) | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > $(LOGFILE).norm ; \
 
+candgen_train:
+	for D in training1 training2; do \
+	    for CV in cv0{0,1,2,3,4,5,6,7,8,9}; do \
+	    	mkdir -p model/$D/$CV; \
+		../run_tgen.py candgen_train data/$D/$CV/train-das.txt data/$D/$CV/train-text.pickle.gz model/$D/$CV/candgen.pickle.gz; \
+		done; \
+	done
