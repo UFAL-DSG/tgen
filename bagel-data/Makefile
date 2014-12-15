@@ -18,6 +18,7 @@ endif
 MTEVAL = ../util/mteval-v11b.pl
 AVERAGE_SCORES = ../util/average_scores.pl
 LOG_CUTOFF= 10000
+NUM_EXP = 20  # number of experiments to list in `make desc'
 
 # Runs directories
 RUNS_DIR  := runs# main directory for experiment outputs
@@ -73,8 +74,9 @@ define HELP_MESSAGE
 Tgen experiments
 ================
 
-make desc
+make desc [NUM_EXP=20]
 * List experiments with descriptions and (possibly) scores.
+* Change NUM_EXP if you need to see more than 20 latest results.
 
 make percrank_train [J=XX] D='Description'
 * Run a new percrank training experiment
@@ -132,7 +134,7 @@ help:
 
 # List all experiments, find scores in logs (of various versions)
 desc:
-	@ls -d $(RUNS_DIR)/* | sort | while read file; do \
+	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
 		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
 		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
 			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
