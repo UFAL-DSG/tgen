@@ -47,20 +47,24 @@ from tgen.parallel_percrank_train import ParallelPerceptronRanker
 
 
 def candgen_train(args):
-    opts, files = getopt(args, 'p:')
+    opts, files = getopt(args, 'p:l')
     prune_threshold = 1
+    parent_lemmas = False
     for opt, arg in opts:
         if opt == '-p':
             prune_threshold = int(arg)
+        elif opt == '-l':
+            parent_lemmas = True
 
     if len(files) != 3:
         sys.exit(__doc__)
     fname_da_train, fname_ttrees_train, fname_cand_model = files
 
     log_info('Training candidate generator...')
-    candgen = RandomCandidateGenerator({'prune_threshold': prune_threshold})
+    candgen = RandomCandidateGenerator({'prune_threshold': prune_threshold,
+                                        'parent_lemmas': parent_lemmas})
     candgen.train(fname_da_train, fname_ttrees_train)
-    candgen.save_model(fname_cand_model)
+    candgen.save_to_file(fname_cand_model)
 
 
 def percrank_train(args):
@@ -127,8 +131,7 @@ def sample_gen(args):
 
     # load model
     log_info('Initializing...')
-    candgen = RandomCandidateGenerator({})
-    candgen.load_model(fname_cand_model)
+    candgen = RandomCandidateGenerator.load_from_file(fname_cand_model)
 
     ranker = candgen
 
@@ -192,8 +195,7 @@ def asearch_gen(args):
     fname_cand_model, fname_rank_model, fname_da_test = files
 
     log_info('Initializing...')
-    candgen = RandomCandidateGenerator({})
-    candgen.load_model(fname_cand_model)
+    candgen = RandomCandidateGenerator.load_from_file(fname_cand_model)
     ranker = PerceptronRanker.load_from_file(fname_rank_model)
     cfg = Config(cfg_file) if cfg_file else {}
     cfg.update({'candgen': candgen, 'ranker': ranker})

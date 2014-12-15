@@ -281,7 +281,7 @@ class ASearchPlanner(SentencePlanner):
             successors = self.candgen.get_all_successors(cand, cdfs)
             # add candidates with score
             open_list.pushall([(s, self.ranker.score(s, da) * -1)
-                               for s in successors if not s in close_list])
+                               for s in successors if s not in close_list])
             # pruning (if supposed to do it)
             # TODO do not even add them on the open list when pruning
             if beam_size is not None:

@@ -126,8 +126,7 @@ class PerceptronRanker(Ranker):
 
         # initialize candidate generator + planner if needed
         if self.candgen_model is not None:
-            self.candgen = RandomCandidateGenerator({})
-            self.candgen.load_model(self.candgen_model)
+            self.candgen = RandomCandidateGenerator.load_from_file(self.candgen_model)
             self.sampling_planner = SamplingPlanner({'langugage': self.language,
                                                      'selector': self.selector,
                                                      'candgen': self.candgen})
