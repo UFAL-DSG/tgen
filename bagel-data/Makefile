@@ -74,9 +74,10 @@ define HELP_MESSAGE
 Tgen experiments
 ================
 
-make desc [NUM_EXP=20]
+make desc [NUM_EXP=20] [REFRESH=1]
 * List experiments with descriptions and (possibly) scores.
 * Change NUM_EXP if you need to see more than 20 latest results.
+* Refresh scores to obtain new results by setting REFRESH=1 (makes it slower).
 
 make percrank_train [J=XX] D='Description'
 * Run a new percrank training experiment
@@ -135,16 +136,23 @@ help:
 # List all experiments, find scores in logs (of various versions)
 desc:
 	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
-		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
+	    	if [[ -f $$file/SCORE && -z "$(REFRESH)" ]]; then \
+			cat $$file/SCORE ; \
+			continue ; \
+		fi ; \
+		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/SCORE;  \
 		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
 			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/;s/Precision/P/;s/Recall/R/;' | tr -d '\n'`; \
-			echo -en "\t$$score"; \
+			echo -en "   $$score" >> $$file/SCORE; \
+			lists=`grep -i "Gold tree BEST" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*Gold tree BEST/GoldT B/;s/on CLOSE/C/;s/on ANY list/A/;' | tr -d '\n'`; \
+			echo -en "   $$lists" >> $$file/SCORE; \
 			bleu=`grep -i '^NIST ' $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;s/ score//g' | tr -d '\n'`; \
-			echo -en "\t$$bleu"; \
+			echo -en "   $$bleu"  >> $$file/SCORE; \
 		fi; \
-		echo -ne '\t' ; \
-		cat $$file/ABOUT | tr  '\n' ' '; \
-		echo; \
+		echo -ne '\t' >> $$file/SCORE ; \
+		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/SCORE; \
+		echo >> $$file/SCORE; \
+		cat $$file/SCORE; \
 	done
 
 
