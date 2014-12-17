@@ -137,9 +137,9 @@ desc:
 	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
 		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/';  \
 		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
-			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/' | tr -d '\n'`; \
+			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/;s/Precision/P/;s/Recall/R/;' | tr -d '\n'`; \
 			echo -en "\t$$score"; \
-			bleu=`grep -i '^NIST ' $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;' | tr -d '\n'`; \
+			bleu=`grep -i '^NIST ' $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;s/ score//g' | tr -d '\n'`; \
 			echo -en "\t$$bleu"; \
 		fi; \
 		echo -ne '\t' ; \

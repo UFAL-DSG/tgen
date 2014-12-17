@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-my @patterns = ( 'BEST', 'NODE', 'DEP', 'NIST score' );
+my @patterns = ( 'BEST', 'NODE', 'DEP', 'NIST score ' );
 my %data;
 my %lines;
 
