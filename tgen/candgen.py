@@ -36,6 +36,12 @@ class RandomCandidateGenerator(object):
         log_info('Loading model from ' + fname)
         with file_stream(fname, mode='rb', encoding=None) as fh:
             candgen = pickle.load(fh)
+            if type(candgen) == dict:  # backward compatibility
+                form_counts = candgen
+                candgen = RandomCandidateGenerator({})
+                candgen.form_counts = form_counts
+                candgen.child_cdfs = pickle.load(fh)
+                candgen.max_children = pickle.load(fh)
             return candgen
 
     def save_to_file(self, fname):
