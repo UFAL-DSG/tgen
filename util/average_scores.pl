@@ -1,4 +1,11 @@
 #!/usr/bin/env perl
+#
+# Averaging scores (BEST tree on a list, NODE/DEP F1, BLEU/NIST) from different
+# cross-validation runs.
+#
+# Always uses the last value found in the file, ie. the value from the last training iteration
+# (if run against training log files).
+#
 
 use strict;
 use warnings;
