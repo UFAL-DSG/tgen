@@ -266,6 +266,7 @@ class ASearchPlanner(SentencePlanner):
         num_iter = 0
         defic_iter = 0
         cdfs = self.candgen.get_merged_cdfs(da)
+        node_limits = self.candgen.get_merged_limits(da)
         if not max_iter:
             max_iter = self.max_iter
 
@@ -278,7 +279,7 @@ class ASearchPlanner(SentencePlanner):
             close_list.push(cand, score)
             log_debug("--- IT %05d: [O: %5d C: %5d]" % (num_iter, len(open_list), len(close_list)))
             log_debug("              [S:   %8.4f    ] %s" % (score, unicode(cand)))
-            successors = self.candgen.get_all_successors(cand, cdfs)
+            successors = self.candgen.get_all_successors(cand, cdfs, node_limits)
             # add candidates with score
             open_list.pushall([(s, self.ranker.score(s, da) * -1)
                                for s in successors if s not in close_list])

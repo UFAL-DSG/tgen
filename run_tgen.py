@@ -9,7 +9,9 @@ Usage: ./tgen.py <action> <argument1 ...>
 Actions:
 
 candgen_train -- train candidate generator (probability distributions)
-    - arguments: [-p prune_threshold] train-das train-ttrees output-model
+    - arguments: [-l] [-p prune_threshold] train-das train-ttrees output-model
+                 * l = create lexicalized candgen (limit using parent lemmas as well as formemes)
+                 * n = engage limits on number of nodes
 
 percrank_train -- train perceptron global ranker
     - arguments: [-d debug-output] [-c candgen-model] [-s data-portion] [-j parallel-jobs] [-w parallel-work-dir] \\
@@ -47,14 +49,17 @@ from tgen.parallel_percrank_train import ParallelPerceptronRanker
 
 
 def candgen_train(args):
-    opts, files = getopt(args, 'p:l')
+    opts, files = getopt(args, 'p:ln')
     prune_threshold = 1
     parent_lemmas = False
+    node_limits = False
     for opt, arg in opts:
         if opt == '-p':
             prune_threshold = int(arg)
         elif opt == '-l':
             parent_lemmas = True
+        elif opt == '-n':
+            node_limits = True
 
     if len(files) != 3:
         sys.exit(__doc__)
@@ -62,7 +67,8 @@ def candgen_train(args):
 
     log_info('Training candidate generator...')
     candgen = RandomCandidateGenerator({'prune_threshold': prune_threshold,
-                                        'parent_lemmas': parent_lemmas})
+                                        'parent_lemmas': parent_lemmas,
+                                        'node_limits': node_limits})
     candgen.train(fname_da_train, fname_ttrees_train)
     candgen.save_to_file(fname_cand_model)
 
