@@ -10,6 +10,8 @@
 use strict;
 use warnings;
 use autodie;
+use File::Basename;
+use File::stat;
 
 my @patterns = ( 'BEST', 'NODE', 'DEP', 'NIST score ' );
 my %data;
@@ -17,8 +19,18 @@ my %lines;
 
 die("Usage: ./$0 file1.log file2.log [...]\n") if (!@ARGV);
 
-# collect data
+# filter ARGV to obtain just one file in each subdirectory
+# TODO make this an option
+my %files_by_dir;
 foreach my $file (@ARGV){
+    my $dir = dirname($file);
+    if (!defined $files_by_dir{$dir} or ( (stat($files_by_dir{$dir}))->[9] < (stat($file))->[9] ) ){
+        $files_by_dir{$dir} = $file;
+    }
+}
+
+# collect data
+foreach my $file (values %files_by_dir){
 
     open( my $fh, '<:utf8', $file );
     my %cur_data = ();
@@ -49,6 +61,7 @@ foreach my $file (@ARGV){
     close($fh);
 }
 
+# compute the averages
 foreach my $pattern (@patterns) {
     
     my $values = $data{$pattern};

@@ -20,6 +20,9 @@ AVERAGE_SCORES = ../util/average_scores.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
+LOGFILES = $$file/T.* $$file/{asearch_gen.,}log.txt # logfile pattern to use for score printing
+SCOREFILE = SCORE
+
 # Runs directories
 RUNS_DIR  := runs# main directory for experiment outputs
 TRY_NUM   := $(shell perl -e '$$m=0; for(<$(RUNS_DIR)/*>){/\/(\d+)_/ and $$1 > $$m and $$m=$$1;} printf "%03d", $$m+1;')# experiment number
@@ -136,24 +139,27 @@ help:
 # List all experiments, find scores in logs (of various versions)
 desc:
 	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
-	    	if [[ -f $$file/SCORE && -z "$(REFRESH)" ]]; then \
-			cat $$file/SCORE ; \
+	    	if [[ -f $$file/$(SCOREFILE) && -z "$(REFRESH)" ]]; then \
+			cat $$file/$(SCOREFILE) ; \
 			continue ; \
 		fi ; \
-		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/SCORE;  \
+		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/$(SCOREFILE);  \
 		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
-			score=`grep -i "Node precision" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/;s/Precision/P/;s/Recall/R/;' | tr -d '\n'`; \
-			echo -en "   $$score" >> $$file/SCORE; \
-			lists=`grep -i "Gold tree BEST" $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/.*Gold tree BEST/GoldT B/;s/on CLOSE/C/;s/on ANY list/A/;' | tr -d '\n'`; \
-			echo -en "   $$lists" >> $$file/SCORE; \
-			bleu=`grep -i '^NIST ' $$file/T.* $$file/{asearch_gen.,}log.txt 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;s/ score//g' | tr -d '\n'`; \
-			echo -en "   $$bleu"  >> $$file/SCORE; \
+			score=`grep -iE "(Node precision|NODE scores)" $(LOGFILES) 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/;s/.*NODE scores: //;s/Precision/P/;s/Recall/R/;' | tr -d '\n'`; \
+			echo -en "   $$score" >> $$file/$(SCOREFILE); \
+			lists=`grep -i "Gold tree BEST" $(LOGFILES) 2>/dev/null | head -n 1 | sed 's/.*Gold tree BEST/GoldT B/;s/on CLOSE/C/;s/on ANY list/A/;' | tr -d '\n'`; \
+			echo -en "   $$lists" >> $$file/$(SCOREFILE); \
+			bleu=`grep -i '^NIST ' $(LOGFILES) 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;s/ score//g' | tr -d '\n'`; \
+			echo -en "   $$bleu"  >> $$file/$(SCOREFILE); \
 		fi; \
-		echo -ne '\t' >> $$file/SCORE ; \
-		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/SCORE; \
-		echo >> $$file/SCORE; \
-		cat $$file/SCORE; \
+		echo -ne '\t' >> $$file/$(SCOREFILE) ; \
+		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
+		echo >> $$file/$(SCOREFILE); \
+		cat $$file/$(SCOREFILE); \
 	done
+
+train_desc:
+	make desc SCOREFILE=TRAIN_SCORE LOGFILES='$$$$file/percrank_train.log.txt' NUM_EXP=$(NUM_EXP) REFRESH=$(REFRESH)
 
 
 printvars:
@@ -195,6 +201,14 @@ cv_score-%:
 
 cv_score:
 	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+
+cv_train_stats-%:
+	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
+	$(eval TRY_NUM := $*)
+	make cv_train_stats TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
+
+cv_train_stats:
+	$(AVERAGE_SCORES) $(TRY_DIR)/cv??/T.*.percrank_train.o* | tee $(TRY_DIR)/percrank_train.log.txt
 
 
 percrank_train: RUN_NAME := percrank_train
@@ -304,3 +318,5 @@ candgen_train:
 		../run_tgen.py candgen_train $(CANDGEN_PARAMS) data/$$D/$$CV/train-das.txt data/$$D/$$CV/train-text.pickle.gz model/$$D/$$CV/candgen.pickle.gz; \
 		done; \
 	done
+
+
