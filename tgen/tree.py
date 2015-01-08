@@ -87,6 +87,9 @@ class TreeData(object):
     def children_idxs(self, parent_idx):
         return [idx for idx, val in enumerate(self.parents) if val == parent_idx]
 
+    def children_num(self, parent_idx):
+        return sum(1 for val in self.parents if val == parent_idx)
+
     def node_depth(self, node_idx):
         depth = 0
         while node_idx > 0:

@@ -192,7 +192,7 @@ class SamplingPlanner(SentencePlanner):
 
     def generate_tree(self, da, gen_doc=None):
         root = TreeNode(TreeData())
-        cdfs = self.candgen.get_merged_cdfs(da)
+        cdfs = self.candgen.get_merged_child_type_cdfs(da)
         nodes = deque([self.generate_child(root, da, cdfs[root.formeme])])
         treesize = 1
         while nodes and treesize < self.MAX_TREE_SIZE:
@@ -257,15 +257,14 @@ class ASearchPlanner(SentencePlanner):
         @rtype: tuple
         @return: the resulting open and close lists
         """
-        # TODO add future cost ?
-
         # initialization
         empty_tree = TreeData()
-        open_list = CandidateList({empty_tree: self.ranker.score(empty_tree, da) * -1})
+        empty_tree_score = self.ranker.score(empty_tree, da) + self.ranker.get_future_promise(empty_tree)
+        open_list = CandidateList({empty_tree: empty_tree_score * -1})
         close_list = CandidateList()
         num_iter = 0
         defic_iter = 0
-        cdfs = self.candgen.get_merged_cdfs(da)
+        cdfs = self.candgen.get_merged_child_type_cdfs(da)
         node_limits = self.candgen.get_merged_limits(da)
         if not max_iter:
             max_iter = self.max_iter
@@ -281,8 +280,12 @@ class ASearchPlanner(SentencePlanner):
             log_debug("              [S:   %8.4f    ] %s" % (score, unicode(cand)))
             successors = self.candgen.get_all_successors(cand, cdfs, node_limits)
             # add candidates with score
-            open_list.pushall([(s, self.ranker.score(s, da) * -1)
-                               for s in successors if s not in close_list])
+            for succ in successors:
+                if succ in close_list:
+                    continue
+                score = self.ranker.score(succ, da)
+                futpr = self.ranker.get_future_promise(succ)
+                open_list.push(succ, -(score + futpr))
             # pruning (if supposed to do it)
             # TODO do not even add them on the open list when pruning
             if beam_size is not None:

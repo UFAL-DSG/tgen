@@ -50,6 +50,7 @@ class PerceptronRanker(Ranker):
             cfg = {}
         self.w_after_iter = []
         self.w = None
+        self.w_sum = 0.0
         self.feats = ['bias: bias']
         self.vectorizer = None
         self.normalizer = None
@@ -60,6 +61,7 @@ class PerceptronRanker(Ranker):
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
         self.averaging = cfg.get('averaging', False)
+        self.future_promise_weight = cfg.get('future_promise_weight', 1.0)
         self.rival_gen_strategy = cfg.get('rival_gen_strategy', ['other_inst'])
         self.rival_gen_max_iter = cfg.get('rival_gen_max_iter', 50)
         self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
@@ -84,6 +86,10 @@ class PerceptronRanker(Ranker):
     def _extract_feats(self, tree, da):
         return self.normalizer.transform(
             self.vectorizer.transform([self.feats.get_features(tree, {'da': da})]))[0]
+
+    def get_future_promise(self, cand_tree):
+        """Compute expected future cost for a tree."""
+        return self.candgen.get_future_promise(cand_tree) * self.w_sum * self.future_promise_weight
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run training on the given training data."""
@@ -143,6 +149,7 @@ class PerceptronRanker(Ranker):
 
         # initialize weights
         self.w = np.ones(self.train_feats.shape[1])
+        self.w_sum = sum(self.w)
         # self.w = np.array([random.gauss(0, self.alpha) for _ in xrange(self.train_feats.shape[1])])
 
         log_debug('\n***\nINIT:')
@@ -158,6 +165,7 @@ class PerceptronRanker(Ranker):
         iter_start_time = time.clock()
         self.evaluator = Evaluator()
         self.lists_analyzer = ASearchListsAnalyzer()
+        self.w_sum = sum(self.w)
 
         log_debug('\n***\nTR %05d:' % iter_no)
 

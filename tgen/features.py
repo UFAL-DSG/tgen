@@ -40,7 +40,7 @@ def attribs_val(tree, idx, attribs):
     val = []
     for attrib in attribs:
         if attrib == 'num_children':
-            val.append(str(sum(1 for i in xrange(len(tree)) if tree.parents[i] == idx)))
+            val.append(str(tree.children_num(idx)))
         else:
             val.append(unicode(getattr(tree.nodes[idx], attrib)))
     return '+'.join(val)

@@ -27,11 +27,18 @@ class RandomCandidateGenerator(object):
     def __init__(self, cfg):
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
-        self.form_counts = None
-        self.child_cdfs = None
+        # possible children given parent ID and DAIs
+        self.child_type_counts = None
+        # CDFs on the number of children given parent ID
+        self.child_num_cdfs = None
+        # maximum number of children given parent ID
         self.max_children = None
+        # expected number of children given parent ID
+        self.exp_child_num = None
         self.prune_threshold = cfg.get('prune_threshold', 1)
         self.parent_lemmas = cfg.get('parent_lemmas', False)
+        # limits on tree size / number of nodes at depth level, given DAIs
+        # (initialized to boolean, which then triggers training)
         self.node_limits = cfg.get('node_limits', False)
 
     @staticmethod
@@ -40,13 +47,18 @@ class RandomCandidateGenerator(object):
         with file_stream(fname, mode='rb', encoding=None) as fh:
             candgen = pickle.load(fh)
             if type(candgen) == dict:  # backward compatibility
-                form_counts = candgen
+                child_type_counts = candgen
                 candgen = RandomCandidateGenerator({})
-                candgen.form_counts = form_counts
-                candgen.child_cdfs = pickle.load(fh)
+                candgen.child_type_counts = child_type_counts
+                candgen.child_num_cdfs = pickle.load(fh)
                 candgen.max_children = pickle.load(fh)
             if not hasattr(candgen, 'node_limits'):  # backward compatibility
                 candgen.node_limits = None
+            if not hasattr(candgen, 'child_type_counts'):  # backward compatibility
+                candgen.child_type_counts = candgen.form_counts
+                candgen.child_num_cdfs = candgen.child_cdfs
+            if not hasattr(candgen, 'exp_child_num'):
+                candgen.exp_child_num = candgen.exp_from_cdfs(candgen.child_num_cdfs)
             return candgen
 
     def save_to_file(self, fname):
@@ -68,8 +80,8 @@ class RandomCandidateGenerator(object):
 
         # collect counts
         log_info('Collecting counts')
-        form_counts = {}
-        child_counts = defaultdict(Counter)
+        child_type_counts = {}
+        child_num_counts = defaultdict(Counter)
         max_total_nodes = defaultdict(int)
         max_level_nodes = defaultdict(Counter)
 
@@ -77,15 +89,15 @@ class RandomCandidateGenerator(object):
             # counts for formeme/lemma given DAI
             for dai in da:
                 for tnode in ttree.get_descendants():
-                    if dai not in form_counts:
-                        form_counts[dai] = defaultdict(Counter)
+                    if dai not in child_type_counts:
+                        child_type_counts[dai] = defaultdict(Counter)
                     parent_id = self._parent_node_id(tnode.parent)
                     child_id = (tnode.formeme, tnode.t_lemma, tnode > tnode.parent)
-                    form_counts[dai][parent_id][child_id] += 1
+                    child_type_counts[dai][parent_id][child_id] += 1
 
             # counts for number of children
             for tnode in ttree.get_descendants(add_self=1):
-                child_counts[self._parent_node_id(tnode)][len(tnode.get_children())] += 1
+                child_num_counts[self._parent_node_id(tnode)][len(tnode.get_children())] += 1
 
             # counts for max. number of nodes
             total_nodes = len(ttree.get_descendants(add_self=True))
@@ -101,17 +113,19 @@ class RandomCandidateGenerator(object):
 
         # prune counts
         if self.prune_threshold > 1:
-            for dai, forms in form_counts.items():
+            for dai, forms in child_type_counts.items():
                 self.prune(forms)
                 if not forms:
-                    del form_counts[dai]
-            self.prune(child_counts)
+                    del child_type_counts[dai]
+            self.prune(child_num_counts)
 
         # transform counts
-        self.form_counts = form_counts
-        self.child_cdfs = self.cdfs_from_counts(child_counts)
-        self.max_children = {par_id: max(child_counts[par_id].keys())
-                             for par_id in child_counts.keys()}
+        self.child_type_counts = child_type_counts
+        self.child_num_cdfs = self.cdfs_from_counts(child_num_counts)
+        self.max_children = {par_id: max(child_num_counts[par_id].keys())
+                             for par_id in child_num_counts.keys()}
+        self.exp_child_num = self.exp_from_cdfs(self.child_num_cdfs)
+
         if self.node_limits:
             self.node_limits = {dai: {'total': max_total}
                                 for dai, max_total in max_total_nodes.iteritems()}
@@ -140,7 +154,7 @@ class RandomCandidateGenerator(object):
             if not counts[parent_type]:
                 del counts[parent_type]
 
-    def get_merged_cdfs(self, da):
+    def get_merged_child_type_cdfs(self, da):
         """Get merged child CDFs for the DAIs in the given DA.
 
         @param da: the current dialogue act
@@ -148,8 +162,8 @@ class RandomCandidateGenerator(object):
         merged_counts = defaultdict(Counter)
         for dai in da:
             try:
-                for parent_id in self.form_counts[dai]:
-                    merged_counts[parent_id].update(self.form_counts[dai][parent_id])
+                for parent_id in self.child_type_counts[dai]:
+                    merged_counts[parent_id].update(self.child_type_counts[dai][parent_id])
             except KeyError:
                 log_warn('DAI ' + unicode(dai) + ' unknown, adding nothing to CDF.')
         return self.cdfs_from_counts(merged_counts)
@@ -188,6 +202,27 @@ class RandomCandidateGenerator(object):
             cdfs[key] = cdf
         return cdfs
 
+    def exp_from_cdfs(self, cdfs):
+        """Given a dictionary of CDFs (with numeric subkeys), create a dictionary of
+        corresponding expected values. Used for children counts."""
+        exps = {}
+        for key, cdf in cdfs.iteritems():
+            # convert the CDF -- array of tuples (value, cumulative probability) into an
+            # array of rising cumulative probabilities (duplicate last probability
+            # if there is no change)
+            cdf_arr = [-1] * (max(i for i, _ in cdf) + 1)
+            for i, v in cdf:
+                cdf_arr[i] = v
+            for i, v in enumerate(cdf_arr):
+                if v == -1:
+                    if i == 0:
+                        cdf_arr[0] = 0.0
+                    else:
+                        cdf_arr[i] = cdf_arr[i - 1]
+            # compute E[X] = sum _x=1^inf ( 1 - CDF(x) )
+            exps[key] = sum(1 - cdf_val for cdf_val in cdf_arr)
+        return exps
+
     def sample(self, cdf):
         """Return a sample from the distribution, given a CDF (as a list)."""
         total = cdf[-1][1]
@@ -198,9 +233,9 @@ class RandomCandidateGenerator(object):
         raise Exception('Unable to generate from CDF!')
 
     def get_number_of_children(self, parent_id):
-        if parent_id not in self.child_cdfs:
+        if parent_id not in self.child_num_cdfs:
             return 0
-        return self.sample(self.child_cdfs[parent_id])
+        return self.sample(self.child_num_cdfs[parent_id])
 
     def get_best_child(self, parent, da, cdf):
         return self.sample(cdf)
@@ -209,7 +244,7 @@ class RandomCandidateGenerator(object):
         """Get all possible successors of a candidate tree, given CDFS and node number limits.
 
         @param cand_tree: The current candidate tree to be expanded
-        @param cdfs: Merged CDFs of children given the current DA (obtained using get_merged_cdfs)
+        @param cdfs: Merged CDFs of children given the current DA (obtained using get_merged_child_type_cdfs)
         @param node_limits: limits on the number of nodes (total and on different child_depth levels, \
             obtained via get_merged_limits)
         """
@@ -245,3 +280,12 @@ class RandomCandidateGenerator(object):
 
         # return all created successors
         return res
+
+    def get_future_promise(self, cand_tree):
+        """Get the total expected number of future children in the given tree (based on the
+        expectations for the individual node types)."""
+        promise = 0.0
+        for node_idx in xrange(len(cand_tree)):
+            exp_child_num = self.exp_child_num[self._parent_node_id(cand_tree.nodes[node_idx])]
+            promise += max(cand_tree.children_num(node_idx) - exp_child_num, 0)
+        return promise
