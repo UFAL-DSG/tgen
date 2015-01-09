@@ -250,6 +250,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.lists_analyzer = self.lists_analyzer
         percrank.evaluator = self.evaluator
         percrank.future_promise_weight = self.future_promise_weight
+        percrank.future_promise_type = self.future_promise_type
         return percrank
 
     def save_to_file(self, model_fname):

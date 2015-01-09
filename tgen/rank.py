@@ -62,6 +62,7 @@ class PerceptronRanker(Ranker):
         self.selector = cfg.get('selector', '')
         self.averaging = cfg.get('averaging', False)
         self.future_promise_weight = cfg.get('future_promise_weight', 1.0)
+        self.future_promise_type = cfg.get('future_promise_type', 'expected_children')
         self.rival_gen_strategy = cfg.get('rival_gen_strategy', ['other_inst'])
         self.rival_gen_max_iter = cfg.get('rival_gen_max_iter', 50)
         self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
@@ -89,7 +90,10 @@ class PerceptronRanker(Ranker):
 
     def get_future_promise(self, cand_tree):
         """Compute expected future cost for a tree."""
-        return self.candgen.get_future_promise(cand_tree) * self.w_sum * self.future_promise_weight
+        if self.future_promise_type == 'num_nodes':
+            return self.w_sum * self.future_promise_weight * max(0, 10 - len(cand_tree))
+        else:  # expected children (default)
+            return self.candgen.get_future_promise(cand_tree) * self.w_sum * self.future_promise_weight
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run training on the given training data."""
