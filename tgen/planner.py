@@ -18,7 +18,8 @@ class CandidateList(DictMixin):
     """List of candidate trees that can be quickly checked for membership and
     can yield the best-scoring candidate quickly.
 
-    The implementation involves a dictionary and a heap."""
+    The implementation involves a dictionary and a heap. The heap is sorted by
+    value (score), the dictionary is indexed by the keys (candidate trees)."""
 
     def __init__(self, members=None):
         self.queue = []
@@ -259,9 +260,11 @@ class ASearchPlanner(SentencePlanner):
         """
         # initialization
         empty_tree = TreeData()
-        empty_tree_score = self.ranker.score(empty_tree, da) + self.ranker.get_future_promise(empty_tree)
-        open_list = CandidateList({empty_tree: empty_tree_score * -1})
+        et_score = self.ranker.score(empty_tree, da)
+        et_futpr = self.ranker.get_future_promise(empty_tree)
+        open_list = CandidateList({empty_tree: (-(et_score + et_futpr), -et_score, -et_futpr)})
         close_list = CandidateList()
+
         num_iter = 0
         defic_iter = 0
         cdfs = self.candgen.get_merged_child_type_cdfs(da)
@@ -275,17 +278,17 @@ class ASearchPlanner(SentencePlanner):
             # log_debug("   OPEN : %s" % str(open_list))
             # log_debug("   CLOSE: %s" % str(close_list))
             cand, score = open_list.pop()
-            close_list.push(cand, score)
+            close_list.push(cand, score[1])  # only use score without future promise
             log_debug("--- IT %05d: [O: %5d C: %5d]" % (num_iter, len(open_list), len(close_list)))
-            log_debug("              [S:   %8.4f    ] %s" % (score, unicode(cand)))
+            log_debug("              [S:   %8.4f    ] %s" % (score[1], unicode(cand)))
             successors = self.candgen.get_all_successors(cand, cdfs, node_limits)
-            # add candidates with score
+            # add candidates with score (negative for the min-heap)
             for succ in successors:
                 if succ in close_list:
                     continue
                 score = self.ranker.score(succ, da)
                 futpr = self.ranker.get_future_promise(succ)
-                open_list.push(succ, -(score + futpr))
+                open_list.push(succ, (-(score + futpr), -score, -futpr))
             # pruning (if supposed to do it)
             # TODO do not even add them on the open list when pruning
             if beam_size is not None:
@@ -294,8 +297,9 @@ class ASearchPlanner(SentencePlanner):
             num_iter += 1
             # check where the score is higher -- on the open or on the close list
             # keep track of 'deficit' iterations (and do not allow more than the threshold)
+            # TODO decide how to check this: should we check the combined score against the close list?
             if open_list and close_list:
-                open_best_score, close_best_score = open_list.peek()[1], close_list.peek()[1]
+                open_best_score, close_best_score = open_list.peek()[1][1], close_list.peek()[1]
                 if open_best_score <= close_best_score:  # scores are negative, less is better
                     defic_iter = 0
                 else:
@@ -305,5 +309,10 @@ class ASearchPlanner(SentencePlanner):
                 log_debug('ITERATION LIMIT REACHED')
             elif defic_iter == max_defic_iter:
                 log_debug('DEFICIT ITERATION LIMIT REACHED')
+
+        # now push everything from open list to close list, getting rid of future cost
+        while open_list:
+            cand, score = open_list.pop()
+            close_list.push(cand, score[1])
 
         return open_list, close_list

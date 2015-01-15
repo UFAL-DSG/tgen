@@ -92,6 +92,15 @@ class PerceptronRanker(Ranker):
         """Compute expected future cost for a tree."""
         if self.future_promise_type == 'num_nodes':
             return self.w_sum * self.future_promise_weight * max(0, 10 - len(cand_tree))
+        elif self.future_promise_type == 'norm_exp_children':
+            return (self.candgen.get_future_promise(cand_tree) / len(cand_tree)) * self.w_sum * self.future_promise_weight
+        elif self.future_promise_type == 'ands':
+            prom = 0
+            for idx, node in enumerate(cand_tree.nodes):
+                if node.t_lemma == 'and':
+                    num_kids = cand_tree.children_num(idx)
+                    prom += max(0, 2 - num_kids)
+            return (prom / len(cand_tree)) * self.w_sum * self.future_promise_weight
         else:  # expected children (default)
             return self.candgen.get_future_promise(cand_tree) * self.w_sum * self.future_promise_weight
 
@@ -99,7 +108,9 @@ class PerceptronRanker(Ranker):
         """Run training on the given training data."""
         self._init_training(das_file, ttree_file, data_portion)
         for iter_no in xrange(1, self.passes + 1):
-            self._training_iter(iter_no)
+            evaluator, _ = self._training_iter(iter_no)
+            if evaluator.tree_accuracy() == 1:  # if tree accuracy is 1, we won't learn anything anymore
+                break
         # averaged perceptron – average the weights obtained after each iteration
         if self.averaging is True:
             self.w = np.average(self.w_after_iter, axis=0)
