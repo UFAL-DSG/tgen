@@ -17,6 +17,7 @@ ifdef DEBUG
 endif
 MTEVAL = ../util/mteval-v11b.pl
 AVERAGE_SCORES = ../util/average_scores.pl
+GREP_SCORES = ../util/grep_scores.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
@@ -145,14 +146,9 @@ desc:
 		fi ; \
 		echo -ne $$file ": \t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/$(SCOREFILE);  \
 		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
-			score=`grep -iE "(Node precision|NODE scores)" $(LOGFILES) 2>/dev/null | head -n 1 | sed 's/.*N[Oo][Dd][Ee] p/P/;s/.*NODE scores: //;s/Precision/P/;s/Recall/R/;' | tr -d '\n'`; \
-			echo -en "   $$score" >> $$file/$(SCOREFILE); \
-			lists=`grep -i "Gold tree BEST" $(LOGFILES) 2>/dev/null | head -n 1 | sed 's/.*Gold tree BEST/GoldT B/;s/on CLOSE/C/;s/on ANY list/A/;' | tr -d '\n'`; \
-			echo -en "   $$lists" >> $$file/$(SCOREFILE); \
-			bleu=`grep -i '^NIST ' $(LOGFILES) 2>/dev/null | head -n 1 | sed 's/^.*NIST/NIST/;s/ for system.*$$//;s/ score//g' | tr -d '\n'`; \
-			echo -en "   $$bleu"  >> $$file/$(SCOREFILE); \
+			$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
 		fi; \
-		echo -ne '\t' >> $$file/$(SCOREFILE) ; \
+		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
 		echo >> $$file/$(SCOREFILE); \
 		cat $$file/$(SCOREFILE); \
