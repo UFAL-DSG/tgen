@@ -224,10 +224,15 @@ def asearch_gen(args):
         # generate + analyze open&close lists
         lists_analyzer = ASearchListsAnalyzer()
         for num, (da, gold_tree) in enumerate(zip(das,
-                                                  trees_from_doc(eval_doc, tgen.language, eval_selector))):
+                                                  trees_from_doc(eval_doc, tgen.language, eval_selector)),
+                                              start=1):
             log_debug("\n\nTREE No. %03d" % num)
             open_list, close_list = tgen.generate_tree(da, gen_doc, return_lists=True)
             lists_analyzer.append(gold_tree, open_list, close_list)
+            gen_tree = close_list.peek()[0]
+            if gen_tree != gold_tree:
+                log_debug("\nDIFFING TREES:\n" + tgen.ranker.diffing_trees_with_scores(da, gold_tree, gen_tree) + "\n")
+
         log_info('Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' % lists_analyzer.stats())
 
         # evaluate the generated trees against golden trees

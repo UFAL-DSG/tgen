@@ -100,7 +100,7 @@ class PerceptronRanker(Ranker):
                 if node.t_lemma == 'and':
                     num_kids = cand_tree.children_num(idx)
                     prom += max(0, 2 - num_kids)
-            return (prom / len(cand_tree)) * self.w_sum * self.future_promise_weight
+            return prom * self.w_sum * self.future_promise_weight
         else:  # expected children (default)
             return self.candgen.get_future_promise(cand_tree) * self.w_sum * self.future_promise_weight
 
@@ -221,6 +221,20 @@ class PerceptronRanker(Ranker):
         # print and return statistics
         self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.clock() - iter_start_time)))
         return self.evaluator, self.lists_analyzer
+
+    def diffing_trees_with_scores(self, da, good_tree, bad_tree):
+        """For debugging purposes. Return a printout of diffing trees between the chosen candidate
+        and the gold tree, along with scores."""
+        good_sts, bad_sts = good_tree.diffing_trees(bad_tree, symmetric=False)
+        comm_st = good_tree.get_common_subtree(bad_tree)
+        ret = 'Common subtree: %.3f' % self.score(comm_st, da) + "\t" + unicode(comm_st) + "\n"
+        ret += "Good subtrees:\n"
+        for good_st in good_sts:
+            ret += "%.3f" % self.score(good_st, da) + "\t" + unicode(good_st) + "\n"
+        ret += "Bad subtrees:\n"
+        for bad_st in bad_sts:
+            ret += "%.3f" % self.score(bad_st, da) + "\t" + unicode(bad_st) + "\n"
+        return ret
 
     def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
         # discount trees leading to the generated one and add trees leading to the gold one
