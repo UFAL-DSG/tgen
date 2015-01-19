@@ -14,9 +14,11 @@ my %lines;
 
 die("Usage: ./$0 file1.log file2.log [...]\n") if ( !@ARGV );
 
+
 # Filter ARGV and get just the last log file
 # TODO make this an option
 my $file_to_process = undef;
+
 foreach my $file (@ARGV) {
     next if ( !-e $file );
     if ( !defined $file_to_process or ( ( stat($file_to_process) )->[9] < ( stat($file) )->[9] ) ) {
@@ -24,6 +26,7 @@ foreach my $file (@ARGV) {
     }
 }
 exit() if ( !defined $file_to_process );
+
 
 # Process the file
 open( my $fh, '<:utf8', $file_to_process );
@@ -96,3 +99,4 @@ sub rg {
     $g = 0 if ( $g < 0 );
     return rgb_code( $r, $g, 0 );
 }
+
