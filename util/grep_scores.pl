@@ -9,8 +9,6 @@ use autodie;
 use File::Basename;
 use File::stat;
 
-my %data;
-my %lines;
 
 die("Usage: ./$0 file1.log file2.log [...]\n") if ( !@ARGV );
 
@@ -30,22 +28,20 @@ exit() if ( !defined $file_to_process );
 
 # Process the file
 open( my $fh, '<:utf8', $file_to_process );
-my %cur_data = ();
-
 my ( $pr, $lists, $bleu ) = ( '', '', '' );
 
 while ( my $line = <$fh> ) {
     chomp $line;
 
-    $line =~ s/ 0\.([0-9]{2})/ $1./g;
     $line =~ s/, / /g;
     $line =~ s/ = / /g;
     $line =~ s/: / /g;
+    $line =~ s/(?<!NIST score) 0\.([0-9]{2})/ $1./g;
 
     # Node precision, recall, F1-measure
     if ( $line =~ /(Node precision|NODE scores)/i ) {
         $line =~ s/.*Node p/P/i;
-        $line =~ s/.*NODE scores: //;
+        $line =~ s/.*NODE scores //;
         $line =~ s/F1//;
         $line =~ s/[a-z]//gi;
         $line =~ s/^\s+//;

@@ -13,11 +13,16 @@ else
   ACTIVATE = echo -n
 endif
 ifdef DEBUG
-  DEBUG_LOG = -d $(TRY_DIR)/debug-log.txt
+  DEBUG_LOG_TRAIN = -d $(TRY_DIR)/percrank.debug-log.txt
+  DEBUG_LOG_GEN = -d $(TRY_DIR)/asearch.debug-log.txt
+endif
+ifdef DEBUG_GEN
+  DEBUG_LOG_GEN = -d $(TRY_DIR)/asearch.debug-log.txt
 endif
 MTEVAL = ../util/mteval-v11b.pl
 AVERAGE_SCORES = ../util/average_scores.pl
 GREP_SCORES = ../util/grep_scores.pl
+DESC_EXP = ../util/describe_experiment.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
@@ -124,7 +129,8 @@ within a Virtualenv instead of the default Python.
 
 Use PYPY=1 to activate the preset PyPy Virtualenv.
 
-Use DEBUG=1 to activate debugging outputs.
+Use DEBUG=1 to activate debugging outputs. Use DEBUG_GEN=1 to activate
+debugging only for testing (in CV runs).
 endef
 export HELP_MESSAGE
 
@@ -170,12 +176,11 @@ printgit:
 
 
 prepare_dir:
-	# create the directory (and parallel run directory if needed)
+	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
-	# write the description
-	@if [ -n "$(DESC)" ]; then \
-		echo "$(DESC)" > $(TRY_DIR)/ABOUT; \
-	fi
+	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -j "$(JOBS)" -c "$(CV_NUMS)" $$DEBUG_SETTING $(PERCRANK_CONFIG) > $(TRY_DIR)/ABOUT ; \
+	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
 
@@ -185,7 +190,7 @@ cv_run: RUN_NAME := cv_run
 cv_run: prepare_dir
 cv_run:
 	for CV_NUM in $(CV_NUMS); do \
-		make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM JOBS=$(JOBS) DEBUG=$(DEBUG) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+		make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
 		make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
 	done
@@ -217,7 +222,7 @@ percrank_train:
 	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
 	# run the experiment
 	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) percrank_train $(DEBUG_LOG) -c $(TRY_DIR)/candgen.pickle.gz  \
+		$(TGEN) percrank_train $(DEBUG_LOG_TRAIN) -c $(TRY_DIR)/candgen.pickle.gz  \
 		-s $(TRAIN_PORTION) $(PARALLEL) -e "T.$(TRY_NUM)" \
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
@@ -262,7 +267,7 @@ asearch_gen_process: RUN_NAME := asearch_gen
 asearch_gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG) \
+		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
 		-s $(EVAL_SELECTOR) \
 		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
