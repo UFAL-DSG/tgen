@@ -274,11 +274,21 @@ class RandomCandidateGenerator(object):
                 child_depth = node.get_depth() + 1
                 if nodes_on_level[child_depth] >= node_limits[child_depth]:
                     continue
-            # try all formeme/t-lemma/direction variants of the children at the given spot
+            # try all formeme/t-lemma/direction variants of a new child under the given parent node
             for formeme, t_lemma, right in map(lambda item: item[0], cdfs[parent_id]):
+                # child directly following/preceding the parent
                 succ_tree = cand_tree.clone()
                 succ_tree.create_child(node_num, right, NodeData(t_lemma, formeme))
                 res.append(succ_tree)
+                # if the parent already has children, try to place the new node in all possible
+                # positions between their subtrees
+                children_idxs = cand_tree.children_idxs(node_num, not right, right)
+                for child_idx in children_idxs:
+                    succ_tree = cand_tree.clone()
+                    subtree_bound = succ_tree.subtree_bound(child_idx, right)
+                    succ_tree.create_child(node_num, subtree_bound + (1 if right else 0),
+                                           NodeData(t_lemma, formeme))
+                    res.append(succ_tree)
 
         # return all created successors
         return res
@@ -312,6 +322,7 @@ class RandomCandidateGenerator(object):
                 break
             for succ in self.get_all_successors(cur_st, cdfs, node_limits):
                 tree_no += 1
+                # only push on the open list if the successor is still a subtree of the target tree
                 if tree.common_subtree_size(succ) == len(succ):
                     open_list.push(succ, len(succ))
 
@@ -319,4 +330,35 @@ class RandomCandidateGenerator(object):
             log_info('Did not find tree: ' + unicode(tree) + ' for DA: ' + unicode(da) + ('(total %d trees)' % tree_no))
             return False
         log_info('Found tree: %s for DA: %s (as %d-th tree)' % (unicode(tree), unicode(da), tree_no))
+        return True
+
+    def can_generate_greedy(self, tree, da):
+        """Check if the candidate generator can generate a given tree greedily, always
+        pursuing the first viable path.
+
+        This is for debugging purposes only.
+        Uses `get_all_successors` and always goes on with the first one that increases coverage
+        of the current tree.
+        """
+        cdfs = self.get_merged_child_type_cdfs(da)
+        node_limits = self.get_merged_limits(da)
+        cur_subtree = TreeData()
+        found = True
+
+        while found and cur_subtree != tree:
+            found = False
+            for succ in self.get_all_successors(cur_subtree, cdfs, node_limits):
+                # use the first successor that is still a subtree of the target tree
+                if tree.common_subtree_size(succ) == len(succ):
+                    cur_subtree = succ
+                    found = True
+                    break
+
+        # we have hit a dead end
+        if cur_subtree != tree:
+            log_info('Did not find tree: ' + unicode(tree) + ' for DA: ' + unicode(da))
+            return False
+
+        # everything alright
+        log_info('Found tree: %s for DA: %s' % (unicode(tree), unicode(da)))
         return True

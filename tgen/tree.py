@@ -59,6 +59,7 @@ class TreeData(object):
 
     @staticmethod
     def from_ttree(ttree):
+        """Copy the tree from a T-tree representation (just structure, t-lemmas and formemes)."""
         tree = TreeData()
         tnodes = ttree.get_descendants(ordered=True)
         id2ord = {tnode.id: num for num, tnode in enumerate(tnodes, start=1)}
@@ -70,6 +71,7 @@ class TreeData(object):
 
     @staticmethod
     def from_string(string):
+        """Parse a string representation of the tree, as returned by `__unicode__`."""
         tree = TreeData()
         for node in string.split(' ')[1:]:
             _, parent, t_lemma, formeme = node.split('|')
@@ -77,25 +79,86 @@ class TreeData(object):
             tree.nodes.append(NodeData(t_lemma, formeme))
         return tree
 
-    def create_child(self, parent_idx, right, child_data):
-        child_idx = parent_idx + 1 if right else parent_idx
+    def create_child(self, parent_idx, child_idx, child_data):
+        """Create a child of the given node at the given position, shifting remaining nodes
+        to the right.
+
+        @param parent_idx: index of the parent node
+        @param child_idx: index of the newly created child node (or boolean: left/right of the current parent?)
+        @param child_data: the child node itself as a `NodeData` instance
+        """
+        if isinstance(child_idx, bool):
+            child_idx = parent_idx + 1 if child_idx else parent_idx
         self.nodes.insert(child_idx, child_data)
         self.parents.insert(child_idx, parent_idx)
-        self.parents[:] = [idx + 1 if idx >= child_idx else idx for idx in self.parents[:]]
+        self.parents = [idx + 1 if idx >= child_idx else idx for idx in self.parents]
         return child_idx
 
-    def children_idxs(self, parent_idx):
+    def subtree_bound(self, parent_idx, right):
+        """Return the subtree bound of the given node (furthermost index belonging to the subtree),
+        going left or right.
+
+        NB: This assumes the trees are projective.
+
+        @param parent_idx: index of the node to examine
+        @param right: if True, return rightmost subtree bound; if False, return leftmost bound
+        @return: the furthermost index belonging to the subtree of the given node in the given \
+            direction
+        """
+        move = 1 if right else -1
+        cur_idx = parent_idx + move
+        while cur_idx >= 0 and cur_idx < len(self):
+            # the current node is not in the subtree => the last position was the boundary
+            if not self.is_descendant(parent_idx, cur_idx):
+                return cur_idx - move
+            cur_idx += move
+        # return 0 or len(self-1)
+        return cur_idx - move
+
+    def children_idxs(self, parent_idx, left_only=False, right_only=False):
+        """Return the indexes of the children of the given node.
+
+        @param parent_idx: the node whose children should be found
+        @param left_only: only look for left children (preceding the parent)
+        @param right_only: only look for right children (following the parent)
+        @return: an array of node indexes matching the criteria (may be empty)
+        """
+        if left_only:
+            return [idx for idx, val in enumerate(self.parents[:parent_idx]) if val == parent_idx]
+        if right_only:
+            return [idx for idx, val in enumerate(self.parents[parent_idx + 1:], start=parent_idx + 1)
+                    if val == parent_idx]
         return [idx for idx, val in enumerate(self.parents) if val == parent_idx]
 
     def children_num(self, parent_idx):
         return sum(1 for val in self.parents if val == parent_idx)
 
     def node_depth(self, node_idx):
+        """Return the depth of the given node (the technical root has a depth=0).
+
+        @param node_idx: index of the node to examine
+        @return: An integer indicating the length of the path from the node to the technical root
+        """
         depth = 0
         while node_idx > 0:
             node_idx = self.parents[node_idx]
             depth += 1
         return depth
+
+    def is_descendant(self, anc_idx, desc_idx):
+        """Check if a node is a descendant of another node (there is a directed
+        path between them.
+
+        @param anc_idx: the "ancestor node" index – the node where the path should begin
+        @param desc_idx: the "descendant node" index – the node where the path should end
+        @return: True if the path between the nodes exist, False otherwise
+        """
+        node_idx = desc_idx
+        while node_idx > 0:
+            node_idx = self.parents[node_idx]
+            if node_idx == anc_idx:
+                return True
+        return anc_idx == node_idx
 
     def is_right_child(self, node_idx):
         return self.parents[node_idx] < node_idx
@@ -108,6 +171,9 @@ class TreeData(object):
         return (self is other or
                 ((self.parents is other.parents or self.parents == other.parents) and
                  (self.nodes is other.nodes or self.nodes == other.nodes)))
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __unicode__(self):
         return ' '.join(['%d|%d|%s|%s' % (idx, parent_idx, node.t_lemma, node.formeme)
@@ -187,6 +253,16 @@ class TreeData(object):
     # Adapted from http://rosettacode.org/wiki/Longest_common_subsequence#Python
     @staticmethod
     def _longest_common_subseq(tree_a, idxs_a, tree_b, idxs_b):
+        """Return the common subsequence of tree indexes (out of the given indexes).
+        This is a helper method for `_common_subtree_size` and `_common_subtree_idxs`.
+
+        @param tree_a: first tree
+        @param idxs_a: node indexes of the first tree to examine
+        @param tree_a: second tree
+        @param idxs_a: node indexes of the second tree to examine
+        @return: a tuple of list of node indexes (nodes which are common to both trees, \
+            possibly under different indexes)
+        """
         # dynamic programming, substring
         lengths = [[0 for j in range(len(idxs_b) + 1)] for i in range(len(idxs_a) + 1)]
         # row 0 and column 0 are initialized to 0 already
