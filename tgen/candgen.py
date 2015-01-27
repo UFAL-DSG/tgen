@@ -245,6 +245,8 @@ class RandomCandidateGenerator(object):
     def get_all_successors(self, cand_tree, cdfs, node_limits=None):
         """Get all possible successors of a candidate tree, given CDFS and node number limits.
 
+        NB: This assumes projectivity (will never create a non-projective tree).
+
         @param cand_tree: The current candidate tree to be expanded
         @param cdfs: Merged CDFs of children given the current DA (obtained using get_merged_child_type_cdfs)
         @param node_limits: limits on the number of nodes (total and on different child_depth levels, \
@@ -276,13 +278,14 @@ class RandomCandidateGenerator(object):
                     continue
             # try all formeme/t-lemma/direction variants of a new child under the given parent node
             for formeme, t_lemma, right in map(lambda item: item[0], cdfs[parent_id]):
-                # child directly following/preceding the parent
+                # place the child directly following/preceding the parent
                 succ_tree = cand_tree.clone()
                 succ_tree.create_child(node_num, right, NodeData(t_lemma, formeme))
                 res.append(succ_tree)
-                # if the parent already has children, try to place the new node in all possible
-                # positions between their subtrees
-                children_idxs = cand_tree.children_idxs(node_num, not right, right)
+                # if the parent already has some left/right children, try to place the new node
+                # in all possible positions before/after their subtrees (for left/right child,
+                # respectively)
+                children_idxs = cand_tree.children_idxs(node_num, left_only=not right, right_only=right)
                 for child_idx in children_idxs:
                     succ_tree = cand_tree.clone()
                     subtree_bound = succ_tree.subtree_bound(child_idx, right)
