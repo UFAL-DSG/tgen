@@ -182,7 +182,8 @@ class SentencePlanner(object):
 class SamplingPlanner(SentencePlanner):
     """Random t-tree generator given DAs.
 
-    Trainable from DA distributions
+    TODO: This is obsolete, it will not work after the introduction of TreeData.
+    Fix it or remove it (there's probably no point in having it now).
     """
 
     MAX_TREE_SIZE = 50
