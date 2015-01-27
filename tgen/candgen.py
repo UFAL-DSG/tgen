@@ -16,6 +16,8 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 from futil import read_das, read_ttrees, ttrees_from_doc
 from tree import TreeNode, NodeData
 from tgen.logf import log_warn
+from tgen.tree import TreeData
+from tgen.planner import CandidateList
 
 
 class RandomCandidateGenerator(object):
@@ -289,3 +291,32 @@ class RandomCandidateGenerator(object):
             exp_child_num = self.exp_child_num[self._parent_node_id(cand_tree.nodes[node_idx])]
             promise += max(cand_tree.children_num(node_idx) - exp_child_num, 0)
         return promise
+
+    def can_generate(self, tree, da):
+        """Check if the candidate generator can generate a given tree at all.
+
+        This is for debugging purposes only.
+        Tries if get_all_successors always returns a successor that leads to the given tree
+        (puts on the open list only successors that are subtrees of the given tree).
+        """
+        cdfs = self.get_merged_child_type_cdfs(da)
+        node_limits = self.get_merged_limits(da)
+        open_list = CandidateList({TreeData(): 1})
+        found = False
+        tree_no = 0
+
+        while open_list and not found:
+            cur_st, _ = open_list.pop()
+            if cur_st == tree:
+                found = True
+                break
+            for succ in self.get_all_successors(cur_st, cdfs, node_limits):
+                tree_no += 1
+                if tree.common_subtree_size(succ) == len(succ):
+                    open_list.push(succ, len(succ))
+
+        if not found:
+            log_info('Did not find tree: ' + unicode(tree) + ' for DA: ' + unicode(da) + ('(total %d trees)' % tree_no))
+            return False
+        log_info('Found tree: %s for DA: %s (as %d-th tree)' % (unicode(tree), unicode(da), tree_no))
+        return True
