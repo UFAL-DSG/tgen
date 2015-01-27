@@ -19,7 +19,10 @@ class CandidateList(DictMixin):
     can yield the best-scoring candidate quickly.
 
     The implementation involves a dictionary and a heap. The heap is sorted by
-    value (score), the dictionary is indexed by the keys (candidate trees)."""
+    value (score), the dictionary is indexed by the keys (candidate trees).
+
+    The heap is a min-heap; negative score values are therefore used to keep
+    the highest score on top."""
 
     def __init__(self, members=None):
         self.queue = []

@@ -108,10 +108,10 @@ class PerceptronRanker(Ranker):
         """Run training on the given training data."""
         self._init_training(das_file, ttree_file, data_portion)
         for iter_no in xrange(1, self.passes + 1):
-            evaluator, _ = self._training_iter(iter_no)
+            evaluator, _ = self._training_pass(iter_no)
             if evaluator.tree_accuracy() == 1:  # if tree accuracy is 1, we won't learn anything anymore
                 break
-        # averaged perceptron – average the weights obtained after each iteration
+        # averaged perceptron – average the weights obtained after each pass
         if self.averaging is True:
             self.w = np.average(self.w_after_iter, axis=0)
 
@@ -171,23 +171,28 @@ class PerceptronRanker(Ranker):
         log_debug(self._feat_val_str(self.w))
         log_info('Training ...')
 
-    def _training_iter(self, iter_no):
-        """Run one training iteration, update weights (store them for possible averaging),
+    def _training_pass(self, pass_no):
+        """Run one training pass, update weights (store them for possible averaging),
         and return statistics.
 
-        @return: a tuple of Evaluator and ListsAnalyzer objects containing iteration statistics."""
+        @return: a tuple of Evaluator and ListsAnalyzer objects containing pass statistics."""
 
-        iter_start_time = time.clock()
+        pass_start_time = time.clock()
         self.evaluator = Evaluator()
         self.lists_analyzer = ASearchListsAnalyzer()
         self.w_sum = sum(self.w)
 
-        log_debug('\n***\nTR %05d:' % iter_no)
+        log_debug('\n***\nTR %05d:' % pass_no)
+
+        rgen_max_iter = self._get_num_iters(pass_no, self.rival_gen_max_iter)
+        rgen_max_defic_iter = self._get_num_iters(pass_no, self.rival_gen_max_defic_iter)
+        rgen_beam_size = self.rival_gen_beam_size
 
         for tree_no in xrange(len(self.train_trees)):
             # obtain some 'rival', alternative incorrect candidates
             gold_tree, gold_feats = self.train_trees[tree_no], self.train_feats[tree_no]
-            rival_trees, rival_feats = self._get_rival_candidates(tree_no)
+            rival_trees, rival_feats = self._get_rival_candidates(tree_no, rgen_max_iter,
+                                                                  rgen_max_defic_iter, rgen_beam_size)
             cands = [gold_feats] + rival_feats
 
             # score them along with the right one
@@ -214,12 +219,12 @@ class PerceptronRanker(Ranker):
         # store a copy of the current weights for averaging
         self.w_after_iter.append(np.copy(self.w))
 
-        # debug print: current weights and iteration accuracy
+        # debug print: current weights and pass accuracy
         log_debug(self._feat_val_str(self.w), '\n***')
-        log_debug('ITER ACCURACY: %.3f' % self.evaluator.tree_accuracy())
+        log_debug('PASS ACCURACY: %.3f' % self.evaluator.tree_accuracy())
 
         # print and return statistics
-        self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.clock() - iter_start_time)))
+        self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.clock() - pass_start_time)))
         return self.evaluator, self.lists_analyzer
 
     def diffing_trees_with_scores(self, da, good_tree, bad_tree):
@@ -272,9 +277,20 @@ class PerceptronRanker(Ranker):
             self.w += (self.alpha * good_feats - self.alpha * bad_feats)
         # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
 
-    def _print_iter_stats(self, iter_no, iter_duration):
-        """Print iteration statistics from internal evaluator fields and given iteration duration."""
-        log_info('Iteration %05d -- tree-level accuracy: %.4f' % (iter_no, self.evaluator.tree_accuracy()))
+    def _get_num_iters(self, cur_pass_no, iter_setting):
+        if isinstance(iter_setting, (list, tuple)):
+            ret = 0
+            for set_pass_no, set_iter_no in iter_setting:
+                if set_pass_no > cur_pass_no:
+                    break
+                ret = set_iter_no
+            return ret
+        else:
+            return iter_setting  # a single setting for all passes
+
+    def _print_pass_stats(self, pass_no, pass_duration):
+        """Print pass statistics from internal evaluator fields and given pass duration."""
+        log_info('Pass %05d -- tree-level accuracy: %.4f' % (pass_no, self.evaluator.tree_accuracy()))
         log_info(' * Generated trees NODE scores: P: %.4f, R: %.4f, F: %.4f' %
                  self.evaluator.p_r_f1())
         log_info(' * Generated trees DEP  scores: P: %.4f, R: %.4f, F: %.4f' %
@@ -287,14 +303,14 @@ class PerceptronRanker(Ranker):
                  self.evaluator.common_subtree_stats())
         log_info(' * Score stats\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s'
                  % self.evaluator.score_stats())
-        log_info(' * Duration: %s' % str(iter_duration))
+        log_info(' * Duration: %s' % str(pass_duration))
 
     def _feat_val_str(self, vec, sep='\n', nonzero=False):
         return sep.join(['%s: %.3f' % (name, weight)
                          for name, weight in zip(self.vectorizer.get_feature_names(), vec)
                          if not nonzero or weight != 0])
 
-    def _get_rival_candidates(self, tree_no):
+    def _get_rival_candidates(self, tree_no, max_iter, max_defic_iter, beam_size):
         """Generate some rival candidates for a DA and the correct (gold) tree,
         given the current rival generation strategy (self.rival_gen_strategy).
 
@@ -332,10 +348,7 @@ class PerceptronRanker(Ranker):
         # weights to guide the search, and the current DA as the input
         # TODO: use just one!, others are meaningless
         if 'gen_cur_weights' in self.rival_gen_strategy:
-            open_list, close_list = self.asearch_planner.run(da,
-                                                             self.rival_gen_max_iter,
-                                                             self.rival_gen_max_defic_iter,
-                                                             self.rival_gen_beam_size)
+            open_list, close_list = self.asearch_planner.run(da, max_iter, max_defic_iter, beam_size)
             self.lists_analyzer.append(train_trees[tree_no], open_list, close_list)
             gen_trees = []
             while close_list and len(gen_trees) < self.rival_number:

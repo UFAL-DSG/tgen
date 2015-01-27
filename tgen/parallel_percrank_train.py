@@ -101,7 +101,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         host_short, _ = self.host.split('.', 1)  # short host name for job names
         for j in xrange(self.jobs_number):
             # set up debugging logfile only if we have it on the head
-            debug_logfile = ('"PRT%02d.debug-out.txt"' % j) if is_debug_stream() else 'None'
+            debug_logfile = ('"PRT%02d.debug-out.txt.gz"' % j) if is_debug_stream() else 'None'
             job = Job(header='from tgen.parallel_percrank_train import run_worker',
                       code=('run_worker("%s", %d, %s)' %
                             (self.host, self.port, debug_logfile)),
@@ -109,7 +109,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
                       work_dir=self.work_dir)
             job.submit(self.job_memory)
             self.jobs.append(job)
-        # run the training iterations
+        # run the training passes
         try:
             for iter_no in xrange(1, self.passes + 1):
 
@@ -142,7 +142,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
                         sc = self.free_services.popleft()
                         log_info('Assigning request %d / %d to %s:%d' %
                                  (iter_no, cur_portion, sc.host, sc.port))
-                        train_func = async(sc.conn.root.training_iter)
+                        train_func = async(sc.conn.root.training_pass)
                         req = train_func(w_dump, iter_no, *self._get_portion_bounds(cur_portion))
                         self.pending_requests.add((sc, cur_portion, req))
                         cur_portion += 1
@@ -164,9 +164,9 @@ class ParallelPerceptronRanker(PerceptronRanker):
 
                 # print statistics
                 log_debug(self._feat_val_str(self.w), '\n***')
-                self._print_iter_stats(iter_no, datetime.timedelta(seconds=(time.time() - iter_start_time)))
+                self._print_pass_stats(iter_no, datetime.timedelta(seconds=(time.time() - iter_start_time)))
 
-            # after all iterations: average weights if set to do so
+            # after all passes: average weights if set to do so
             if self.averaging is True:
                 self.w = np.average(self.w_after_iter, axis=0)
         # kill all jobs
@@ -272,10 +272,10 @@ class PercRankTrainingService(Service):
         self.percrank = pickle.loads(head_percrank)
         log_info('Training initialized.')
 
-    def exposed_training_iter(self, w, iter_no, data_offset, data_len):
-        """(Worker) Run one iteration on a part of the training data."""
-        log_info('Training iteration %d with data portion %d + %d' %
-                 (iter_no, data_offset, data_len))
+    def exposed_training_pass(self, w, pass_no, data_offset, data_len):
+        """(Worker) Run one pass over a part of the training data."""
+        log_info('Training pass %d with data portion %d + %d' %
+                 (pass_no, data_offset, data_len))
         # import current feature weights
         percrank = self.percrank
         percrank.w = pickle.loads(w)
@@ -290,14 +290,14 @@ class PercRankTrainingService(Service):
         all_train_sents = percrank.train_sents
         percrank.train_sents = percrank.train_sents[data_offset:data_offset + data_len]
         # do the actual computation (update w)
-        evaluator, lists_analyzer = percrank._training_iter(iter_no)
+        evaluator, lists_analyzer = percrank._training_pass(pass_no)
         # return the rest of the training data to member variables
         percrank.train_das = all_train_das
         percrank.train_trees = all_train_trees
         percrank.train_feats = all_train_feats
         percrank.train_sents = all_train_sents
         # return the result of the computation
-        log_info('Training iteration %d / %d / %d done.' % (iter_no, data_offset, data_len))
+        log_info('Training pass %d / %d / %d done.' % (pass_no, data_offset, data_len))
         return pickle.dumps((percrank.w, evaluator, lists_analyzer), pickle.HIGHEST_PROTOCOL)
 
 

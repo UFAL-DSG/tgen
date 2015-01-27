@@ -13,7 +13,7 @@ else
   ACTIVATE = echo -n
 endif
 ifdef DEBUG
-  DEBUG_LOG_TRAIN = -d $(TRY_DIR)/percrank.debug-log.txt
+  DEBUG_LOG_TRAIN = -d $(TRY_DIR)/percrank.debug-log.txt.gz
   DEBUG_LOG_GEN = -d $(TRY_DIR)/asearch.debug-log.txt
 endif
 ifdef DEBUG_GEN

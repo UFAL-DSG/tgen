@@ -33,6 +33,8 @@ my $config_data = read_file($ARGV[0]);
 $iters = ( $config_data =~ /'passes'\s*:\s*([0-9]+)\s*,/ )[0];
 $iters .= '/' . ( $config_data =~ /'rival_gen_max_iter'\s*:\s*([0-9]+)\s*,/ )[0];
 $iters .= '/' . ( $config_data =~ /'rival_gen_max_defic_iter'\s*:\s*([0-9]+)\s*,/ )[0];
+$iters =~ s/\/\//\/~\//;
+$iters =~ s/\/$/\/~/;
 
 
 # data
