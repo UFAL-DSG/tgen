@@ -221,7 +221,6 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.w = self.w
         percrank.feats = self.feats
         percrank.vectorizer = self.vectorizer
-        percrank.normalizer = self.normalizer
         percrank.alpha = self.alpha
         percrank.passes = self.passes
         percrank.rival_number = self.rival_number

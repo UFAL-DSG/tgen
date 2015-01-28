@@ -9,6 +9,8 @@ from operator import itemgetter
 import numpy as np
 import inspect
 import warnings
+from numbers import Number
+from bisect import bisect_left
 
 """
 Some helper modules from Scikit-learn 0.14.1, stripped of any SciPy usage
@@ -582,9 +584,10 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
       encoded as columns of integers.
     """
 
-    def __init__(self, dtype=np.float64, separator="=", sparse=False):
+    def __init__(self, dtype=np.float64, separator="=", sparse=False, binarize_numeric=False):
         self.dtype = dtype
         self.separator = separator
+        self.binarize_numeric = binarize_numeric
 
     def fit(self, X, y=None):
         """Learn a list of feature name -> indices mappings.
@@ -600,12 +603,49 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
         -------
         self
         """
+        binarize_numeric = self.binarize_numeric
+        self.num_bounds_ = {}
+
+        # examine values of numeric features, get low and high bound + number of distinct values
+        if binarize_numeric:
+            numeric_feats = {}
+            for x in X:
+                for f, v in six.iteritems(x):
+                    if isinstance(v, Number):
+                        if f not in numeric_feats:
+                            lo, hi, vals = v, v, set([v])
+                        else:
+                            lo, hi, vals = numeric_feats[f]
+                            if lo > v:
+                                lo = v
+                            if hi < v:
+                                hi = v
+                            if isinstance(vals, set):
+                                if len(vals) >= 4:
+                                    vals = None
+                                else:
+                                    vals.add(v)
+                        numeric_feats[f] = (lo, hi, vals)
+
+            # compute boundary values (only if there are more than 4 distinct values)
+            for f, (lo, hi, vals) in numeric_feats.iteritems():
+                if vals is None:
+                    avg = (lo + hi) / 2
+                    self.num_bounds_[f] = [(lo + avg) / 2, avg, (hi + avg) / 2]
+
         # collect all the possible feature names
         feature_names = set()
         for x in X:
             for f, v in six.iteritems(x):
                 if isinstance(v, six.string_types):
                     f = "%s%s%s" % (f, self.separator, v)
+                elif binarize_numeric:
+                    if f in self.num_bounds_:
+                        # feature name is the number of the interval given by the bounds
+                        f = "%s%sInt%d" % (f, self.separator, bisect_left(self.num_bounds_[f], v))
+                    else:
+                        # just a few distinct values (max. 4), make a feature out of each one of them
+                        f = "%s%s%f" % (f, self.separator, float(v))
                 feature_names.add(f)
 
         # sort the feature names to define the mapping
@@ -640,42 +680,6 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
         self.fit(X)
         return self.transform(X)
 
-    def inverse_transform(self, X, dict_type=dict):
-        """Transform array or sparse matrix X back to feature mappings.
-
-        X must have been produced by this DictVectorizer's transform or
-        fit_transform method; it may only have passed through transformers
-        that preserve the number of features and their order.
-
-        In the case of one-hot/one-of-K coding, the constructed feature
-        names and values are returned rather than the original ones.
-
-        Parameters
-        ----------
-        X : {array-like, sparse matrix}, shape = [n_samples, n_features]
-            Sample matrix.
-        dict_type : callable, optional
-            Constructor for feature mappings. Must conform to the
-            collections.Mapping API.
-
-        Returns
-        -------
-        D : list of dict_type objects, length = n_samples
-            Feature mappings for the samples in X.
-        """
-        X = atleast2d_or_csr(X)  # COO matrix is not subscriptable
-        n_samples = X.shape[0]
-
-        names = self.feature_names_
-        dicts = [dict_type() for _ in xrange(n_samples)]
-
-        for i, d in enumerate(dicts):
-            for j, v in enumerate(X[i, :]):
-                if v != 0:
-                    d[names[j]] = X[i, j]
-
-        return dicts
-
     def transform(self, X, y=None):
         """Transform feature->value dicts to array or sparse matrix.
 
@@ -694,22 +698,24 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
         Xa : {array, sparse matrix}
             Feature vectors; always 2-d.
         """
-        # Sanity check: Python's array has no way of explicitly requesting the
-        # signed 32-bit integers that scipy.sparse needs, so we use the next
-        # best thing: typecode "i" (int). However, if that gives larger or
-        # smaller integers than 32-bit ones, np.frombuffer screws up.
-        assert array(b"i").itemsize == 4, (
-            "sizeof(int) != 4 on your platform; please report this at"
-            " https://github.com/scikit-learn/scikit-learn/issues and"
-            " include the output from platform.platform() in your bug report")
-
         dtype = self.dtype
         vocab = self.vocabulary_
+        num_bounds = self.num_bounds_
+        binarize_numeric = self.binarize_numeric
 
         Xa = np.zeros((len(X), len(vocab)), dtype=dtype)
 
         for i, x in enumerate(X):
             for f, v in six.iteritems(x):
+                if isinstance(v, six.string_types):
+                    f = "%s%s%s" % (f, self.separator, v)
+                    v = 1
+                elif binarize_numeric:
+                    if f in num_bounds:
+                        f = "%s%sInt%d" % (f, self.separator, bisect_left(num_bounds[f], v))
+                    else:
+                        f = "%s%s%f" % (f, self.separator, float(v))
+                    v = 1
                 try:
                     Xa[i, vocab[f]] = dtype(v)
                 except KeyError:
@@ -724,28 +730,3 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
         include the constructed feature names but not the original ones.
         """
         return self.feature_names_
-
-    def restrict(self, support, indices=False):
-        """Restrict the features to those in support.
-
-        Parameters
-        ----------
-        support : array-like
-            Boolean mask or list of indices (as returned by the get_support
-            member of feature selectors).
-        indices : boolean, optional
-            Whether support is a list of indices.
-        """
-        if not indices:
-            support = np.where(support)[0]
-
-        names = self.feature_names_
-        new_vocab = {}
-        for i in support:
-            new_vocab[names[i]] = len(new_vocab)
-
-        self.vocabulary_ = new_vocab
-        self.feature_names_ = [f for f, i in sorted(six.iteritems(new_vocab),
-                                                    key=itemgetter(1))]
-
-        return self
