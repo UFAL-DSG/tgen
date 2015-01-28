@@ -390,6 +390,9 @@ class Features(object):
     def get_features(self, tree, context):
         """Return features for the given tree.
 
+        Filter out all features whose names begin with "*" (intermediate features
+        used only to compose more complex features).
+
         @param tree: The current tree w.r.t. to which the features should be computed
         @param feats: Previous feature values, for incremental computation.
         """
@@ -399,6 +402,8 @@ class Features(object):
         for name, func in self.features:
             feats_hier[name] = func(tree, context)
         for name, val in feats_hier.iteritems():
+            if name.startswith('*'):  # filter intermediate features
+                continue
             for subname, subval in val.iteritems():
                 feats[name + '_' + subname if subname else name] += subval
         return feats
