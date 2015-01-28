@@ -61,6 +61,14 @@ foreach my $file (values %files_by_dir){
     close($fh);
 }
 
+# check if we have complete data (all logfiles must contain all patterns)
+foreach my $pattern (@patterns){
+    if (scalar(@{ $data{$pattern} }) != scalar(keys %files_by_dir)){
+        print STDERR "\e[1;31mThe scores for $pattern are incomplete.\e[0m\n";
+        die();
+    }
+}
+
 # compute the averages
 foreach my $pattern (@patterns) {
     

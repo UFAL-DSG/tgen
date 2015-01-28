@@ -72,7 +72,7 @@ while ( my $line = <$fh> ) {
 close($fh);
 
 # Print the output
-print "\t$pr   $lists   $bleu\e[0m";
+print "$pr   $lists   $bleu\e[0m";
 
 #
 # Subs
