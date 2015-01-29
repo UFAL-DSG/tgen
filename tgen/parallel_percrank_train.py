@@ -113,7 +113,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         try:
             for iter_no in xrange(1, self.passes + 1):
 
-                log_info('Iteration %d...' % iter_no)
+                log_info('Pass %d...' % iter_no)
                 log_debug('\n***\nTR%05d:' % iter_no)
 
                 iter_start_time = time.time()
