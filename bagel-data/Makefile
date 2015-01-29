@@ -301,7 +301,7 @@ rerun-%:
 # Use only through rerun-XXX (TRY_DIR, RUN_NAME must be set)
 rerun:
 	LAST_LOGFILE=`ls -t $(TRY_DIR)/T.*.$(RUN_NAME).* | head -n 1` ; \
-	COMMAND=`cat $$LAST_LOGFILE | sed '1,/^== Command/d;/^== Hard res/,$$d'` ; \
+	COMMAND=`cat $$LAST_LOGFILE | sed '1,/^== Directory/d;/^== Hard res/,$$d;s/^== Command:\s*//;'` ; \
 	$(QSUBMIT) "$$COMMAND" 2>&1 | tee -a $(TRY_DIR)/$(RUN_NAME).log.txt ; \
 
 
