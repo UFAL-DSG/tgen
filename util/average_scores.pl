@@ -17,20 +17,20 @@ my @patterns = ( 'BEST', 'NODE', 'DEP', 'NIST score ' );
 my %data;
 my %lines;
 
-die("Usage: ./$0 file1.log file2.log [...]\n") if (!@ARGV);
+die("Usage: ./$0 file1.log file2.log [...]\n") if ( !@ARGV );
 
 # filter ARGV to obtain just one file in each subdirectory
 # TODO make this an option
 my %files_by_dir;
-foreach my $file (@ARGV){
+foreach my $file (@ARGV) {
     my $dir = dirname($file);
-    if (!defined $files_by_dir{$dir} or ( (stat($files_by_dir{$dir}))->[9] < (stat($file))->[9] ) ){
+    if ( !defined $files_by_dir{$dir} or ( ( stat( $files_by_dir{$dir} ) )->[9] < ( stat($file) )->[9] ) ) {
         $files_by_dir{$dir} = $file;
     }
 }
 
 # collect data
-foreach my $file (values %files_by_dir){
+foreach my $file ( values %files_by_dir ) {
 
     open( my $fh, '<:utf8', $file );
     my %cur_data = ();
@@ -43,8 +43,10 @@ foreach my $file (values %files_by_dir){
                 if ( !$lines{$pattern} ) {
                     $lines{$pattern} = $line;
                 }
+
                 # extract all numbers on the line
                 my @nums = $line =~ m/[0-9]+\.[0-9]+/g;
+
                 # store them, keep only the last ones for this file
                 $cur_data{$pattern} = \@nums;
             }
@@ -52,7 +54,7 @@ foreach my $file (values %files_by_dir){
     }
 
     # add to global list
-    while (my ($p, $n) = each %cur_data){
+    while ( my ( $p, $n ) = each %cur_data ) {
         if ( !$data{$p} ) {
             $data{$p} = [];
         }
@@ -62,8 +64,8 @@ foreach my $file (values %files_by_dir){
 }
 
 # check if we have complete data (all logfiles must contain all patterns)
-foreach my $pattern (@patterns){
-    if (scalar(@{ $data{$pattern} }) != scalar(keys %files_by_dir)){
+foreach my $pattern (@patterns) {
+    if ( !defined $data{$pattern} or ( scalar( @{ $data{$pattern} } ) != scalar( keys %files_by_dir ) ) ) {
         print STDERR "\e[1;31mThe scores for $pattern are incomplete.\e[0m\n";
         die();
     }
@@ -71,10 +73,10 @@ foreach my $pattern (@patterns){
 
 # compute the averages
 foreach my $pattern (@patterns) {
-    
+
     my $values = $data{$pattern};
-    next if (!$values);
-    
+    next if ( !$values );
+
     # average data
     my $cumul = shift @$values;
     my $ctr   = 1;
@@ -91,9 +93,9 @@ foreach my $pattern (@patterns) {
     # print out the result
     my $line = $lines{$pattern};
     my $out  = "";
-    
+
     while ( $line =~ m/([0-9]+\.[0-9]+)/g ) {
-        my $num = $1;
+        my $num    = $1;
         my $endpos = pos $line;
         $out .= substr( $line, length($out), $endpos - length($out) - length($num) );
         $out .= sprintf( "%.4f", shift @$cumul );
