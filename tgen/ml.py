@@ -730,3 +730,10 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
         include the constructed feature names but not the original ones.
         """
         return self.feature_names_
+
+    def __setstate__(self, state):
+        """Backwards compatibility on loading."""
+        if 'num_bounds_' not in state:
+            state['num_bounds_'] = {}
+            state['binarize_numeric'] = False
+        self.__dict__ = state

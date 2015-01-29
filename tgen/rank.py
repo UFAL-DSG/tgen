@@ -53,6 +53,7 @@ class PerceptronRanker(Ranker):
         self.w_sum = 0.0
         self.feats = ['bias: bias']
         self.vectorizer = None
+        self.normalizer = None
         self.alpha = cfg.get('alpha', 1)
         self.passes = cfg.get('passes', 5)
         self.prune_feats = cfg.get('prune_feats', 1)
@@ -68,6 +69,7 @@ class PerceptronRanker(Ranker):
         self.rival_gen_beam_size = cfg.get('rival_gen_beam_size')
         self.candgen_model = cfg.get('candgen_model')
         self.diffing_trees = cfg.get('diffing_trees', False)
+        self.binarize = cfg.get('binarize', False)
         # initialize feature functions
         if 'features' in cfg:
             self.feats.extend(cfg['features'])
@@ -84,7 +86,10 @@ class PerceptronRanker(Ranker):
         return np.dot(self.w, cand_feats)
 
     def _extract_feats(self, tree, da):
-        return self.vectorizer.transform([self.feats.get_features(tree, {'da': da})])[0]
+        feats = self.vectorizer.transform([self.feats.get_features(tree, {'da': da})])
+        if self.normalizer:
+            feats = self.normalizer.transform(feats)
+        return feats[0]
 
     def get_future_promise(self, cand_tree):
         """Compute expected future cost for a tree."""
@@ -137,15 +142,21 @@ class PerceptronRanker(Ranker):
             X.append(self.feats.get_features(tree, {'da': da}))
         if self.prune_feats > 1:
             self._prune_features(X)
-        # vectorize and binarize (+train vectorizer)
-        self.vectorizer = DictVectorizer(sparse=False, binarize_numeric=True)
-        self.train_feats = self.vectorizer.fit_transform(X)
+        # vectorize and binarize or normalize (+train vectorizer/normalizer)
+        if self.binarize:
+            self.vectorizer = DictVectorizer(sparse=False, binarize_numeric=True)
+            self.train_feats = self.vectorizer.fit_transform(X)
+        else:
+            self.vectorizer = DictVectorizer(sparse=False)
+            self.normalizer = StandardScaler(copy=False)
+            self.train_feats = self.normalizer.fit_transform(self.vectorizer.fit_transform(X))
+
         log_info('Features matrix shape: %s' % str(self.train_feats.shape))
 
         # initialize candidate generator + planner if needed
         if self.candgen_model is not None:
             self.candgen = RandomCandidateGenerator.load_from_file(self.candgen_model)
-            self.sampling_planner = SamplingPlanner({'langugage': self.language,
+            self.sampling_planner = SamplingPlanner({'language': self.language,
                                                      'selector': self.selector,
                                                      'candgen': self.candgen})
         if 'gen_cur_weights' in self.rival_gen_strategy:
@@ -371,3 +382,12 @@ class PerceptronRanker(Ranker):
             for key in inst.keys():
                 if counts[key] < self.prune_feats:
                     del inst[key]
+
+    def __setstate__(self, state):
+        """Backward compatibility – adding members missing in older versions."""
+        if 'normalizer' not in state:
+            state['binarize'] = True
+            state['normalizer'] = None
+        if 'binarize' not in state:
+            state['binarize'] = False
+        self.__dict__ = state

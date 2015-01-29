@@ -221,6 +221,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.w = self.w
         percrank.feats = self.feats
         percrank.vectorizer = self.vectorizer
+        percrank.normalizer = self.normalizer
         percrank.alpha = self.alpha
         percrank.passes = self.passes
         percrank.rival_number = self.rival_number
@@ -239,6 +240,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.sampling_planner = self.sampling_planner
         percrank.candgen = self.candgen
         percrank.averaging = self.averaging
+        percrank.binarize = self.binarize
         percrank.prune_feats = self.prune_feats
         percrank.diffing_trees = self.diffing_trees
         # make a new planner so that it links back to the new ranker copy
