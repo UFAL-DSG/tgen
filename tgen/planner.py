@@ -276,6 +276,8 @@ class ASearchPlanner(SentencePlanner):
         if not max_iter:
             max_iter = self.max_iter
 
+        log_debug('Gen tree for DA: %s' % unicode(da))
+
         # main search loop
         while open_list and num_iter < max_iter and (max_defic_iter is None
                                                      or defic_iter <= max_defic_iter):
@@ -283,8 +285,8 @@ class ASearchPlanner(SentencePlanner):
             # log_debug("   CLOSE: %s" % str(close_list))
             cand, score = open_list.pop()
             close_list.push(cand, score[1])  # only use score without future promise
-            log_debug("--- IT %05d: [O: %5d C: %5d]" % (num_iter, len(open_list), len(close_list)))
-            log_debug("              [S:   %8.4f    ] %s" % (score[1], unicode(cand)))
+            log_debug("-- IT %4d: O %5d S %9.2f -- %s" %
+                      (num_iter, len(open_list), -score[1], unicode(cand)))
             successors = self.candgen.get_all_successors(cand, cdfs, node_limits)
             # add candidates with score (negative for the min-heap)
             for succ in successors:
