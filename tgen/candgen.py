@@ -42,25 +42,34 @@ class RandomCandidateGenerator(object):
         # limits on tree size / number of nodes at depth level, given DAIs
         # (initialized to boolean, which then triggers training)
         self.node_limits = cfg.get('node_limits', False)
+        # keep track DAIs compatible with given nodes/lemmas, avoid incompatibles in generation
+        self.compatible_dais_type = cfg.get('compatible_dais_type', False)
+        self.compatible_dais_limit = cfg.get('compatible_dais_limit') or 1000  # 0/None = "no limit"
+        self.compatible_dais = None
 
     @staticmethod
     def load_from_file(fname):
         log_info('Loading model from ' + fname)
         with file_stream(fname, mode='rb', encoding=None) as fh:
             candgen = pickle.load(fh)
-            if type(candgen) == dict:  # backward compatibility
+            # various backward compatibility tricks
+            if type(candgen) == dict:
                 child_type_counts = candgen
                 candgen = RandomCandidateGenerator({})
                 candgen.child_type_counts = child_type_counts
                 candgen.child_num_cdfs = pickle.load(fh)
                 candgen.max_children = pickle.load(fh)
-            if not hasattr(candgen, 'node_limits'):  # backward compatibility
+            if not hasattr(candgen, 'node_limits'):
                 candgen.node_limits = None
-            if not hasattr(candgen, 'child_type_counts'):  # backward compatibility
+            if not hasattr(candgen, 'child_type_counts'):
                 candgen.child_type_counts = candgen.form_counts
                 candgen.child_num_cdfs = candgen.child_cdfs
             if not hasattr(candgen, 'exp_child_num'):
                 candgen.exp_child_num = candgen.exp_from_cdfs(candgen.child_num_cdfs)
+            if not hasattr(candgen, 'compatible_dais'):
+                candgen.compatible_dais = None
+                candgen.compatible_dais_type = None
+                candgen.compatible_dais_limit = 1000
             return candgen
 
     def save_to_file(self, fname):
@@ -136,6 +145,27 @@ class RandomCandidateGenerator(object):
         else:
             self.node_limits = None
 
+        # Determine compatible DAIs for given lemmas/nodes (according to the compatibility setting)
+        if self.compatible_dais_type:
+            self.compatible_dais = {}
+            for da, ttree in zip(das, ttrees):
+                for node in ttree.get_descendants():
+                    # lemma setting: lowercased lemmas, node setting: lemmas + formemes
+                    node_id = self._compatibility_node_id(node)
+                    if node_id not in self.compatible_dais:
+                        self.compatible_dais[node_id] = set(da.dais)
+                    else:
+                        self.compatible_dais[node_id] &= set(da.dais)
+
+    def _compatibility_node_id(self, node):
+        """Node ID for compatibility checks with DAs (depends on the `compatible_dais_type`
+        setting in the configuration): either just lowercased lemmas or lemmas+formemes are used.
+
+        @param node: the node whose ID (either lowercased lemma or lemma+formeme) should be obtained
+        """
+        return ((node.t_lemma.lower(), node.formeme)
+                if self.compatible_dais_type == 'node' else node.t_lemma.lower())
+
     def _parent_node_id(self, node):
         """Parent node id according to the self.parent_lemmas setting (either
         only formeme, or lemma + formeme)
@@ -157,10 +187,16 @@ class RandomCandidateGenerator(object):
                 del counts[parent_type]
 
     def get_merged_child_type_cdfs(self, da):
-        """Get merged child CDFs for the DAIs in the given DA.
+        """Get merged child CDFs (i.e. lists of possible children, given parent IDs) for the
+        given DA.
+
+        All nodes  occurring in training data items that contain DAIs from the current DA are
+        included. If `compatible_dais` is set, nodes that always occur with DAIs not in the
+        current DA will be excluded.
 
         @param da: the current dialogue act
         """
+        # get all nodes occurring in training data items containing the DAIs from the current DA
         merged_counts = defaultdict(Counter)
         for dai in da:
             try:
@@ -168,7 +204,34 @@ class RandomCandidateGenerator(object):
                     merged_counts[parent_id].update(self.child_type_counts[dai][parent_id])
             except KeyError:
                 log_warn('DAI ' + unicode(dai) + ' unknown, adding nothing to CDF.')
+
+        # remove nodes that are not compatible with the current DA (their list of
+        # minimum compatibility DAIs is not similar to the current DA)
+        for _, counts in merged_counts.items():
+            for node in counts.keys():
+                if not self.compatible(da, NodeData(t_lemma=node[1], formeme=node[0])):
+                    del counts[node]
+
         return self.cdfs_from_counts(merged_counts)
+
+    def compatible(self, da, node):
+        """This limits the possibility of candidates (if compatible_dais are used). It returns
+        true only if the given node is "compatible enough" with the given DA.
+
+        @param da: the input DA
+        @param nodo: the node whose compatibility should be checked against the input DA
+        @return: True if the node is compatible with the DA, false otherwise
+        """
+        # always return True if DAI compatibility is not used
+        if not self.compatible_dais:
+            return True
+        # get the node's minimum needed DAIs for compatibility and check if they are similar
+        # enough to the current DA
+        node_id = self._compatibility_node_id(node)
+        if node_id not in self.compatible_dais:
+            return False
+        return (len(set(da) & self.compatible_dais[node_id]) >=
+                min((len(self.compatible_dais[node_id]), self.compatible_dais_limit)))
 
     def get_merged_limits(self, da):
         """Return merged limits on node counts (total and on each tree level). Uses a

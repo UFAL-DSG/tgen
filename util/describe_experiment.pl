@@ -44,6 +44,9 @@ $training_data .= ' + dlimit cg' if ( $training_set =~ /dlimit$/ );
 $training_data .= ' + llimit cg' if ( $training_set =~ /llimit$/ );
 $training_data .= ' + delex cg'  if ( $training_set =~ /delex$/ );
 $training_data .= ' + lex cg'    if ( $training_set =~ /[12]$/ );
+if ( $training_set =~ /-(comp[_a-z0-9]*)$/ ){
+    $training_data .= ' + ' . $1 . ' cg';
+}
 
 
 # gadgets

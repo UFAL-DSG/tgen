@@ -49,10 +49,12 @@ from tgen.parallel_percrank_train import ParallelPerceptronRanker
 
 
 def candgen_train(args):
-    opts, files = getopt(args, 'p:ln')
+    opts, files = getopt(args, 'p:lnc:')
     prune_threshold = 1
     parent_lemmas = False
     node_limits = False
+    comp_type = None
+    comp_limit = None
     for opt, arg in opts:
         if opt == '-p':
             prune_threshold = int(arg)
@@ -60,6 +62,11 @@ def candgen_train(args):
             parent_lemmas = True
         elif opt == '-n':
             node_limits = True
+        elif opt == '-c':
+            comp_type = arg
+            if ':' in comp_type:
+                comp_type, comp_limit = comp_type.split(':', 1)
+                comp_limit = int(comp_limit)
 
     if len(files) != 3:
         sys.exit(__doc__)
@@ -68,7 +75,9 @@ def candgen_train(args):
     log_info('Training candidate generator...')
     candgen = RandomCandidateGenerator({'prune_threshold': prune_threshold,
                                         'parent_lemmas': parent_lemmas,
-                                        'node_limits': node_limits})
+                                        'node_limits': node_limits,
+                                        'compatible_dais_type': comp_type,
+                                        'compatible_dais_limit': comp_limit})
     candgen.train(fname_da_train, fname_ttrees_train)
     candgen.save_to_file(fname_cand_model)
 
