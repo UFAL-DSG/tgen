@@ -52,6 +52,8 @@ config = {
                        'rep-lemma: repeated t_lemma',
                        'rep-lemma-formeme: repeated t_lemma formeme',
                        'rep-slot: slot_repeated',
+                       'rep-lemma-formeme+rep-slot: combine rep-lemma-formeme rep-slot',
+                       'lemma-formeme+rep-slot: combine lemma-formeme rep-slot',
                        'not-rep-slot: set_difference slot rep-slot',
                        'rep-lemma+not-slot: combine rep-lemma not-rep-slot',
                        # 'count-slot+lemma: combine count-slot lemma',
@@ -73,8 +75,9 @@ config = {
           'rival_gen_strategy': ['gen_cur_weights'],
 #          'rival_gen_strategy': ['other_inst', 'random'],
 #          'rival_gen_strategy': ['gen_cur_weights', 'other_inst', 'random'],
-          'diffing_trees': 'sym-wt',  # False - sym/asym - nocommon? - nobad/onebad? - weighted?
+          'diffing_trees': 'sym',  # False - sym/asym - nocommon? - nobad/onebad? - weighted?
                                    # (do not use nobad/onebad, it hurts badly)
+          'binarize': False,
           'passes': 100,
           'rival_gen_max_iter': 100,
           'rival_gen_max_defic_iter': 10,
