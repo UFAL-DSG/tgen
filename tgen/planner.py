@@ -236,11 +236,10 @@ class ASearchPlanner(SentencePlanner):
         self.max_defic_iter = cfg.get('max_defic_iter')
 
     def generate_tree(self, da, gen_doc=None, return_lists=False):
-        log_debug('GEN TREE for DA: %s' % unicode(da))
         # generate and use only 1-best
         open_list, close_list = self.run(da, self.max_iter, self.max_defic_iter)
-        best_tree = close_list.peek()[0]
-        log_debug("RESULT: %s" % unicode(best_tree))
+        best_tree, best_score = close_list.peek()
+        log_debug("RESULT: %9.2f %s" % (best_score, unicode(best_tree)))
         # return or append the result, return open & close list for inspection if needed
         if gen_doc:
             zone = self.get_target_zone(gen_doc)
@@ -276,7 +275,7 @@ class ASearchPlanner(SentencePlanner):
         if not max_iter:
             max_iter = self.max_iter
 
-        log_debug('Gen tree for DA: %s' % unicode(da))
+        log_debug('GEN TREE for DA: %s' % unicode(da))
 
         # main search loop
         while open_list and num_iter < max_iter and (max_defic_iter is None
