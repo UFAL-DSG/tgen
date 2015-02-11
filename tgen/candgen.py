@@ -46,6 +46,8 @@ class RandomCandidateGenerator(object):
         self.compatible_dais_type = cfg.get('compatible_dais_type', False)
         self.compatible_dais_limit = cfg.get('compatible_dais_limit') or 1000  # 0/None = "no limit"
         self.compatible_dais = None
+        # do the same also for DA slots?
+        self.compatible_slots = cfg.get('compatible_slots', False)
 
     @staticmethod
     def load_from_file(fname):
@@ -70,6 +72,8 @@ class RandomCandidateGenerator(object):
                 candgen.compatible_dais = None
                 candgen.compatible_dais_type = None
                 candgen.compatible_dais_limit = 1000
+            if not hasattr(candgen, 'compatible_slots'):
+                candgen.compatible_slots = False
             return candgen
 
     def save_to_file(self, fname):
@@ -147,15 +151,31 @@ class RandomCandidateGenerator(object):
 
         # Determine compatible DAIs for given lemmas/nodes (according to the compatibility setting)
         if self.compatible_dais_type:
-            self.compatible_dais = {}
-            for da, ttree in zip(das, ttrees):
-                for node in ttree.get_descendants():
-                    # lemma setting: lowercased lemmas, node setting: lemmas + formemes
-                    node_id = self._compatibility_node_id(node)
-                    if node_id not in self.compatible_dais:
-                        self.compatible_dais[node_id] = set(da.dais)
-                    else:
-                        self.compatible_dais[node_id] &= set(da.dais)
+            self.compatible_dais = self._compatibility_table(das, ttrees, lambda da: da.dais)
+
+        # The same for compatible DA slots
+        if self.compatible_slots:
+            self.compatible_slots = self._compatibility_table(das, ttrees,
+                                                              lambda da: [dai.name for dai in da.dais])
+
+    def _compatibility_table(self, das, ttrees, da_transform):
+        """Compute a table of nodes/lemmas with DAIs/slots (or any information from a DA).
+
+        @param das: training data DAs
+        @param ttrees: training data t-trees
+        @param da_transform: a function that obtains the relevant information from a DA
+        @return: a hash of node IDs (lemmas/whole nodes) -> minimum compatible DAI/slot list
+        """
+        compatibility = {}
+        for da, ttree in zip(das, ttrees):
+            for node in ttree.get_descendants():
+                # lemma setting: lowercased lemmas, node setting: lemmas + formemes
+                node_id = self._compatibility_node_id(node)
+                if node_id not in compatibility:
+                    compatibility[node_id] = set(da_transform(da))
+                else:
+                    compatibility[node_id] &= set(da_transform(da))
+        return compatibility
 
     def _compatibility_node_id(self, node):
         """Node ID for compatibility checks with DAs (depends on the `compatible_dais_type`
@@ -205,12 +225,18 @@ class RandomCandidateGenerator(object):
             except KeyError:
                 log_warn('DAI ' + unicode(dai) + ' unknown, adding nothing to CDF.')
 
+        log_info('Node types: %d' % sum(len(c.keys()) for c in merged_counts.values()))
+
         # remove nodes that are not compatible with the current DA (their list of
         # minimum compatibility DAIs is not similar to the current DA)
         for _, counts in merged_counts.items():
             for node in counts.keys():
                 if not self.compatible(da, NodeData(t_lemma=node[1], formeme=node[0])):
                     del counts[node]
+
+        log_info('Node types after pruning: %d' % sum(len(c.keys()) for c in merged_counts.values()))
+        log_info('Compatible lemmas: %s' % ' '.join(set([n[1] for c in merged_counts.values()
+                                                         for n in c.keys()])))
 
         return self.cdfs_from_counts(merged_counts)
 
@@ -229,9 +255,18 @@ class RandomCandidateGenerator(object):
         # enough to the current DA
         node_id = self._compatibility_node_id(node)
         if node_id not in self.compatible_dais:
+            return False  # this shouldn't ever happen
+
+        # Check DAI compatibility
+        if (len(set(da) & self.compatible_dais[node_id]) <
+                min((len(self.compatible_dais[node_id]), self.compatible_dais_limit))):
             return False
-        return (len(set(da) & self.compatible_dais[node_id]) >=
-                min((len(self.compatible_dais[node_id]), self.compatible_dais_limit)))
+
+        # Also check slot compatibility, if applicable
+        if not self.compatible_slots:
+            return True
+        return (len(set([dai.name for dai in da]) & self.compatible_slots[node_id]) >=
+                min((len(self.compatible_slots[node_id]), self.compatible_dais_limit)))
 
     def get_merged_limits(self, da):
         """Return merged limits on node counts (total and on each tree level). Uses a
@@ -396,7 +431,7 @@ class RandomCandidateGenerator(object):
             log_info('Did not find tree: ' + unicode(tree) + ' for DA: ' + unicode(da) + ('(total %d trees)' % tree_no))
             return False
         log_info('Found tree: %s for DA: %s (as %d-th tree)' % (unicode(tree), unicode(da), tree_no))
-        return True
+        return tree_no
 
     def can_generate_greedy(self, tree, da):
         """Check if the candidate generator can generate a given tree greedily, always

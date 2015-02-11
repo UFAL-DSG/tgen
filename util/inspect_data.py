@@ -47,7 +47,7 @@ for tree, da in zip(trees, das):
         else:
             das_for_nodes[node] &= set(da.dais)
 
-print "\n\nDAs for nodes:\n=========="
+print "\n\nDAIs for nodes:\n=========="
 for node, dais in sorted(das_for_nodes.items()):
     print node.t_lemma, " ", node.formeme, "\t", num_occ_nodes[node], "\t", '&'.join([unicode(dai) for dai in dais])
 
@@ -64,6 +64,23 @@ for tree, da in zip(trees, das):
         else:
             das_for_lemmas[lemma] &= set(da.dais)
 
-print "\n\nDAs for lemmas:\n=========="
+print "\n\nDAIs for lemmas:\n=========="
 for lemma, dais in sorted(das_for_lemmas.items()):
     print lemma, "\t", num_occ_lemmas[lemma], "\t", '&'.join([unicode(dai) for dai in dais])
+
+# DA slots -> LEMMAS
+
+das_for_lemmas = {}
+num_occ_lemmas = defaultdict(int)
+for tree, da in zip(trees, das):
+    for node in tree.nodes:
+        lemma = unicode(node.t_lemma).lower()
+        num_occ_lemmas[lemma] += 1
+        if lemma not in das_for_lemmas:
+            das_for_lemmas[lemma] = set([dai.name for dai in da.dais])
+        else:
+            das_for_lemmas[lemma] &= set([dai.name for dai in da.dais])
+
+print "\n\nDA slots for lemmas:\n=========="
+for lemma, dais in sorted(das_for_lemmas.items()):
+    print lemma, "\t", num_occ_lemmas[lemma], "\t", ' '.join([unicode(dai) for dai in dais])
