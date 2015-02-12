@@ -23,11 +23,9 @@ GetOptions(
 ) or die($USAGE);
 die($USAGE) if ( !@ARGV );
 
-
 # Gather the settings from the command arguments and config files
 my ( $iters, $training_data, $gadgets, $run_setting ) = ( '', '', '', '' );
-my $config_data = read_file($ARGV[0]);
-
+my $config_data = read_file( $ARGV[0] );
 
 # iterations
 $iters = ( $config_data =~ /'passes'\s*:\s*([0-9]+)\s*,/ )[0];
@@ -36,18 +34,17 @@ $iters .= '/' . ( $config_data =~ /'rival_gen_max_defic_iter'\s*:\s*([0-9]+)\s*,
 $iters =~ s/\/\//\/~\//;
 $iters =~ s/\/$/\/~/;
 
-
 # data
 $training_data = ' + all data' if ( $training_set =~ /^training2/ );
 $training_data = ' + half'     if ( $training_set =~ /^training1/ );
+$training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
 $training_data .= ' + dlimit cg' if ( $training_set =~ /dlimit$/ );
 $training_data .= ' + llimit cg' if ( $training_set =~ /llimit$/ );
 $training_data .= ' + delex cg'  if ( $training_set =~ /delex$/ );
 $training_data .= ' + lex cg'    if ( $training_set =~ /[12]$/ );
-if ( $training_set =~ /-(comp[_a-z0-9]*)$/ ){
+if ( $training_set =~ /-(s?comp[_a-z0-9]*)$/ ) {
     $training_data .= ' + ' . $1 . ' cg';
 }
-
 
 # gadgets
 if ( $config_data =~ /'diffing_trees'\s*:\s*'([^']*)'/ ) {
@@ -60,7 +57,6 @@ if ( $config_data =~ /'future_promise_weight'\s*:\s*([0-9.]+)\s*,/ and $1 ) {
     $gadgets .= ' + fut:' . ( $config_data =~ /'future_promise_type'\s*:\s*'([^']*)'/ )[0] . '=' . $fut_weight;
     $gadgets =~ s/exp_children/expc/;
 }
-
 
 # run setting
 if ($jobs) {
@@ -75,7 +71,6 @@ if ($debug) {
 }
 $run_setting =~ s/^ //;
 $run_setting =~ s/ +/,/g;
-
 
 # Print the output.
 print "$iters$training_data$gadgets ($run_setting)";
