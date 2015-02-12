@@ -119,6 +119,9 @@ make cv_run J=[XX] D='Description'
 
 make cv_score-XXX
 * Retrieve a cross-validation run score.
+
+make compare_output TRY_DIR=runs/XXX/cvXX
+* Compare the output of the given run to gold standard
 ---
 
 Use QP='--console' if you want the job to run interactively instead
@@ -320,4 +323,7 @@ candgen_train:
 		done; \
 	done
 
-
+compare_output:
+	cat $(TRY_DIR)/test-conc.sgm | sed 's/<\/doc>/***/;s/<[^>]*>//g;s/ \././g;/^$$/d;4,24s/^/* /;28,$$s/^/+ /;' | awk '{print tolower($$0)}' > $(TRY_DIR)/test-conc.txt
+	cat $(TRY_DIR)/out-text.sgm | sed 's/<\/doc>/***/;s/<[^>]*>//g;s/ \././g;/^$$/d;4,24s/^/* /;' | awk '{print tolower($$0)}' > $(TRY_DIR)/out-text.txt
+	vimdiff $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-text.txt
