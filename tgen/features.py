@@ -351,8 +351,9 @@ def bias(tree, context):
 
 class Features(object):
 
-    def __init__(self, cfg):
-        self.features = self.parse_feature_spec(cfg)
+    def __init__(self, feat_list, interm_feats):
+        self.features = self.parse_feature_spec(feat_list)
+        self.intermediate_features = set(interm_feats)
 
     def parse_feature_spec(self, spec):
         """Prepares feature functions from specifications in the following format:
@@ -402,7 +403,7 @@ class Features(object):
         for name, func in self.features:
             feats_hier[name] = func(tree, context)
         for name, val in feats_hier.iteritems():
-            if name.startswith('*'):  # filter intermediate features
+            if name in self.intermediate_features:  # filter intermediate features
                 continue
             for subname, subval in val.iteritems():
                 feats[name + '_' + subname if subname else name] += subval

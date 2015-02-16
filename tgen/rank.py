@@ -73,7 +73,7 @@ class PerceptronRanker(Ranker):
         # initialize feature functions
         if 'features' in cfg:
             self.feats.extend(cfg['features'])
-        self.feats = Features(self.feats)
+        self.feats = Features(self.feats, cfg.get('intermediate_features', []))
 
     def score(self, cand_tree, da):
         """Score the given tree in the context of the given dialogue act.
