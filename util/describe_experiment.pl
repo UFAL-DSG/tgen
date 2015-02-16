@@ -38,6 +38,7 @@ $iters =~ s/\/$/\/~/;
 $training_data = ' + all data' if ( $training_set =~ /^training2/ );
 $training_data = ' + half'     if ( $training_set =~ /^training1/ );
 $training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
+$training_data .= ' + rc'        if ( $training_set =~ /^training[12]_rc/ );
 $training_data .= ' + dlimit cg' if ( $training_set =~ /dlimit$/ );
 $training_data .= ' + llimit cg' if ( $training_set =~ /llimit$/ );
 $training_data .= ' + delex cg'  if ( $training_set =~ /delex$/ );
