@@ -60,6 +60,7 @@ TRAIN_DAS = data/$(TRAINING_SET)/$(CV_NUM)/train-das.txt
 TRAIN_TREES = data/$(TRAINING_SET)/$(CV_NUM)/train-text.pickle.gz
 TRAIN_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/train-abstr.txt
 TRAIN_CONC = data/$(TRAINING_SET)/$(CV_NUM)/train-conc.sgm
+GRAMMATEMES = data/$(TRAINING_SET)/$(CV_NUM)/grammatemes.tsv
 TEST_DAS = data/$(TRAINING_SET)/$(CV_NUM)/test-das.txt
 TEST_REF = data/$(TRAINING_SET)/$(CV_NUM)/test-das.sgm
 TEST_TREES = data/$(TRAINING_SET)/$(CV_NUM)/test-text.pickle.gz
@@ -242,6 +243,7 @@ asearch_gen:
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 
@@ -253,6 +255,7 @@ asearch_gen_cv:
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 asearch_gen-%:
@@ -264,6 +267,7 @@ asearch_gen-%:
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 asearch_gen_process: RUN_NAME := asearch_gen
@@ -276,6 +280,7 @@ asearch_gen_process:
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
 			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
+			T2T::AssignDefaultGramamatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv \
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \

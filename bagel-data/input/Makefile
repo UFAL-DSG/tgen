@@ -1,6 +1,8 @@
+
 SHELL=/bin/bash
 ABSTRACTED = 'name near phone addr postcode area'
 CONVERT_SETTINGS = -a $(ABSTRACTED) -s
+COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 
 %-text.pickle.gz: %-text.yaml.gz
 	../../util/yaml2pickle.py $<
@@ -50,15 +52,15 @@ cv: all-das.txt all-text.txt all-abstr.txt
 			cat $$CV/train.*-text.txt > $$CV/train-text.txt ; \
 		fi ; \
 		treex -Len Read::Sentences from=$$CV/train-text.txt en_analysis.scen \
-			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/train-abstr.txt x_only=1 \
-			Write::Treex to=$$CV/train-text.treex.gz ; \
+			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/train-abstr.txt x_only=1 $(COORD_ADJUST) \
+			Write::Treex to=$$CV/train-text.treex.gz Print::GrammatemesForTgen to=$$CV/grammatemes.tsv; \
 		treex -Len Read::AlignedSentences en_ref0=$$CV/test.0-text.txt en_ref1=$$CV/test.1-text.txt \
 			Util::SetGlobal selector=ref0 en_analysis.scen \
-			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.0-abstr.txt x_only=1 \
+			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.0-abstr.txt x_only=1 $(COORD_ADJUST) \
 			Write::Treex to=$$CV/test-text.treex.gz ; \
 		treex -Len Read::Treex from=$$CV/test-text.treex.gz \
 			Util::SetGlobal selector=ref1 en_analysis.scen \
-			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.1-abstr.txt x_only=1 \
+			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/test.1-abstr.txt x_only=1 $(COORD_ADJUST) \
 			Write::Treex ; \
 		treex -Len Read::Treex from=$$CV/train-text.treex.gz Write::YAML to=$$CV/train-text.yaml.gz ; \
 		../../util/yaml2pickle.py $$CV/train-text.yaml.gz ; \
