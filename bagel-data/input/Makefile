@@ -4,13 +4,13 @@ ABSTRACTED = 'name near phone addr postcode area'
 CONVERT_SETTINGS = -a $(ABSTRACTED) -s
 COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 
-ifeq($(COORD),stanford)
+ifeq ($(COORD),stanford)
   COORD_ADJUST = Misc::DeleteCoordNodes attach_below_1st=1 delete_conj=0
 endif
-ifeq($(COORD),delete)
+ifeq ($(COORD),delete)
   COORD_ADJUST = Misc::DeleteCoordNodes
 endif
-ifeq($(COORD),flat)
+ifeq ($(COORD),flat)
   COORD_ADJUST = Misc::DeleteCoordNodes attach_below_1st=0 delete_conj=0
 endif
 
