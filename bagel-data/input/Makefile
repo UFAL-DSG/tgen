@@ -13,6 +13,9 @@ endif
 ifeq ($(COORD),flat)
   COORD_ADJUST = Misc::DeleteCoordNodes attach_below_1st=0 delete_conj=0
 endif
+ifeq ($(COORD),flat_trees)
+  COORD_ADJUST = Util::Eval tnode='$$.set_parent($$.get_root);'
+endif
 
 %-text.pickle.gz: %-text.yaml.gz
 	../../util/yaml2pickle.py $<
