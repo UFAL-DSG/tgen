@@ -41,6 +41,7 @@ $training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
 $training_data .= ' + rc'        if ( $training_set =~ /^training[12]_rc/ );
 $training_data .= ' + sc'        if ( $training_set =~ /^training[12]_sc/ );
 $training_data .= ' + xc'        if ( $training_set =~ /^training[12]_xc/ );
+$training_data .= ' + flat'      if ( $training_set =~ /^training[12]_flat/ );
 $training_data .= ' + dlimit cg' if ( $training_set =~ /dlimit$/ );
 $training_data .= ' + llimit cg' if ( $training_set =~ /llimit$/ );
 $training_data .= ' + delex cg'  if ( $training_set =~ /delex$/ );
