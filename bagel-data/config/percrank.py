@@ -10,6 +10,7 @@ config = {
           'averaging': True,
           'alpha': 0.1,
           'prune_feats': 1,  # pruning harms => do not use it
+          'intermediate_features': ['rep-lemma', 'rep-slot', 'rep-lemma-formeme', 'not-rep-slot'],
           'features': [
                        # TREE SIZE FEATURES
                        'depth: depth',
@@ -44,6 +45,7 @@ config = {
                        'dirdep-lemma: dir_dependency t_lemma',
                        'dirdep-formeme: dir_dependency formeme',
                        'dirdep-lemma-formeme: dir_dependency t_lemma formeme',
+                       # 'dirdep-lemma+dai: combine dirdep-lemma dai',  # TW
                        'dirdep-lemma-formeme+dai: combine dirdep-lemma-formeme dai',
                        'slot-lemma: combine slot lemma',
 #                        'count-lemma: count t_lemma',
@@ -52,8 +54,10 @@ config = {
                        'rep-lemma: repeated t_lemma',
                        'rep-lemma-formeme: repeated t_lemma formeme',
                        'rep-slot: slot_repeated',
-                       'rep-lemma-formeme+rep-slot: combine rep-lemma-formeme rep-slot',
-                       'lemma-formeme+rep-slot: combine lemma-formeme rep-slot',
+                       'rep-lemma-formeme+rep-slot: combine rep-lemma-formeme rep-slot',  # TW-
+                       # 'rep-lemma+rep-slot combine rep-lemma rep-slot',  # TW
+                       # 'rep-lemma+slot^2 combine rep-lemma slot^2',  # TW
+                       'lemma-formeme+rep-slot: combine lemma-formeme rep-slot',  # TW-
                        'not-rep-slot: set_difference slot rep-slot',
                        'rep-lemma+not-slot: combine rep-lemma not-rep-slot',
                        # 'count-slot+lemma: combine count-slot lemma',
@@ -79,9 +83,9 @@ config = {
                                    # (do not use nobad/onebad, it hurts badly)
           'binarize': False,
           'passes': 100,
-          'rival_gen_max_iter': 100,
-          'rival_gen_max_defic_iter': 10,
+          'rival_gen_max_iter': 200,
+          'rival_gen_max_defic_iter': 3,
           # 'rival_gen_beam_size': 20, # actually slows it down
-          'future_promise_weight': 0,
+          'future_promise_weight': 0.3,
           'future_promise_type': 'norm_exp_children',  # default: exp_children
           }
