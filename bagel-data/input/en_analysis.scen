@@ -44,7 +44,7 @@ A2T::EN::SetFormemeInterset
 A2T::EN::SetTense
 A2T::EN::SetGrammatemes
 A2T::SetGrammatemesFromAux # this adds definiteness information
-A2T::SetSentmod
+A2T::EN::SetSentmod
 A2T::EN::RehangSharedAttr
 A2T::EN::SetVoice
 A2T::EN::FixImperatives
