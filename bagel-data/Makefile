@@ -5,7 +5,7 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
-MEM = 8g
+MEM = 4g
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
