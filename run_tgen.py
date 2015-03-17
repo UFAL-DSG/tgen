@@ -285,6 +285,7 @@ def asearch_gen(args):
 if __name__ == '__main__':
 
     random.seed(1206)
+    # random.seed(1985)
 
     if len(sys.argv) < 3:
         sys.exit(__doc__)

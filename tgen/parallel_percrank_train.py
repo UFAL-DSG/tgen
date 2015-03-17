@@ -20,6 +20,7 @@ import socket
 import cPickle as pickle
 import time
 import datetime
+import random
 
 import numpy as np
 from rpyc import Service, connect, async
@@ -120,6 +121,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
                 cur_portion = 0
                 results = [None] * self.data_portions
                 w_dump = pickle.dumps(self.w, protocol=pickle.HIGHEST_PROTOCOL)
+                rnd_seeds = [random.random() for _ in xrange(self.data_portions)]
                 # wait for free services / assign computation
                 while cur_portion < self.data_portions or self.pending_requests:
                     log_debug('Starting loop over services.')
@@ -143,7 +145,8 @@ class ParallelPerceptronRanker(PerceptronRanker):
                         log_info('Assigning request %d / %d to %s:%d' %
                                  (iter_no, cur_portion, sc.host, sc.port))
                         train_func = async(sc.conn.root.training_pass)
-                        req = train_func(w_dump, iter_no, *self._get_portion_bounds(cur_portion))
+                        req = train_func(w_dump, iter_no, rnd_seeds[cur_portion],
+                                         * self._get_portion_bounds(cur_portion))
                         self.pending_requests.add((sc, cur_portion, req))
                         cur_portion += 1
                         log_debug('Assigned %d' % cur_portion)
@@ -236,6 +239,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.train_feats = self.train_feats
         percrank.train_sents = self.train_sents
         percrank.train_das = self.train_das
+        percrank.train_order = self.train_order
         percrank.asearch_planner = self.asearch_planner
         percrank.sampling_planner = self.sampling_planner
         percrank.candgen = self.candgen
@@ -243,6 +247,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
         percrank.binarize = self.binarize
         percrank.prune_feats = self.prune_feats
         percrank.diffing_trees = self.diffing_trees
+        percrank.randomize = self.randomize
         # make a new planner so that it links back to the new ranker copy
         percrank.asearch_planner = ASearchPlanner({'candgen': percrank.candgen,
                                                    'language': percrank.language,
@@ -273,8 +278,15 @@ class PercRankTrainingService(Service):
         self.percrank = pickle.loads(head_percrank)
         log_info('Training initialized.')
 
-    def exposed_training_pass(self, w, pass_no, data_offset, data_len):
-        """(Worker) Run one pass over a part of the training data."""
+    def exposed_training_pass(self, w, pass_no, rnd_seed, data_offset, data_len):
+        """(Worker) Run one pass over a part of the training data.
+        @param w: initial perceptron weights (pickled)
+        @param pass_no: pass number (for logging purposes)
+        @param rnd_seed: random generator seed for shuffling training examples
+        @param data_offset: training data portion start
+        @param data_len: training data portion size
+        @return: updated perceptron weights after passing the selected data portion (pickled)
+        """
         log_info('Training pass %d with data portion %d + %d' %
                  (pass_no, data_offset, data_len))
         # import current feature weights
@@ -290,6 +302,11 @@ class PercRankTrainingService(Service):
         percrank.train_feats = percrank.train_feats[data_offset:data_offset + data_len]
         all_train_sents = percrank.train_sents
         percrank.train_sents = percrank.train_sents[data_offset:data_offset + data_len]
+        all_train_order = percrank.train_order
+        percrank.train_order = range(len(percrank.train_trees))
+        if percrank.randomize:
+            random.seed(rnd_seed)
+            random.shuffle(percrank.train_order)
         # do the actual computation (update w)
         evaluator, lists_analyzer = percrank._training_pass(pass_no)
         # return the rest of the training data to member variables
@@ -297,6 +314,7 @@ class PercRankTrainingService(Service):
         percrank.train_trees = all_train_trees
         percrank.train_feats = all_train_feats
         percrank.train_sents = all_train_sents
+        percrank.train_order = all_train_order
         # return the result of the computation
         log_info('Training pass %d / %d / %d done.' % (pass_no, data_offset, data_len))
         return pickle.dumps((percrank.w, evaluator, lists_analyzer), pickle.HIGHEST_PROTOCOL)

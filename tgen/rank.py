@@ -61,6 +61,7 @@ class PerceptronRanker(Ranker):
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
         self.averaging = cfg.get('averaging', False)
+        self.randomize = cfg.get('randomize', False)
         self.future_promise_weight = cfg.get('future_promise_weight', 1.0)
         self.future_promise_type = cfg.get('future_promise_type', 'expected_children')
         self.rival_gen_strategy = cfg.get('rival_gen_strategy', ['other_inst'])
@@ -111,6 +112,9 @@ class PerceptronRanker(Ranker):
         """Run training on the given training data."""
         self._init_training(das_file, ttree_file, data_portion)
         for iter_no in xrange(1, self.passes + 1):
+            self.train_order = range(len(self.train_trees))
+            if self.randomize:
+                random.shuffle(self.train_order)
             evaluator, _ = self._training_pass(iter_no)
             if evaluator.tree_accuracy() == 1:  # if tree accuracy is 1, we won't learn anything anymore
                 break
@@ -134,6 +138,7 @@ class PerceptronRanker(Ranker):
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
         self.train_sents = sents[:train_size]
+        self.train_order = range(len(self.train_trees))
         log_info('Using %d training instances.' % train_size)
 
         # precompute training data features
@@ -196,7 +201,7 @@ class PerceptronRanker(Ranker):
         rgen_max_defic_iter = self._get_num_iters(pass_no, self.rival_gen_max_defic_iter)
         rgen_beam_size = self.rival_gen_beam_size
 
-        for tree_no in xrange(len(self.train_trees)):
+        for tree_no in self.train_order:
             # obtain some 'rival', alternative incorrect candidates
             gold_tree, gold_feats = self.train_trees[tree_no], self.train_feats[tree_no]
             rival_trees, rival_feats = self._get_rival_candidates(tree_no, rgen_max_iter,

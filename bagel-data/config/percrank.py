@@ -82,6 +82,7 @@ config = {
           'diffing_trees': 'sym',  # False - sym/asym - nocommon? - nobad/onebad? - weighted?
                                    # (do not use nobad/onebad, it hurts badly)
           'binarize': False,
+          'randomize': True,
           'passes': 100,
           'rival_gen_max_iter': 200,
           'rival_gen_max_defic_iter': 3,
