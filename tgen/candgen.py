@@ -225,7 +225,7 @@ class RandomCandidateGenerator(object):
             except KeyError:
                 log_warn('DAI ' + unicode(dai) + ' unknown, adding nothing to CDF.')
 
-        log_info('Node types: %d' % sum(len(c.keys()) for c in merged_counts.values()))
+#         log_info('Node types: %d' % sum(len(c.keys()) for c in merged_counts.values()))
 
         # remove nodes that are not compatible with the current DA (their list of
         # minimum compatibility DAIs is not similar to the current DA)
@@ -234,9 +234,9 @@ class RandomCandidateGenerator(object):
                 if not self.compatible(da, NodeData(t_lemma=node[1], formeme=node[0])):
                     del counts[node]
 
-        log_info('Node types after pruning: %d' % sum(len(c.keys()) for c in merged_counts.values()))
-        log_info('Compatible lemmas: %s' % ' '.join(set([n[1] for c in merged_counts.values()
-                                                         for n in c.keys()])))
+#         log_info('Node types after pruning: %d' % sum(len(c.keys()) for c in merged_counts.values()))
+#         log_info('Compatible lemmas: %s' % ' '.join(set([n[1] for c in merged_counts.values()
+#                                                          for n in c.keys()])))
 
         return self.cdfs_from_counts(merged_counts)
 
