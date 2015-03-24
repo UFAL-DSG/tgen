@@ -46,6 +46,7 @@ from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearc
     EvalTypes, Evaluator
 from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelPerceptronRanker
+from tgen.rank_mlp import SimpleNNRanker
 
 
 def candgen_train(args):
@@ -119,7 +120,9 @@ def percrank_train(args):
     rank_config = Config(fname_rank_config)
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
-    if not parallel:
+    if rank_config.get('nn'):
+        ranker = SimpleNNRanker(rank_config)
+    elif not parallel:
         ranker = PerceptronRanker(rank_config)
     else:
         rank_config['jobs_number'] = jobs_number

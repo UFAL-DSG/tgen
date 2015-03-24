@@ -259,7 +259,7 @@ class PerceptronRanker(Ranker):
         if self.diffing_trees:
             good_sts, bad_sts = good_tree.diffing_trees(bad_tree,
                                                         symmetric=self.diffing_trees.startswith('sym'))
-            # TODO discount common subtree off all features
+            # if set, discount common subtree's features from all subtrees' features
             discount = None
             if 'nocom' in self.diffing_trees:
                 discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), da)

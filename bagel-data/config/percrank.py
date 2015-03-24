@@ -87,6 +87,7 @@ config = {
           'rival_gen_max_iter': 200,
           'rival_gen_max_defic_iter': 3,
           # 'rival_gen_beam_size': 20, # actually slows it down
-          'future_promise_weight': 0.3,
+          'future_promise_weight': 0,
           'future_promise_type': 'norm_exp_children',  # default: exp_children
+          'nn': True,
           }
