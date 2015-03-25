@@ -28,12 +28,11 @@ from rpyc.utils.server import ThreadPoolServer
 from flect.cluster import Job
 from alex.components.nlg.tectotpl.core.util import file_stream
 
-from rank import PerceptronRanker
 from logf import log_info, set_debug_stream, log_debug
-from planner import ASearchPlanner
 from tgen.logf import log_warn, is_debug_stream
 from tgen.eval import ASearchListsAnalyzer, Evaluator
 from tgen.rnd import rnd
+from tgen.rank import Ranker, PerceptronRanker
 
 
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
@@ -45,7 +44,7 @@ def get_worker_registrar_for(head):
     """Return a class that will handle worker registration for the given head."""
 
     # create a dump of the head to be passed to workers
-    head_dump = pickle.dumps(head.get_plain_percrank(), protocol=pickle.HIGHEST_PROTOCOL)
+    ranker_dump = pickle.dumps(head.ranker_inst, protocol=pickle.HIGHEST_PROTOCOL)
 
     class WorkerRegistrarService(Service):
 
@@ -55,7 +54,7 @@ def get_worker_registrar_for(head):
             log_info('Worker %s:%d connected, initializing training.' % (host, port))
             conn = connect(host, port)
             # initialize the remote server (with training data etc.)
-            conn.root.init_training(head_dump)
+            conn.root.init_training(ranker_dump)
             # add it to the list of running services
             sc = ServiceConn(host, port, conn)
             head.services.add(sc)
@@ -65,13 +64,13 @@ def get_worker_registrar_for(head):
     return WorkerRegistrarService
 
 
-class ParallelPerceptronRanker(PerceptronRanker):
+class ParallelPerceptronRanker(Ranker):
 
     DEFAULT_PORT = 25125
 
     def __init__(self, cfg, work_dir, experiment_id=None):
         # initialize base class
-        super(ParallelPerceptronRanker, self).__init__(cfg)
+        super(ParallelPerceptronRanker, self).__init__()
         # initialize myself
         self.work_dir = work_dir
         self.jobs_number = cfg.get('jobs_number', 10)
@@ -89,12 +88,14 @@ class ParallelPerceptronRanker(PerceptronRanker):
         self.services = None
         self.free_services = None
         self.results = None
+        # create a ranker instance that will be copied to all parallel workers
+        self.ranker_inst = PerceptronRanker(cfg)
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run parallel perceptron training, start and manage workers."""
-        # initialize myself
+        # initialize the ranker instance
         log_info('Initializing...')
-        self._init_training(das_file, ttree_file, data_portion)
+        self.ranker_inst._init_training(das_file, ttree_file, data_portion)
         # run server to process registering clients
         self._init_server()
         # spawn training jobs
@@ -112,7 +113,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
             self.jobs.append(job)
         # run the training passes
         try:
-            for iter_no in xrange(1, self.passes + 1):
+            for iter_no in xrange(1, self.ranker_inst.passes + 1):
 
                 log_info('Pass %d...' % iter_no)
                 log_debug('\n***\nTR%05d:' % iter_no)
@@ -120,7 +121,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
                 iter_start_time = time.time()
                 cur_portion = 0
                 results = [None] * self.data_portions
-                w_dump = pickle.dumps(self.w, protocol=pickle.HIGHEST_PROTOCOL)
+                w_dump = pickle.dumps(self.ranker_inst.w, protocol=pickle.HIGHEST_PROTOCOL)
                 rnd_seeds = [rnd.random() for _ in xrange(self.data_portions)]
                 # wait for free services / assign computation
                 while cur_portion < self.data_portions or self.pending_requests:
@@ -162,16 +163,16 @@ class ParallelPerceptronRanker(PerceptronRanker):
                     self.lists_analyzer.merge(lists)
 
                 # take an average of weights; set it as new w
-                self.w = np.average([w for w, _, _ in results], axis=0)
-                self.w_after_iter.append(np.copy(self.w))  # store a copy of w for averaging
+                self.ranker_inst.w = np.average([w for w, _, _ in results], axis=0)
+                self.ranker_inst.w_after_iter.append(np.copy(self.ranker_inst.w))  # store a copy of w for averaging
 
                 # print statistics
-                log_debug(self._feat_val_str(self.w), '\n***')
-                self._print_pass_stats(iter_no, datetime.timedelta(seconds=(time.time() - iter_start_time)))
+                log_debug(self.ranker_inst._feat_val_str(self.ranker_inst.w), '\n***')
+                self.ranker_inst._print_pass_stats(iter_no, datetime.timedelta(seconds=(time.time() - iter_start_time)))
 
             # after all passes: average weights if set to do so
-            if self.averaging is True:
-                self.w = np.average(self.w_after_iter, axis=0)
+            if self.ranker_inst.averaging is True:
+                self.ranker_inst.w = np.average(self.w_after_iter, axis=0)
         # kill all jobs
         finally:
             for job in self.jobs:
@@ -218,52 +219,10 @@ class ParallelPerceptronRanker(PerceptronRanker):
             return portion_size * portion_no + bigger_portions, portion_size
         raise NotImplementedError()
 
-    def get_plain_percrank(self):
-        percrank = PerceptronRanker(cfg=None)  # initialize with 'empty' configuration
-        # copy all necessary data from the head
-        percrank.w = self.w
-        percrank.feats = self.feats
-        percrank.vectorizer = self.vectorizer
-        percrank.normalizer = self.normalizer
-        percrank.alpha = self.alpha
-        percrank.passes = self.passes
-        percrank.rival_number = self.rival_number
-        percrank.language = self.rival_number
-        percrank.selector = self.selector
-        percrank.rival_gen_strategy = self.rival_gen_strategy
-        percrank.rival_gen_max_iter = self.rival_gen_max_iter
-        percrank.rival_gen_max_defic_iter = self.rival_gen_max_defic_iter
-        percrank.rival_gen_beam_size = self.rival_gen_beam_size
-        percrank.candgen_model = self.candgen_model
-        percrank.train_trees = self.train_trees
-        percrank.train_feats = self.train_feats
-        percrank.train_sents = self.train_sents
-        percrank.train_das = self.train_das
-        percrank.train_order = self.train_order
-        percrank.asearch_planner = self.asearch_planner
-        percrank.sampling_planner = self.sampling_planner
-        percrank.candgen = self.candgen
-        percrank.averaging = self.averaging
-        percrank.binarize = self.binarize
-        percrank.prune_feats = self.prune_feats
-        percrank.diffing_trees = self.diffing_trees
-        percrank.randomize = self.randomize
-        # make a new planner so that it links back to the new ranker copy
-        percrank.asearch_planner = ASearchPlanner({'candgen': percrank.candgen,
-                                                   'language': percrank.language,
-                                                   'selector': percrank.selector,
-                                                   'ranker': percrank})
-        percrank.lists_analyzer = self.lists_analyzer
-        percrank.evaluator = self.evaluator
-        percrank.future_promise_weight = self.future_promise_weight
-        percrank.future_promise_type = self.future_promise_type
-        return percrank
-
     def save_to_file(self, model_fname):
         """Saving just the "plain" perceptron ranker model to a file; discarding all the
         parallel stuff that can't be stored in a pickle anyway."""
-        percrank = self.get_plain_percrank()
-        percrank.save_to_file(model_fname)
+        self.ranker_inst.save_to_file(model_fname)
 
 
 class PercRankTrainingService(Service):
