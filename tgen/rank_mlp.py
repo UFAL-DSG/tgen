@@ -11,10 +11,13 @@ from tgen.rank import PerceptronRanker
 import theano
 import theano.tensor as T
 import numpy as np
-import random
+
+from tgen.rnd import rnd
 
 
 class FeedForwardLayer(object):
+    """One feed forward layer, using Theano shared variables. Can be connected to more
+    inputs, i.e., use the same weights to process different inputs."""
 
     def __init__(self, name, n_in, n_out, activation, init='random'):
 
@@ -27,8 +30,8 @@ class FeedForwardLayer(object):
 
         # weight initialization
         if init == 'random':
-            w_init = np.reshape(np.asarray([random.uniform(-np.sqrt(6. / (n_in + n_out)),
-                                                           np.sqrt(6. / (n_in + n_out)))
+            w_init = np.reshape(np.asarray([rnd.uniform(-np.sqrt(6. / (n_in + n_out)),
+                                                        np.sqrt(6. / (n_in + n_out)))
                                             for _ in xrange(n_in * n_out)]),
                                 newshape=(n_in, n_out))
         elif init == 'ones':
@@ -52,6 +55,7 @@ class FeedForwardLayer(object):
 
 
 class FeedForwardNN(object):
+    """A Theano feed forward neural network for ranking with perceptron cost function."""
 
     def __init__(self, sizes, activations):
 
@@ -76,7 +80,7 @@ class FeedForwardNN(object):
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
-        cost = T.sum(y_gold - y)
+        cost = T.sum(y - y_gold)
         self.cost = theano.function([x, x_gold], cost, allow_input_downcast=True)
         grad_cost = T.grad(cost, wrt=self.params)
         self.grad_cost = theano.function([x, x_gold], grad_cost, allow_input_downcast=True)
@@ -85,11 +89,13 @@ class FeedForwardNN(object):
         updates = []
         rate = T.fscalar('rate')
         for param, grad_param in zip(self.params, grad_cost):
-            updates.append((param, param + rate * grad_param))
+            updates.append((param, param - rate * grad_param))
         self.update = theano.function([x, x_gold, rate], cost, updates=updates, allow_input_downcast=True)
 
 
 class SimpleNNRanker(PerceptronRanker):
+    """A simple ranker using a neural network on top of the usual features; using the same
+    updates as the original perceptron as far as possible."""
 
     def __init__(self, cfg):
         super(SimpleNNRanker, self).__init__(cfg)
@@ -115,7 +121,7 @@ class SimpleNNRanker(PerceptronRanker):
                 good_feats = self._extract_feats(good_st, da)
                 bad_feats = self._extract_feats(bad_st, da)
                 st_w = 1
-                if self.diffing_trees.endswith('wegihted'):
+                if self.diffing_trees.endswith('weighted'):
                     st_w = (len(good_st) + len(bad_st)) / float(len(good_tree) + len(bad_tree))
                 self.nn.update(bad_feats, good_feats, st_w * self.alpha)
         else:

@@ -20,7 +20,6 @@ import socket
 import cPickle as pickle
 import time
 import datetime
-import random
 
 import numpy as np
 from rpyc import Service, connect, async
@@ -34,6 +33,7 @@ from logf import log_info, set_debug_stream, log_debug
 from planner import ASearchPlanner
 from tgen.logf import log_warn, is_debug_stream
 from tgen.eval import ASearchListsAnalyzer, Evaluator
+from tgen.rnd import rnd
 
 
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
@@ -121,7 +121,7 @@ class ParallelPerceptronRanker(PerceptronRanker):
                 cur_portion = 0
                 results = [None] * self.data_portions
                 w_dump = pickle.dumps(self.w, protocol=pickle.HIGHEST_PROTOCOL)
-                rnd_seeds = [random.random() for _ in xrange(self.data_portions)]
+                rnd_seeds = [rnd.random() for _ in xrange(self.data_portions)]
                 # wait for free services / assign computation
                 while cur_portion < self.data_portions or self.pending_requests:
                     log_debug('Starting loop over services.')
@@ -305,8 +305,8 @@ class PercRankTrainingService(Service):
         all_train_order = percrank.train_order
         percrank.train_order = range(len(percrank.train_trees))
         if percrank.randomize:
-            random.seed(rnd_seed)
-            random.shuffle(percrank.train_order)
+            rnd.seed(rnd_seed)
+            rnd.shuffle(percrank.train_order)
         # do the actual computation (update w)
         evaluator, lists_analyzer = percrank._training_pass(pass_no)
         # return the rest of the training data to member variables

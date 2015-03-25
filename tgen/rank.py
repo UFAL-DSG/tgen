@@ -8,7 +8,6 @@ Candidate tree rankers.
 from __future__ import unicode_literals
 import numpy as np
 import cPickle as pickle
-import random
 import time
 import datetime
 from collections import defaultdict
@@ -24,6 +23,7 @@ from candgen import RandomCandidateGenerator
 from eval import Evaluator, EvalTypes
 from tree import TreeNode
 from tgen.eval import ASearchListsAnalyzer
+from tgen.rnd import rnd
 
 
 class Ranker(object):
@@ -114,7 +114,8 @@ class PerceptronRanker(Ranker):
         for iter_no in xrange(1, self.passes + 1):
             self.train_order = range(len(self.train_trees))
             if self.randomize:
-                random.shuffle(self.train_order)
+                rnd.shuffle(self.train_order)
+            log_info("Train order: " + str(self.train_order))
             evaluator, _ = self._training_pass(iter_no)
             if evaluator.tree_accuracy() == 1:  # if tree accuracy is 1, we won't learn anything anymore
                 break
@@ -178,7 +179,7 @@ class PerceptronRanker(Ranker):
         # initialize weights
         self.w = np.ones(self.train_feats.shape[1])
         self.w_sum = sum(self.w)
-        # self.w = np.array([random.gauss(0, self.alpha) for _ in xrange(self.train_feats.shape[1])])
+        # self.w = np.array([rnd.gauss(0, self.alpha) for _ in xrange(self.train_feats.shape[1])])
 
         log_debug('\n***\nINIT:')
         log_debug(self._feat_val_str(self.w))
@@ -342,7 +343,7 @@ class PerceptronRanker(Ranker):
         if 'other_inst' in self.rival_gen_strategy:
             # use alternative indexes, avoid the correct one
             rival_idxs = map(lambda idx: len(train_trees) - 1 if idx == tree_no else idx,
-                             random.sample(xrange(len(train_trees) - 1), self.rival_number))
+                             rnd.sample(xrange(len(train_trees) - 1), self.rival_number))
             other_inst_trees = [train_trees[rival_idx] for rival_idx in rival_idxs]
             rival_trees.extend(other_inst_trees)
             rival_feats.extend([self._extract_feats(tree, da) for tree in other_inst_trees])

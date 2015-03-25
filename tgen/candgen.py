@@ -8,7 +8,6 @@ Generating candidate subtrees to enhance the current candidate tree.
 from __future__ import unicode_literals
 from collections import defaultdict, Counter
 import cPickle as pickle
-import random
 
 from logf import log_info
 from alex.components.nlg.tectotpl.core.util import file_stream
@@ -18,6 +17,7 @@ from tree import TreeNode, NodeData
 from tgen.logf import log_warn
 from tgen.tree import TreeData
 from tgen.planner import CandidateList
+from tgen.rnd import rnd
 
 
 class RandomCandidateGenerator(object):
@@ -326,7 +326,7 @@ class RandomCandidateGenerator(object):
     def sample(self, cdf):
         """Return a sample from the distribution, given a CDF (as a list)."""
         total = cdf[-1][1]
-        rand = random.random() * total  # get a random number in [0,total)
+        rand = rnd.random() * total  # get a random number in [0,total)
         for key, ubound in cdf:
             if ubound > rand:
                 return key

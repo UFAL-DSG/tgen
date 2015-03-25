@@ -25,7 +25,6 @@ asearch_gen -- generate using the A*search sentence planner
 """
 
 from __future__ import unicode_literals
-import random
 import sys
 from getopt import getopt
 import platform
@@ -47,6 +46,7 @@ from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearc
 from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelPerceptronRanker
 from tgen.rank_mlp import SimpleNNRanker
+
 
 
 def candgen_train(args):
@@ -286,9 +286,6 @@ def asearch_gen(args):
 
 
 if __name__ == '__main__':
-
-    random.seed(1206)
-    # random.seed(1985)
 
     if len(sys.argv) < 3:
         sys.exit(__doc__)
