@@ -124,14 +124,16 @@ def percrank_train(args):
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
     if rank_config.get('nn'):
-        ranker = SimpleNNRanker(rank_config)
-    elif not parallel:
-        ranker = PerceptronRanker(rank_config)
+        ranker_class = SimpleNNRanker
+    else:
+        ranker_class = PerceptronRanker
+    if not parallel:
+        ranker = ranker_class(rank_config)
     else:
         rank_config['jobs_number'] = jobs_number
         if work_dir is None:
             work_dir, _ = os.path.split(fname_rank_config)
-        ranker = ParallelRanker(rank_config, work_dir, experiment_id)
+        ranker = ParallelRanker(rank_config, work_dir, experiment_id, ranker_class)
     ranker.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
     ranker.save_to_file(fname_rank_model)
 

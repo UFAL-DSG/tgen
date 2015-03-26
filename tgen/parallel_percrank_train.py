@@ -67,7 +67,7 @@ class ParallelRanker(Ranker):
 
     DEFAULT_PORT = 25125
 
-    def __init__(self, cfg, work_dir, experiment_id=None):
+    def __init__(self, cfg, work_dir, experiment_id=None, ranker_class=PerceptronRanker):
         # initialize base class
         super(ParallelRanker, self).__init__()
         # initialize myself
@@ -89,7 +89,7 @@ class ParallelRanker(Ranker):
         self.results = None
         # create a local ranker instance that will be copied to all parallel workers
         # and will be used to average weights after each iteration
-        self.loc_ranker = PerceptronRanker(cfg)
+        self.loc_ranker = ranker_class(cfg)
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run parallel perceptron training, start and manage workers."""

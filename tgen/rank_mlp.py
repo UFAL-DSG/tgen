@@ -112,14 +112,14 @@ class SimpleNNRanker(BasePerceptronRanker):
     def __init__(self, cfg):
         super(SimpleNNRanker, self).__init__(cfg)
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
-        self.init = cfg.get('initialization', 'random')
+        self.initialization = cfg.get('initialization', 'random')
 
     def _init_training(self, das_file, ttree_file, data_portion):
         # load data, determine number of features etc. etc.
         super(SimpleNNRanker, self)._init_training(das_file, ttree_file, data_portion)
 
         # this works as a linear perceptron
-        self.nn = FeedForwardNN([self.train_feats.shape[1], 1], [None], [self.init])
+        self.nn = FeedForwardNN([self.train_feats.shape[1], 1], [None], [self.initialization])
 #         self.nn = FeedForwardNN([len(self.w), self.num_hidden_units, 1], [T.tanh, None])
 
         self.w_after_iter = []

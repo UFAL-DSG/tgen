@@ -89,5 +89,6 @@ config = {
           # 'rival_gen_beam_size': 20, # actually slows it down
           'future_promise_weight': 0,
           'future_promise_type': 'norm_exp_children',  # default: exp_children
-          'nn': False,
+          'nn': True,
+          'initialization': 'random',
           }
