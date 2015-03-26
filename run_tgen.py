@@ -46,7 +46,10 @@ from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearc
 from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelRanker
 from tgen.rank_mlp import SimpleNNRanker
+from tgen.debug import exc_info_hook
 
+# Start IPdb on error in interactive mode
+sys.excepthook = exc_info_hook
 
 
 def candgen_train(args):

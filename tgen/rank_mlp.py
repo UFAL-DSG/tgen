@@ -58,7 +58,7 @@ class FeedForwardLayer(object):
 class FeedForwardNN(object):
     """A Theano feed forward neural network for ranking with perceptron cost function."""
 
-    def __init__(self, sizes, activations):
+    def __init__(self, sizes, activations, initializations):
 
         self.layers = []
         self.params = []
@@ -68,8 +68,9 @@ class FeedForwardNN(object):
         x_gold = T.fvector('x_gold')
         y = x
         y_gold = x_gold
-        for i, (n_in, n_out, act) in enumerate(zip(sizes[:-1], sizes[1:], activations)):
-            layer = FeedForwardLayer('L%d' % i, n_in, n_out, act)
+        for i, (n_in, n_out, act, init) in enumerate(zip(sizes[:-1], sizes[1:],
+                                                         activations, initializations)):
+            layer = FeedForwardLayer('L%d' % i, n_in, n_out, act, init)
             y = layer.connect(y)
             y_gold = layer.connect(y_gold)
             self.layers.append(layer)
@@ -93,6 +94,16 @@ class FeedForwardNN(object):
             updates.append((param, param - rate * grad_param))
         self.update = theano.function([x, x_gold, rate], cost, updates=updates, allow_input_downcast=True)
 
+    def get_param_values(self):
+        vals = []
+        for param in self.params:
+            vals.append(param.get_value())
+        return vals
+
+    def set_param_values(self, vals):
+        for param, val in zip(self.params, vals):
+            param.set_value(val)
+
 
 class SimpleNNRanker(BasePerceptronRanker):
     """A simple ranker using a neural network on top of the usual features; using the same
@@ -101,16 +112,18 @@ class SimpleNNRanker(BasePerceptronRanker):
     def __init__(self, cfg):
         super(SimpleNNRanker, self).__init__(cfg)
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
+        self.init = cfg.get('initialization', 'random')
 
     def _init_training(self, das_file, ttree_file, data_portion):
         # load data, determine number of features etc. etc.
         super(SimpleNNRanker, self)._init_training(das_file, ttree_file, data_portion)
-#         self.nn = FeedForwardNN([len(self.w), self.num_hidden_units, 1], [T.tanh, None])
-        # this should work as a linear perceptron
-        self.nn = FeedForwardNN([len(self.w), 1], [None])
 
-        # TODO fix this, otherwise the future promise won't work !!!
-        # self.w = self.nn.params
+        # this works as a linear perceptron
+        self.nn = FeedForwardNN([self.train_feats.shape[1], 1], [None], [self.init])
+#         self.nn = FeedForwardNN([len(self.w), self.num_hidden_units, 1], [T.tanh, None])
+
+        self.w_after_iter = []
+        self.update_weights_sum()
 
         log_debug('\n***\nINIT:')
         log_debug(self._feat_val_str())
@@ -125,9 +138,40 @@ class SimpleNNRanker(BasePerceptronRanker):
             for good_st, bad_st in zip(good_sts, bad_sts):
                 good_feats = self._extract_feats(good_st, da)
                 bad_feats = self._extract_feats(bad_st, da)
-                st_w = 1
+                subtree_w = 1
                 if self.diffing_trees.endswith('weighted'):
-                    st_w = (len(good_st) + len(bad_st)) / float(len(good_tree) + len(bad_tree))
-                self.nn.update(bad_feats, good_feats, st_w * self.alpha)
+                    subtree_w = (len(good_st) + len(bad_st)) / float(len(good_tree) + len(bad_tree))
+                self.nn.update(bad_feats, good_feats, subtree_w * self.alpha)
         else:
             self.nn.update(bad_feats, good_feats, self.alpha)
+
+    def get_weights(self):
+        """Return the current neural net weights."""
+        return self.nn.get_param_values()
+
+    def set_weights(self, w):
+        """Set new neural network weights."""
+        self.nn.set_param_values(w)
+
+    def set_weights_average(self, wss):
+        """Set the weights as the average of the given array of weights (used in parallel training)."""
+        self.nn.set_param_values(np.average(wss, axis=0))
+
+    def store_iter_weights(self):
+        """Remember the current weights to be used for averaged perceptron."""
+        self.w_after_iter.append(self.nn.get_param_values())
+
+    def set_weights_iter_average(self):
+        """Average the remembered weights."""
+        self.nn.set_param_values(np.average(self.w_after_iter, axis=0))
+
+    def get_weights_sum(self):
+        """Return the sum of weights (at start of current iteration) to be used to weigh future
+        promise."""
+        return self.w_sum
+
+    def update_weights_sum(self):
+        """Update the current weights sum figure."""
+        vals = self.nn.get_param_values()
+        # only use the last layer for summation (w, b)
+        self.w_sum = np.sum(vals[-2]) + np.sum(vals[-1])

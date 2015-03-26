@@ -116,8 +116,8 @@ class BasePerceptronRanker(Ranker):
             if self.randomize:
                 rnd.shuffle(self.train_order)
             log_info("Train order: " + str(self.train_order))
-            evaluator, _ = self._training_pass(iter_no)
-            if evaluator.tree_accuracy() == 1:  # if tree accuracy is 1, we won't learn anything anymore
+            self._training_pass(iter_no)
+            if self.evaluator.tree_accuracy() == 1:  # if tree accuracy is 1, we won't learn anything anymore
                 break
         # averaged perceptron – average the weights obtained after each pass
         if self.averaging is True:
@@ -215,7 +215,7 @@ class BasePerceptronRanker(Ranker):
                                      gold_feats, cands[top_cand_idx])
 
         # store a copy of the current weights for averaging
-        self.w_after_iter.append(np.copy(self.w))
+        self.store_iter_weights()
 
         # debug print: current weights and pass accuracy
         log_debug(self._feat_val_str(), '\n***')
@@ -307,7 +307,7 @@ class BasePerceptronRanker(Ranker):
                  self.evaluator.p_r_f1())
         log_info(' * Generated trees DEP  scores: P: %.4f, R: %.4f, F: %.4f' %
                  self.evaluator.p_r_f1(EvalTypes.DEP))
-        log_info(' * Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %4f' %
+        log_info(' * Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %.4f' %
                  self.lists_analyzer.stats())
         log_info(' * Tree size stats:\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s' %
                  self.evaluator.tree_size_stats())
@@ -318,9 +318,8 @@ class BasePerceptronRanker(Ranker):
         log_info(' * Duration: %s' % str(pass_duration))
 
     def _feat_val_str(self, sep='\n', nonzero=False):
-        return sep.join(['%s: %.3f' % (name, weight)
-                         for name, weight in zip(self.vectorizer.get_feature_names(), self.w)
-                         if not nonzero or weight != 0])
+        """Return feature names and values for printing. To be overridden in base classes."""
+        return ''
 
     def _get_rival_candidates(self, tree_no, max_iter, max_defic_iter, beam_size):
         """Generate some rival candidates for a DA and the correct (gold) tree,
@@ -460,6 +459,9 @@ class PerceptronRanker(BasePerceptronRanker):
         else:
             self.w += (self.alpha * good_feats - self.alpha * bad_feats)
         # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
+
+    def _feat_val_str(self, sep='\n', nonzero=False):
+        return ''
 
     def get_weights(self):
         """Return the current perceptron ranker weights."""
