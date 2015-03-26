@@ -113,14 +113,20 @@ class SimpleNNRanker(BasePerceptronRanker):
         super(SimpleNNRanker, self).__init__(cfg)
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
         self.initialization = cfg.get('initialization', 'random')
+        self.net_type = cfg.get('nn', 'linear_perc')
 
     def _init_training(self, das_file, ttree_file, data_portion):
         # load data, determine number of features etc. etc.
         super(SimpleNNRanker, self)._init_training(das_file, ttree_file, data_portion)
 
+        # multi-layer perceptron with tanh + linear layer
+        if self.net_type == 'mlp':
+            self.nn = FeedForwardNN([self.train_feats.shape[1], self.num_hidden_units, 1],
+                                    [T.tanh, None],
+                                    [self.initialization, self.initialization])
         # this works as a linear perceptron
-        self.nn = FeedForwardNN([self.train_feats.shape[1], 1], [None], [self.initialization])
-#         self.nn = FeedForwardNN([len(self.w), self.num_hidden_units, 1], [T.tanh, None])
+        else:
+            self.nn = FeedForwardNN([self.train_feats.shape[1], 1], [None], [self.initialization])
 
         self.w_after_iter = []
         self.update_weights_sum()
