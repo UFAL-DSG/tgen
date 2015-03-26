@@ -44,7 +44,7 @@ from tgen.planner import SamplingPlanner, ASearchPlanner
 from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearchListsAnalyzer, \
     EvalTypes, Evaluator
 from tgen.tree import TreeData
-from tgen.parallel_percrank_train import ParallelPerceptronRanker
+from tgen.parallel_percrank_train import ParallelRanker
 from tgen.rank_mlp import SimpleNNRanker
 
 
@@ -128,7 +128,7 @@ def percrank_train(args):
         rank_config['jobs_number'] = jobs_number
         if work_dir is None:
             work_dir, _ = os.path.split(fname_rank_config)
-        ranker = ParallelPerceptronRanker(rank_config, work_dir, experiment_id)
+        ranker = ParallelRanker(rank_config, work_dir, experiment_id)
     ranker.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
     ranker.save_to_file(fname_rank_model)
 

@@ -21,7 +21,6 @@ import cPickle as pickle
 import time
 import datetime
 
-import numpy as np
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
 
@@ -30,7 +29,6 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 
 from logf import log_info, set_debug_stream, log_debug
 from tgen.logf import log_warn, is_debug_stream
-from tgen.eval import ASearchListsAnalyzer, Evaluator
 from tgen.rnd import rnd
 from tgen.rank import Ranker, PerceptronRanker
 
@@ -64,13 +62,14 @@ def get_worker_registrar_for(head):
     return WorkerRegistrarService
 
 
-class ParallelPerceptronRanker(Ranker):
+class ParallelRanker(Ranker):
+    """This is used to train rankers in parallel (supports any ranker class)."""
 
     DEFAULT_PORT = 25125
 
     def __init__(self, cfg, work_dir, experiment_id=None):
         # initialize base class
-        super(ParallelPerceptronRanker, self).__init__()
+        super(ParallelRanker, self).__init__()
         # initialize myself
         self.work_dir = work_dir
         self.jobs_number = cfg.get('jobs_number', 10)
@@ -156,15 +155,11 @@ class ParallelPerceptronRanker(Ranker):
                     log_debug('Sleeping.')
                     time.sleep(self.poll_interval)
 
-                # now gather the results and statistics
-                self.loc_ranker.evaluator = Evaluator()
-                self.loc_ranker.lists_analyzer = ASearchListsAnalyzer()
-                for _, evaluator, lists in results:  # merge statistics
-                    self.loc_ranker.evaluator.merge(evaluator)
-                    self.loc_ranker.lists_analyzer.merge(lists)
+                # gather/average the diagnostic statistics
+                self.loc_ranker.set_diagnostics_average([d for _, d in results])
 
                 # take an average of weights; set it as new w
-                self.loc_ranker.set_weights_average([w for w, _, _ in results])
+                self.loc_ranker.set_weights_average([w for w, _ in results])
                 self.loc_ranker.store_iter_weights()  # store a copy of w for averaged perceptron
 
                 # print statistics
@@ -268,7 +263,7 @@ class RankerTrainingService(Service):
             rnd.seed(rnd_seed)
             rnd.shuffle(ranker.train_order)
         # do the actual computation (update w)
-        evaluator, lists_analyzer = ranker._training_pass(pass_no)
+        ranker._training_pass(pass_no)
         # return the rest of the training data to member variables
         ranker.train_das = all_train_das
         ranker.train_trees = all_train_trees
@@ -277,7 +272,7 @@ class RankerTrainingService(Service):
         ranker.train_order = all_train_order
         # return the result of the computation
         log_info('Training pass %d / %d / %d done.' % (pass_no, data_offset, data_len))
-        return pickle.dumps((ranker.get_weights(), evaluator, lists_analyzer), pickle.HIGHEST_PROTOCOL)
+        return pickle.dumps((ranker.get_weights(), ranker.get_diagnostics()), pickle.HIGHEST_PROTOCOL)
 
 
 def run_worker(head_host, head_port, debug_out=None):

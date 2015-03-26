@@ -7,12 +7,13 @@ Candidate tree rankers (NN).
 """
 
 from __future__ import unicode_literals
-from tgen.rank import PerceptronRanker
 import theano
 import theano.tensor as T
 import numpy as np
 
 from tgen.rnd import rnd
+from tgen.rank import BasePerceptronRanker
+from tgen.logf import log_debug, log_info
 
 
 class FeedForwardLayer(object):
@@ -93,7 +94,7 @@ class FeedForwardNN(object):
         self.update = theano.function([x, x_gold, rate], cost, updates=updates, allow_input_downcast=True)
 
 
-class SimpleNNRanker(PerceptronRanker):
+class SimpleNNRanker(BasePerceptronRanker):
     """A simple ranker using a neural network on top of the usual features; using the same
     updates as the original perceptron as far as possible."""
 
@@ -110,6 +111,10 @@ class SimpleNNRanker(PerceptronRanker):
 
         # TODO fix this, otherwise the future promise won't work !!!
         # self.w = self.nn.params
+
+        log_debug('\n***\nINIT:')
+        log_debug(self._feat_val_str())
+        log_info('Training ...')
 
     def _score(self, cand_feats):
         return self.nn.score(cand_feats)[0]

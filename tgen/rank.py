@@ -27,6 +27,7 @@ from tgen.rnd import rnd
 
 
 class Ranker(object):
+    """Base class for rankers."""
 
     @staticmethod
     def load_from_file(model_fname):
@@ -42,15 +43,13 @@ class Ranker(object):
             pickle.dump(self, fh, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-class PerceptronRanker(Ranker):
-    """Global ranker for whole trees, based on linear Perceptron by Collins & Duffy (2002)."""
+class BasePerceptronRanker(Ranker):
+    """Base class for global ranker for whole trees, based on features."""
 
     def __init__(self, cfg):
+        super(BasePerceptronRanker, self).__init__()
         if not cfg:
             cfg = {}
-        self.w_after_iter = []
-        self.w = None
-        self.w_sum = 0.0
         self.feats = ['bias: bias']
         self.vectorizer = None
         self.normalizer = None
@@ -75,6 +74,9 @@ class PerceptronRanker(Ranker):
         if 'features' in cfg:
             self.feats.extend(cfg['features'])
         self.feats = Features(self.feats, cfg.get('intermediate_features', []))
+        # initialize diagnostics
+        self.lists_analyzer = None
+        self.evaluator = None
 
     def score(self, cand_tree, da):
         """Score the given tree in the context of the given dialogue act.
@@ -83,9 +85,6 @@ class PerceptronRanker(Ranker):
         """
         return self._score(self._extract_feats(cand_tree, da))
 
-    def _score(self, cand_feats):
-        return np.dot(self.w, cand_feats)
-
     def _extract_feats(self, tree, da):
         feats = self.vectorizer.transform([self.feats.get_features(tree, {'da': da})])
         if self.normalizer:
@@ -93,20 +92,21 @@ class PerceptronRanker(Ranker):
         return feats[0]
 
     def get_future_promise(self, cand_tree):
-        """Compute expected future cost for a tree."""
+        """Compute expected future promise for a tree."""
+        w_sum = self.get_weights_sum()
         if self.future_promise_type == 'num_nodes':
-            return self.w_sum * self.future_promise_weight * max(0, 10 - len(cand_tree))
+            return w_sum * self.future_promise_weight * max(0, 10 - len(cand_tree))
         elif self.future_promise_type == 'norm_exp_children':
-            return (self.candgen.get_future_promise(cand_tree) / len(cand_tree)) * self.w_sum * self.future_promise_weight
+            return (self.candgen.get_future_promise(cand_tree) / len(cand_tree)) * w_sum * self.future_promise_weight
         elif self.future_promise_type == 'ands':
             prom = 0
             for idx, node in enumerate(cand_tree.nodes):
                 if node.t_lemma == 'and':
                     num_kids = cand_tree.children_num(idx)
                     prom += max(0, 2 - num_kids)
-            return prom * self.w_sum * self.future_promise_weight
+            return prom * w_sum * self.future_promise_weight
         else:  # expected children (default)
-            return self.candgen.get_future_promise(cand_tree) * self.w_sum * self.future_promise_weight
+            return self.candgen.get_future_promise(cand_tree) * w_sum * self.future_promise_weight
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run training on the given training data."""
@@ -172,29 +172,13 @@ class PerceptronRanker(Ranker):
                                                    'selector': self.selector,
                                                    'ranker': self, })
 
-        # initialize diagnostics
-        self.lists_analyzer = None
-        self.evaluator = None
-
-        # initialize weights
-        self.w = np.ones(self.train_feats.shape[1])
-        self.w_sum = sum(self.w)
-        # self.w = np.array([rnd.gauss(0, self.alpha) for _ in xrange(self.train_feats.shape[1])])
-
-        log_debug('\n***\nINIT:')
-        log_debug(self._feat_val_str())
-        log_info('Training ...')
-
     def _training_pass(self, pass_no):
         """Run one training pass, update weights (store them for possible averaging),
-        and return statistics.
-
-        @return: a tuple of Evaluator and ListsAnalyzer objects containing pass statistics."""
+        and store diagnostic values."""
 
         pass_start_time = time.clock()
-        self.evaluator = Evaluator()
-        self.lists_analyzer = ASearchListsAnalyzer()
-        self.w_sum = sum(self.w)
+        self.reset_diagnostics()
+        self.update_weights_sum()
 
         log_debug('\n***\nTR %05d:' % pass_no)
 
@@ -239,7 +223,6 @@ class PerceptronRanker(Ranker):
 
         # print and return statistics
         self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.clock() - pass_start_time)))
-        return self.evaluator, self.lists_analyzer
 
     def diffing_trees_with_scores(self, da, good_tree, bad_tree):
         """For debugging purposes. Return a printout of diffing trees between the chosen candidate
@@ -256,62 +239,57 @@ class PerceptronRanker(Ranker):
         return ret
 
     def get_weights(self):
-        """Return the current perceptron ranker weights."""
-        return self.w
+        """Return the current ranker weights (parameters). To be overridden by derived classes."""
+        raise NotImplementedError
 
     def set_weights(self, w):
-        """Set new perceptron ranker weights."""
-        self.w = w
+        """Set new ranker weights. To be overridden by derived classes."""
+        raise NotImplementedError
 
     def set_weights_average(self, ws):
-        """Set the weights as the average of the given array of weights (used in parallel training)."""
-        self.w = np.average(ws, axis=0)
+        """Set the weights as the average of the given array of weights (used in parallel training).
+        To be overridden by derived classes."""
+        raise NotImplementedError
 
     def store_iter_weights(self):
-        """Remember the current weights to be used for averaged perceptron."""
-        self.w_after_iter.append(np.copy(self.w))
+        """Remember the current weights to be used for averaging.
+        To be overridden by derived classes."""
+        raise NotImplementedError
 
     def set_weights_iter_average(self):
-        """Average the remembered weights."""
-        self.w = np.average(self.w_after_iter, axis=0)
+        """Set new weights as the average of all remembered weights. To be overridden by
+        derived classes."""
+        raise NotImplementedError
 
-    def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
-        # discount trees leading to the generated one and add trees leading to the gold one
-        if self.diffing_trees:
-            good_sts, bad_sts = good_tree.diffing_trees(bad_tree,
-                                                        symmetric=self.diffing_trees.startswith('sym'))
-            # if set, discount common subtree's features from all subtrees' features
-            discount = None
-            if 'nocom' in self.diffing_trees:
-                discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), da)
-            # add good trees (leading to gold)
-            for good_st in good_sts:
-                good_feats = self._extract_feats(good_st, da)
-                if discount is not None:
-                    good_feats -= discount
-                good_tree_w = 1
-                if self.diffing_trees.endswith('weighted'):
-                    good_tree_w = len(good_st) / float(len(good_tree))
-                self.w += self.alpha * good_tree_w * good_feats
-            # discount bad trees (leading to the generated one)
-            if 'nobad' in self.diffing_trees:
-                bad_sts = []
-            elif 'onebad' in self.diffing_trees:
-                bad_sts = [bad_tree]
-            for bad_st in bad_sts:
-                bad_feats = self._extract_feats(bad_st, da)
-                if discount is not None:
-                    bad_feats -= discount
-                bad_tree_w = 1
-                if self.diffing_trees.endswith('weighted'):
-                    bad_tree_w = len(bad_st) / float(len(bad_tree))
-                self.w -= self.alpha * bad_tree_w * bad_feats
-        # just discount the best generated tree and add the gold tree
-        else:
-            self.w += (self.alpha * good_feats - self.alpha * bad_feats)
-        # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
+    def get_weights_sum(self):
+        """Return weights size in order to weigh future promise against them."""
+        raise NotImplementedError
+
+    def update_weights_sum(self):
+        """Update the current weights size for future promise weighining."""
+        raise NotImplementedError
+
+    def reset_diagnostics(self):
+        """Reset the evaluation statistics (Evaluator and ASearchListsAnalyzer objects)."""
+        self.evaluator = Evaluator()
+        self.lists_analyzer = ASearchListsAnalyzer()
+
+    def get_diagnostics(self):
+        """Return the current evaluation statistics (a tuple of Evaluator and ASearchListsAnalyzer
+        objects."""
+        return self.evaluator, self.lists_analyzer
+
+    def set_diagnostics_average(self, diags):
+        """Given an array of evaluation statistics objects, average them an store in this ranker
+        instance."""
+        self.reset_diagnostics()
+        for evaluator, lists_analyzer in diags:
+            self.evaluator.merge(evaluator)
+            self.lists_analyzer.merge(lists_analyzer)
 
     def _get_num_iters(self, cur_pass_no, iter_setting):
+        """Return the maximum number of iterations (total/deficit) given the current pass.
+        Used to keep track of variable iteration number setting in configuration."""
         if isinstance(iter_setting, (list, tuple)):
             ret = 0
             for set_pass_no, set_iter_no in iter_setting:
@@ -411,6 +389,16 @@ class PerceptronRanker(Ranker):
                 if counts[key] < self.prune_feats:
                     del inst[key]
 
+
+class PerceptronRanker(BasePerceptronRanker):
+    """Peceptron ranker based on linear Perceptron by Collins & Duffy (2002)."""
+
+    def __init__(self, cfg):
+        super(PerceptronRanker, self).__init__(cfg)
+        self.w_after_iter = []
+        self.w = None
+        self.w_sum = 0.0
+
     def __setstate__(self, state):
         """Backward compatibility – adding members missing in older versions."""
         if 'normalizer' not in state:
@@ -419,3 +407,85 @@ class PerceptronRanker(Ranker):
         if 'binarize' not in state:
             state['binarize'] = False
         self.__dict__ = state
+
+    def _init_training(self, das_file, ttree_file, data_portion):
+        # load data, determine number of features etc. etc.
+        super(PerceptronRanker, self)._init_training(das_file, ttree_file, data_portion)
+        # initialize weights
+        self.w = np.ones(self.train_feats.shape[1])
+        self.update_weights_sum()
+        # self.w = np.array([rnd.gauss(0, self.alpha) for _ in xrange(self.train_feats.shape[1])])
+
+        log_debug('\n***\nINIT:')
+        log_debug(self._feat_val_str())
+        log_info('Training ...')
+
+    def _score(self, cand_feats):
+        return np.dot(self.w, cand_feats)
+
+    def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
+        """Perform a perceptron weights update (not the check if we need to update).
+        Also perform differing tree updates."""
+        # discount trees leading to the generated one and add trees leading to the gold one
+        if self.diffing_trees:
+            good_sts, bad_sts = good_tree.diffing_trees(bad_tree,
+                                                        symmetric=self.diffing_trees.startswith('sym'))
+            # if set, discount common subtree's features from all subtrees' features
+            discount = None
+            if 'nocom' in self.diffing_trees:
+                discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), da)
+            # add good trees (leading to gold)
+            for good_st in good_sts:
+                good_feats = self._extract_feats(good_st, da)
+                if discount is not None:
+                    good_feats -= discount
+                good_tree_w = 1
+                if self.diffing_trees.endswith('weighted'):
+                    good_tree_w = len(good_st) / float(len(good_tree))
+                self.w += self.alpha * good_tree_w * good_feats
+            # discount bad trees (leading to the generated one)
+            if 'nobad' in self.diffing_trees:
+                bad_sts = []
+            elif 'onebad' in self.diffing_trees:
+                bad_sts = [bad_tree]
+            for bad_st in bad_sts:
+                bad_feats = self._extract_feats(bad_st, da)
+                if discount is not None:
+                    bad_feats -= discount
+                bad_tree_w = 1
+                if self.diffing_trees.endswith('weighted'):
+                    bad_tree_w = len(bad_st) / float(len(bad_tree))
+                self.w -= self.alpha * bad_tree_w * bad_feats
+        # just discount the best generated tree and add the gold tree
+        else:
+            self.w += (self.alpha * good_feats - self.alpha * bad_feats)
+        # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
+
+    def get_weights(self):
+        """Return the current perceptron ranker weights."""
+        return self.w
+
+    def set_weights(self, w):
+        """Set new perceptron ranker weights."""
+        self.w = w
+
+    def set_weights_average(self, ws):
+        """Set the weights as the average of the given array of weights (used in parallel training)."""
+        self.w = np.average(ws, axis=0)
+
+    def store_iter_weights(self):
+        """Remember the current weights to be used for averaged perceptron."""
+        self.w_after_iter.append(np.copy(self.w))
+
+    def set_weights_iter_average(self):
+        """Average the remembered weights."""
+        self.w = np.average(self.w_after_iter, axis=0)
+
+    def get_weights_sum(self):
+        """Return the sum of weights (at start of current iteration) to be used to weigh future
+        promise."""
+        return self.w_sum
+
+    def update_weights_sum(self):
+        """Update the current weights sum figure."""
+        self.w_sum = sum(self.w)
