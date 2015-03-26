@@ -44,7 +44,7 @@ def get_worker_registrar_for(head):
     """Return a class that will handle worker registration for the given head."""
 
     # create a dump of the head to be passed to workers
-    ranker_dump = pickle.dumps(head.ranker_inst, protocol=pickle.HIGHEST_PROTOCOL)
+    ranker_dump = pickle.dumps(head.loc_ranker, protocol=pickle.HIGHEST_PROTOCOL)
 
     class WorkerRegistrarService(Service):
 
@@ -88,14 +88,15 @@ class ParallelPerceptronRanker(Ranker):
         self.services = None
         self.free_services = None
         self.results = None
-        # create a ranker instance that will be copied to all parallel workers
-        self.ranker_inst = PerceptronRanker(cfg)
+        # create a local ranker instance that will be copied to all parallel workers
+        # and will be used to average weights after each iteration
+        self.loc_ranker = PerceptronRanker(cfg)
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run parallel perceptron training, start and manage workers."""
         # initialize the ranker instance
         log_info('Initializing...')
-        self.ranker_inst._init_training(das_file, ttree_file, data_portion)
+        self.loc_ranker._init_training(das_file, ttree_file, data_portion)
         # run server to process registering clients
         self._init_server()
         # spawn training jobs
@@ -113,7 +114,7 @@ class ParallelPerceptronRanker(Ranker):
             self.jobs.append(job)
         # run the training passes
         try:
-            for iter_no in xrange(1, self.ranker_inst.passes + 1):
+            for iter_no in xrange(1, self.loc_ranker.passes + 1):
 
                 log_info('Pass %d...' % iter_no)
                 log_debug('\n***\nTR%05d:' % iter_no)
@@ -121,7 +122,7 @@ class ParallelPerceptronRanker(Ranker):
                 iter_start_time = time.time()
                 cur_portion = 0
                 results = [None] * self.data_portions
-                w_dump = pickle.dumps(self.ranker_inst.w, protocol=pickle.HIGHEST_PROTOCOL)
+                w_dump = pickle.dumps(self.loc_ranker.get_weights(), protocol=pickle.HIGHEST_PROTOCOL)
                 rnd_seeds = [rnd.random() for _ in xrange(self.data_portions)]
                 # wait for free services / assign computation
                 while cur_portion < self.data_portions or self.pending_requests:
@@ -156,23 +157,23 @@ class ParallelPerceptronRanker(Ranker):
                     time.sleep(self.poll_interval)
 
                 # now gather the results and statistics
-                self.evaluator = Evaluator()
-                self.lists_analyzer = ASearchListsAnalyzer()
+                self.loc_ranker.evaluator = Evaluator()
+                self.loc_ranker.lists_analyzer = ASearchListsAnalyzer()
                 for _, evaluator, lists in results:  # merge statistics
-                    self.evaluator.merge(evaluator)
-                    self.lists_analyzer.merge(lists)
+                    self.loc_ranker.evaluator.merge(evaluator)
+                    self.loc_ranker.lists_analyzer.merge(lists)
 
                 # take an average of weights; set it as new w
-                self.ranker_inst.w = np.average([w for w, _, _ in results], axis=0)
-                self.ranker_inst.w_after_iter.append(np.copy(self.ranker_inst.w))  # store a copy of w for averaging
+                self.loc_ranker.set_weights_average([w for w, _, _ in results])
+                self.loc_ranker.store_iter_weights()  # store a copy of w for averaged perceptron
 
                 # print statistics
-                log_debug(self.ranker_inst._feat_val_str(self.ranker_inst.w), '\n***')
-                self.ranker_inst._print_pass_stats(iter_no, datetime.timedelta(seconds=(time.time() - iter_start_time)))
+                log_debug(self.loc_ranker._feat_val_str(), '\n***')
+                self.loc_ranker._print_pass_stats(iter_no, datetime.timedelta(seconds=(time.time() - iter_start_time)))
 
             # after all passes: average weights if set to do so
-            if self.ranker_inst.averaging is True:
-                self.ranker_inst.w = np.average(self.w_after_iter, axis=0)
+            if self.loc_ranker.averaging is True:
+                self.loc_ranker.set_weights_iter_average()
         # kill all jobs
         finally:
             for job in self.jobs:
@@ -212,7 +213,7 @@ class ParallelPerceptronRanker(Ranker):
         @rtype: tuple
         @return: offset and size of the desired training data portion
         """
-        portion_size, bigger_portions = divmod(len(self.train_trees), self.data_portions)
+        portion_size, bigger_portions = divmod(len(self.loc_ranker.train_trees), self.data_portions)
         if portion_no < bigger_portions:
             return (portion_size + 1) * portion_no, portion_size + 1
         else:
@@ -222,19 +223,19 @@ class ParallelPerceptronRanker(Ranker):
     def save_to_file(self, model_fname):
         """Saving just the "plain" perceptron ranker model to a file; discarding all the
         parallel stuff that can't be stored in a pickle anyway."""
-        self.ranker_inst.save_to_file(model_fname)
+        self.loc_ranker.save_to_file(model_fname)
 
 
-class PercRankTrainingService(Service):
+class RankerTrainingService(Service):
 
     def __init__(self, conn_ref):
-        super(PercRankTrainingService, self).__init__(conn_ref)
-        self.percrank = None
+        super(RankerTrainingService, self).__init__(conn_ref)
+        self.ranker_inst = None
 
     def exposed_init_training(self, head_percrank):
         """(Worker) Just deep-copy all necessary attributes from the head instance."""
         log_info('Initializing training...')
-        self.percrank = pickle.loads(head_percrank)
+        self.ranker_inst = pickle.loads(head_percrank)
         log_info('Training initialized.')
 
     def exposed_training_pass(self, w, pass_no, rnd_seed, data_offset, data_len):
@@ -249,34 +250,34 @@ class PercRankTrainingService(Service):
         log_info('Training pass %d with data portion %d + %d' %
                  (pass_no, data_offset, data_len))
         # import current feature weights
-        percrank = self.percrank
-        percrank.w = pickle.loads(w)
+        ranker = self.ranker_inst
+        ranker.set_weights(pickle.loads(w))
         # save rest of the training data to temporary variables, set just the
         # required portion for computation
-        all_train_das = percrank.train_das
-        percrank.train_das = percrank.train_das[data_offset:data_offset + data_len]
-        all_train_trees = percrank.train_trees
-        percrank.train_trees = percrank.train_trees[data_offset:data_offset + data_len]
-        all_train_feats = percrank.train_feats
-        percrank.train_feats = percrank.train_feats[data_offset:data_offset + data_len]
-        all_train_sents = percrank.train_sents
-        percrank.train_sents = percrank.train_sents[data_offset:data_offset + data_len]
-        all_train_order = percrank.train_order
-        percrank.train_order = range(len(percrank.train_trees))
-        if percrank.randomize:
+        all_train_das = ranker.train_das
+        ranker.train_das = ranker.train_das[data_offset:data_offset + data_len]
+        all_train_trees = ranker.train_trees
+        ranker.train_trees = ranker.train_trees[data_offset:data_offset + data_len]
+        all_train_feats = ranker.train_feats
+        ranker.train_feats = ranker.train_feats[data_offset:data_offset + data_len]
+        all_train_sents = ranker.train_sents
+        ranker.train_sents = ranker.train_sents[data_offset:data_offset + data_len]
+        all_train_order = ranker.train_order
+        ranker.train_order = range(len(ranker.train_trees))
+        if ranker.randomize:
             rnd.seed(rnd_seed)
-            rnd.shuffle(percrank.train_order)
+            rnd.shuffle(ranker.train_order)
         # do the actual computation (update w)
-        evaluator, lists_analyzer = percrank._training_pass(pass_no)
+        evaluator, lists_analyzer = ranker._training_pass(pass_no)
         # return the rest of the training data to member variables
-        percrank.train_das = all_train_das
-        percrank.train_trees = all_train_trees
-        percrank.train_feats = all_train_feats
-        percrank.train_sents = all_train_sents
-        percrank.train_order = all_train_order
+        ranker.train_das = all_train_das
+        ranker.train_trees = all_train_trees
+        ranker.train_feats = all_train_feats
+        ranker.train_sents = all_train_sents
+        ranker.train_order = all_train_order
         # return the result of the computation
         log_info('Training pass %d / %d / %d done.' % (pass_no, data_offset, data_len))
-        return pickle.dumps((percrank.w, evaluator, lists_analyzer), pickle.HIGHEST_PROTOCOL)
+        return pickle.dumps((ranker.get_weights(), evaluator, lists_analyzer), pickle.HIGHEST_PROTOCOL)
 
 
 def run_worker(head_host, head_port, debug_out=None):
@@ -285,7 +286,7 @@ def run_worker(head_host, head_port, debug_out=None):
         set_debug_stream(file_stream(debug_out, mode='w'))
     # start the server (in the background)
     log_info('Creating worker server...')
-    server = ThreadPoolServer(service=PercRankTrainingService, nbThreads=1)
+    server = ThreadPoolServer(service=RankerTrainingService, nbThreads=1)
     server_thread = Thread(target=server.start)
     server_thread.start()
     my_host = socket.getfqdn()

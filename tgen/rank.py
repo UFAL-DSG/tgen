@@ -121,7 +121,7 @@ class PerceptronRanker(Ranker):
                 break
         # averaged perceptron – average the weights obtained after each pass
         if self.averaging is True:
-            self.w = np.average(self.w_after_iter, axis=0)
+            self.set_weights_iter_average()
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Initialize training (read input files, reset weights, reset
@@ -182,7 +182,7 @@ class PerceptronRanker(Ranker):
         # self.w = np.array([rnd.gauss(0, self.alpha) for _ in xrange(self.train_feats.shape[1])])
 
         log_debug('\n***\nINIT:')
-        log_debug(self._feat_val_str(self.w))
+        log_debug(self._feat_val_str())
         log_info('Training ...')
 
     def _training_pass(self, pass_no):
@@ -234,7 +234,7 @@ class PerceptronRanker(Ranker):
         self.w_after_iter.append(np.copy(self.w))
 
         # debug print: current weights and pass accuracy
-        log_debug(self._feat_val_str(self.w), '\n***')
+        log_debug(self._feat_val_str(), '\n***')
         log_debug('PASS ACCURACY: %.3f' % self.evaluator.tree_accuracy())
 
         # print and return statistics
@@ -254,6 +254,26 @@ class PerceptronRanker(Ranker):
         for bad_st in bad_sts:
             ret += "%.3f" % self.score(bad_st, da) + "\t" + unicode(bad_st) + "\n"
         return ret
+
+    def get_weights(self):
+        """Return the current perceptron ranker weights."""
+        return self.w
+
+    def set_weights(self, w):
+        """Set new perceptron ranker weights."""
+        self.w = w
+
+    def set_weights_average(self, ws):
+        """Set the weights as the average of the given array of weights (used in parallel training)."""
+        self.w = np.average(ws, axis=0)
+
+    def store_iter_weights(self):
+        """Remember the current weights to be used for averaged perceptron."""
+        self.w_after_iter.append(np.copy(self.w))
+
+    def set_weights_iter_average(self):
+        """Average the remembered weights."""
+        self.w = np.average(self.w_after_iter, axis=0)
 
     def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
         # discount trees leading to the generated one and add trees leading to the gold one
@@ -319,9 +339,9 @@ class PerceptronRanker(Ranker):
                  % self.evaluator.score_stats())
         log_info(' * Duration: %s' % str(pass_duration))
 
-    def _feat_val_str(self, vec, sep='\n', nonzero=False):
+    def _feat_val_str(self, sep='\n', nonzero=False):
         return sep.join(['%s: %.3f' % (name, weight)
-                         for name, weight in zip(self.vectorizer.get_feature_names(), vec)
+                         for name, weight in zip(self.vectorizer.get_feature_names(), self.w)
                          if not nonzero or weight != 0])
 
     def _get_rival_candidates(self, tree_no, max_iter, max_defic_iter, beam_size):
@@ -329,6 +349,8 @@ class PerceptronRanker(Ranker):
         given the current rival generation strategy (self.rival_gen_strategy).
 
         TODO: checking for trees identical to the gold one slows down the process
+
+        TODO: remove other generation strategies, remove support for multiple generated trees
 
         @param tree_no: the index of the current training data item (tree, DA)
         @rtype: tuple of two lists: one of TreeData's, one of arrays
