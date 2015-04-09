@@ -125,6 +125,8 @@ class EmbNNRanker(BasePerceptronRanker):
 
     def __init__(self, cfg):
         super(EmbNNRanker, self).__init__(cfg)
+        self.num_hidden_units = cfg.get('num_hidden_units', 512)
+        self.initialization = cfg.get('initialization', 'uniform_glorot10')
         self.emb_size = cfg.get('emb_size', 20)
 
         self.dict_slot = {'UNK_SLOT': self.UNK_SLOT}
@@ -204,5 +206,7 @@ class EmbNNRanker(BasePerceptronRanker):
                                         T.tanh, self.initialization)],
                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
                                         T.tanh, self.initialization)],
-                      [FeedForwardLayer('perc', self.num_hidden_units, 1, None, self.initialization)]])
+                      [FeedForwardLayer('perc', self.num_hidden_units, 1, None, self.initialization)]],
+                     input_num=2,
+                     input_type=T.ivector)
 

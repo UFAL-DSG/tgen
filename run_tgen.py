@@ -45,7 +45,7 @@ from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearc
     EvalTypes, Evaluator
 from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelRanker
-from tgen.rank_mlp import SimpleNNRanker
+from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
 from tgen.debug import exc_info_hook
 
 # Start IPdb on error in interactive mode
@@ -124,7 +124,10 @@ def percrank_train(args):
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
     if rank_config.get('nn'):
-        ranker_class = SimpleNNRanker
+        if rank_config['nn'] == 'emb':
+            ranker_class = EmbNNRanker
+        else:
+            ranker_class = SimpleNNRanker
     else:
         ranker_class = PerceptronRanker
     if not parallel:

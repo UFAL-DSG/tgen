@@ -160,7 +160,7 @@ class MaxPool1DLayer(Layer):
 
         super(MaxPool1DLayer, self).__init__(name)
 
-        self.dowscale_factor = downscale_factor  # an integer
+        self.downscale_factor = downscale_factor  # an integer
         self.ignore_border = ignore_border
 
         self.params = []  # no parameters here
@@ -171,7 +171,7 @@ class MaxPool1DLayer(Layer):
         # do the max-pooling
         pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), self.ignore_border)
         # remove the padded dimension
-        output = pooled[:, :, :, 0]
+        output = pooled[:, :, 0]
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output
@@ -209,23 +209,25 @@ class NN(object):
         for layer in layers:
             if len(layer) == len(y):
                 y = [l_part.connect(y_part) for y_part, l_part in zip(y, layer)]
-                y_gold = [l_part.connect(y_gold_part) for y_gold_part, l_part in zip(y, layer)]
+                y_gold = [l_part.connect(y_gold_part) for y_gold_part, l_part in zip(y_gold, layer)]
             elif len(layer) == 1:
                 y = [layer[0].connect(y)]
                 y_gold = [layer[0].connect(y_gold)]
             else:
                 raise NotImplementedError("Only n-n and n-1 layer connections supported.")
+
+            # TODO FIX this -- should be a flat array, is not!
             self.params.extend([l_part.params for l_part in layer])
 
         # prediction function
-        self.score = theano.function([x], y, allow_input_downcast=True)
+        self.score = theano.function(x, y, allow_input_downcast=True)
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
-        cost = T.sum(y - y_gold)
-        self.cost = theano.function([x, x_gold], cost, allow_input_downcast=True)
+        cost = T.sum(y[0] - y_gold[0])  # Y is a list, but should only have a length of 1 (single output)
+        self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True)
         grad_cost = T.grad(cost, wrt=self.params)
-        self.grad_cost = theano.function([x, x_gold], grad_cost, allow_input_downcast=True)
+        self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True)
 
         # training function
         updates = []
