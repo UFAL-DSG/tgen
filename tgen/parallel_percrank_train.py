@@ -50,8 +50,9 @@ def get_worker_registrar_for(head):
             """Register a worker with my head, initialize it."""
             # initiate connection in the other direction
             log_info('Worker %s:%d connected, initializing training.' % (host, port))
-            conn = connect(host, port)
+            conn = connect(host, port, config={'allow_pickle': True})
             # initialize the remote server (with training data etc.)
+            log_info('Ranker dump size: %d' % sys.getsizeof(ranker_dump))
             conn.root.init_training(ranker_dump)
             # add it to the list of running services
             sc = ServiceConn(host, port, conn)
@@ -227,10 +228,10 @@ class RankerTrainingService(Service):
         super(RankerTrainingService, self).__init__(conn_ref)
         self.ranker_inst = None
 
-    def exposed_init_training(self, head_percrank):
+    def exposed_init_training(self, head_ranker):
         """(Worker) Just deep-copy all necessary attributes from the head instance."""
         log_info('Initializing training...')
-        self.ranker_inst = pickle.loads(head_percrank)
+        self.ranker_inst = pickle.loads(head_ranker)
         log_info('Training initialized.')
 
     def exposed_training_pass(self, w, pass_no, rnd_seed, data_offset, data_len):
@@ -288,7 +289,7 @@ def run_worker(head_host, head_port, debug_out=None):
     log_info('Worker server created at %s:%d. Connecting to head at %s:%d...' %
              (my_host, server.port, head_host, head_port))
     # notify main about this server
-    conn = connect(head_host, head_port)
+    conn = connect(head_host, head_port, config={'allow_pickle': True})
     conn.root.register_worker(my_host, server.port)
     conn.close()
     log_info('Worker is registered with the head.')
