@@ -44,21 +44,18 @@ class Ranker(object):
 
 
 class BasePerceptronRanker(Ranker):
-    """Base class for global ranker for whole trees, based on features."""
 
     def __init__(self, cfg):
-        super(BasePerceptronRanker, self).__init__()
         if not cfg:
             cfg = {}
-        self.feats = ['bias: bias']
-        self.vectorizer = None
-        self.normalizer = None
-        self.alpha = cfg.get('alpha', 1)
         self.passes = cfg.get('passes', 5)
-        self.prune_feats = cfg.get('prune_feats', 1)
-        self.rival_number = cfg.get('rival_number', 10)
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
+        # initialize diagnostics
+        self.lists_analyzer = None
+        self.evaluator = None
+        self.prune_feats = cfg.get('prune_feats', 1)
+        self.rival_number = cfg.get('rival_number', 10)
         self.averaging = cfg.get('averaging', False)
         self.randomize = cfg.get('randomize', False)
         self.future_promise_weight = cfg.get('future_promise_weight', 1.0)
@@ -69,14 +66,6 @@ class BasePerceptronRanker(Ranker):
         self.rival_gen_beam_size = cfg.get('rival_gen_beam_size')
         self.candgen_model = cfg.get('candgen_model')
         self.diffing_trees = cfg.get('diffing_trees', False)
-        self.binarize = cfg.get('binarize', False)
-        # initialize feature functions
-        if 'features' in cfg:
-            self.feats.extend(cfg['features'])
-        self.feats = Features(self.feats, cfg.get('intermediate_features', []))
-        # initialize diagnostics
-        self.lists_analyzer = None
-        self.evaluator = None
 
     def score(self, cand_tree, da):
         """Score the given tree in the context of the given dialogue act.
@@ -86,27 +75,7 @@ class BasePerceptronRanker(Ranker):
         return self._score(self._extract_feats(cand_tree, da))
 
     def _extract_feats(self, tree, da):
-        feats = self.vectorizer.transform([self.feats.get_features(tree, {'da': da})])
-        if self.normalizer:
-            feats = self.normalizer.transform(feats)
-        return feats[0]
-
-    def get_future_promise(self, cand_tree):
-        """Compute expected future promise for a tree."""
-        w_sum = self.get_weights_sum()
-        if self.future_promise_type == 'num_nodes':
-            return w_sum * self.future_promise_weight * max(0, 10 - len(cand_tree))
-        elif self.future_promise_type == 'norm_exp_children':
-            return (self.candgen.get_future_promise(cand_tree) / len(cand_tree)) * w_sum * self.future_promise_weight
-        elif self.future_promise_type == 'ands':
-            prom = 0
-            for idx, node in enumerate(cand_tree.nodes):
-                if node.t_lemma == 'and':
-                    num_kids = cand_tree.children_num(idx)
-                    prom += max(0, 2 - num_kids)
-            return prom * w_sum * self.future_promise_weight
-        else:  # expected children (default)
-            return self.candgen.get_future_promise(cand_tree) * w_sum * self.future_promise_weight
+        raise NotImplementedError
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run training on the given training data."""
@@ -124,8 +93,8 @@ class BasePerceptronRanker(Ranker):
             self.set_weights_iter_average()
 
     def _init_training(self, das_file, ttree_file, data_portion):
-        """Initialize training (read input files, reset weights, reset
-        training data features.)"""
+        """Initialize training (read input data, fix size, initialize candidate generator
+        and planner)"""
         # read input
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
@@ -141,23 +110,6 @@ class BasePerceptronRanker(Ranker):
         self.train_sents = sents[:train_size]
         self.train_order = range(len(self.train_trees))
         log_info('Using %d training instances.' % train_size)
-
-        # precompute training data features
-        X = []
-        for da, tree in zip(self.train_das, self.train_trees):
-            X.append(self.feats.get_features(tree, {'da': da}))
-        if self.prune_feats > 1:
-            self._prune_features(X)
-        # vectorize and binarize or normalize (+train vectorizer/normalizer)
-        if self.binarize:
-            self.vectorizer = DictVectorizer(sparse=False, binarize_numeric=True)
-            self.train_feats = self.vectorizer.fit_transform(X)
-        else:
-            self.vectorizer = DictVectorizer(sparse=False)
-            self.normalizer = StandardScaler(copy=False)
-            self.train_feats = self.normalizer.fit_transform(self.vectorizer.fit_transform(X))
-
-        log_info('Features matrix shape: %s' % str(self.train_feats.shape))
 
         # initialize candidate generator + planner if needed
         if self.candgen_model is not None:
@@ -237,55 +189,6 @@ class BasePerceptronRanker(Ranker):
         for bad_st in bad_sts:
             ret += "%.3f" % self.score(bad_st, da) + "\t" + unicode(bad_st) + "\n"
         return ret
-
-    def get_weights(self):
-        """Return the current ranker weights (parameters). To be overridden by derived classes."""
-        raise NotImplementedError
-
-    def set_weights(self, w):
-        """Set new ranker weights. To be overridden by derived classes."""
-        raise NotImplementedError
-
-    def set_weights_average(self, ws):
-        """Set the weights as the average of the given array of weights (used in parallel training).
-        To be overridden by derived classes."""
-        raise NotImplementedError
-
-    def store_iter_weights(self):
-        """Remember the current weights to be used for averaging.
-        To be overridden by derived classes."""
-        raise NotImplementedError
-
-    def set_weights_iter_average(self):
-        """Set new weights as the average of all remembered weights. To be overridden by
-        derived classes."""
-        raise NotImplementedError
-
-    def get_weights_sum(self):
-        """Return weights size in order to weigh future promise against them."""
-        raise NotImplementedError
-
-    def update_weights_sum(self):
-        """Update the current weights size for future promise weighining."""
-        raise NotImplementedError
-
-    def reset_diagnostics(self):
-        """Reset the evaluation statistics (Evaluator and ASearchListsAnalyzer objects)."""
-        self.evaluator = Evaluator()
-        self.lists_analyzer = ASearchListsAnalyzer()
-
-    def get_diagnostics(self):
-        """Return the current evaluation statistics (a tuple of Evaluator and ASearchListsAnalyzer
-        objects."""
-        return self.evaluator, self.lists_analyzer
-
-    def set_diagnostics_average(self, diags):
-        """Given an array of evaluation statistics objects, average them an store in this ranker
-        instance."""
-        self.reset_diagnostics()
-        for evaluator, lists_analyzer in diags:
-            self.evaluator.merge(evaluator)
-            self.lists_analyzer.merge(lists_analyzer)
 
     def _get_num_iters(self, cur_pass_no, iter_setting):
         """Return the maximum number of iterations (total/deficit) given the current pass.
@@ -375,6 +278,117 @@ class BasePerceptronRanker(Ranker):
         # return all resulting candidates
         return rival_trees, rival_feats
 
+    def get_weights(self):
+        """Return the current ranker weights (parameters). To be overridden by derived classes."""
+        raise NotImplementedError
+
+    def set_weights(self, w):
+        """Set new ranker weights. To be overridden by derived classes."""
+        raise NotImplementedError
+
+    def set_weights_average(self, ws):
+        """Set the weights as the average of the given array of weights (used in parallel training).
+        To be overridden by derived classes."""
+        raise NotImplementedError
+
+    def store_iter_weights(self):
+        """Remember the current weights to be used for averaging.
+        To be overridden by derived classes."""
+        raise NotImplementedError
+
+    def set_weights_iter_average(self):
+        """Set new weights as the average of all remembered weights. To be overridden by
+        derived classes."""
+        raise NotImplementedError
+
+    def get_weights_sum(self):
+        """Return weights size in order to weigh future promise against them."""
+        raise NotImplementedError
+
+    def update_weights_sum(self):
+        """Update the current weights size for future promise weighining."""
+        raise NotImplementedError
+
+    def reset_diagnostics(self):
+        """Reset the evaluation statistics (Evaluator and ASearchListsAnalyzer objects)."""
+        self.evaluator = Evaluator()
+        self.lists_analyzer = ASearchListsAnalyzer()
+
+    def get_diagnostics(self):
+        """Return the current evaluation statistics (a tuple of Evaluator and ASearchListsAnalyzer
+        objects."""
+        return self.evaluator, self.lists_analyzer
+
+    def set_diagnostics_average(self, diags):
+        """Given an array of evaluation statistics objects, average them an store in this ranker
+        instance."""
+        self.reset_diagnostics()
+        for evaluator, lists_analyzer in diags:
+            self.evaluator.merge(evaluator)
+            self.lists_analyzer.merge(lists_analyzer)
+
+    def get_future_promise(self, cand_tree):
+        """Compute expected future promise for a tree."""
+        w_sum = self.get_weights_sum()
+        if self.future_promise_type == 'num_nodes':
+            return w_sum * self.future_promise_weight * max(0, 10 - len(cand_tree))
+        elif self.future_promise_type == 'norm_exp_children':
+            return (self.candgen.get_future_promise(cand_tree) / len(cand_tree)) * w_sum * self.future_promise_weight
+        elif self.future_promise_type == 'ands':
+            prom = 0
+            for idx, node in enumerate(cand_tree.nodes):
+                if node.t_lemma == 'and':
+                    num_kids = cand_tree.children_num(idx)
+                    prom += max(0, 2 - num_kids)
+            return prom * w_sum * self.future_promise_weight
+        else:  # expected children (default)
+            return self.candgen.get_future_promise(cand_tree) * w_sum * self.future_promise_weight
+
+
+class FeaturesPerceptronRanker(BasePerceptronRanker):
+    """Base class for global ranker for whole trees, based on features."""
+
+    def __init__(self, cfg):
+        super(FeaturesPerceptronRanker, self).__init__(cfg)
+        if not cfg:
+            cfg = {}
+        self.feats = ['bias: bias']
+        self.vectorizer = None
+        self.normalizer = None
+        self.alpha = cfg.get('alpha', 1)
+        self.binarize = cfg.get('binarize', False)
+        # initialize feature functions
+        if 'features' in cfg:
+            self.feats.extend(cfg['features'])
+        self.feats = Features(self.feats, cfg.get('intermediate_features', []))
+
+    def _extract_feats(self, tree, da):
+        feats = self.vectorizer.transform([self.feats.get_features(tree, {'da': da})])
+        if self.normalizer:
+            feats = self.normalizer.transform(feats)
+        return feats[0]
+
+    def _init_training(self, das_file, ttree_file, data_portion):
+
+        super(FeaturesPerceptronRanker, self)._init_training(das_file, ttree_file, data_portion)
+
+        # precompute training data features
+        X = []
+        for da, tree in zip(self.train_das, self.train_trees):
+            X.append(self.feats.get_features(tree, {'da': da}))
+        if self.prune_feats > 1:
+            self._prune_features(X)
+        # vectorize and binarize or normalize (+train vectorizer/normalizer)
+        if self.binarize:
+            self.vectorizer = DictVectorizer(sparse=False, binarize_numeric=True)
+            self.train_feats = self.vectorizer.fit_transform(X)
+        else:
+            self.vectorizer = DictVectorizer(sparse=False)
+            self.normalizer = StandardScaler(copy=False)
+            self.train_feats = self.normalizer.fit_transform(self.vectorizer.fit_transform(X))
+
+        log_info('Features matrix shape: %s' % str(self.train_feats.shape))
+
     def _prune_features(self, X):
         """Prune features – remove all entries from X that involve features not having a
         specified minimum occurrence count.
@@ -389,7 +403,7 @@ class BasePerceptronRanker(Ranker):
                     del inst[key]
 
 
-class PerceptronRanker(BasePerceptronRanker):
+class PerceptronRanker(FeaturesPerceptronRanker):
     """Peceptron ranker based on linear Perceptron by Collins & Duffy (2002)."""
 
     def __init__(self, cfg):
