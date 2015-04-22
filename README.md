@@ -22,7 +22,7 @@ Dependencies
 
 License
 -------
-Author: [Ondřej Dušek](https://ufal.cz/ondrej-dusek)
+Author: [Ondřej Dušek](http://ufal.cz/ondrej-dusek)
 
 Copyright © 2014-2015 Institute of Formal and Applied Linguistics, Charles University in Prague.
 
