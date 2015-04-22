@@ -1,4 +1,4 @@
-  Copyright © 2013 Institute of Formal and Applied Linguistics, 
+  Copyright © 2014-2015 Institute of Formal and Applied Linguistics, 
    Charles University in Prague.
 
    Licensed under the Apache License, Version 2.0 (the "License");
