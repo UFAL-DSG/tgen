@@ -119,7 +119,7 @@ class EmbNNRanker(BasePerceptronRanker):
 
     UNK_SLOT = 0
     UNK_VALUE = 1
-    UNK_LEMMA = 2
+    UNK_T_LEMMA = 2
     UNK_FORMEME = 3
     MIN_VALID = 4
 
@@ -131,7 +131,7 @@ class EmbNNRanker(BasePerceptronRanker):
 
         self.dict_slot = {'UNK_SLOT': self.UNK_SLOT}
         self.dict_value = {'UNK_VALUE': self.UNK_VALUE}
-        self.dict_lemma = {'UNK_LEMMA': self.UNK_LEMMA}
+        self.dict_t_lemma = {'UNK_T_LEMMA': self.UNK_T_LEMMA}
         self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
 
         self.max_da_len = cfg.get('max_da_len', 10)
@@ -141,6 +141,9 @@ class EmbNNRanker(BasePerceptronRanker):
         super(EmbNNRanker, self)._init_training(das_file, ttree_file, data_portion)
         self._init_dict()
         self._init_neural_network()
+
+        self.train_feats = [self._extract_feats(tree, da)
+                            for tree, da in zip(self.train_trees, self.train_das)]
 
         self.w_after_iter = []
         self.update_weights_sum()
@@ -161,15 +164,19 @@ class EmbNNRanker(BasePerceptronRanker):
                     dict_ord += 1
 
         for tree in self.train_trees:
-            for lemma, formeme in tree.nodes:
-                if lemma not in self.dict_lemma:
-                    self.dict_lemma[lemma] = dict_ord
+            for t_lemma, formeme in tree.nodes:
+                if t_lemma not in self.dict_t_lemma:
+                    self.dict_t_lemma[t_lemma] = dict_ord
                     dict_ord += 1
                 if formeme not in self.dict_formeme:
                     self.dict_formeme[formeme] = dict_ord
                     dict_ord += 1
 
         self.dict_size = dict_ord
+
+    def _score(self, cand_embs):
+        import ipdb; ipdb.set_trace()
+        return self.nn.score(cand_embs)[0]
 
     def _extract_feats(self, tree, da):
 
@@ -184,15 +191,16 @@ class EmbNNRanker(BasePerceptronRanker):
 
         # tree embeddings
         tree_emb_idxs = []
-        for parent_ord, (lemma, formeme) in zip(tree.parents[1:self.max_tree_len + 1],
-                                                tree.nodes[1:self.max_tree_len + 1]):
-            tree_emb_idxs.append(self.dict_lemma.get(tree.nodes[parent_ord].lemma, self.UNK_LEMMA))
+        for parent_ord, (t_lemma, formeme) in zip(tree.parents[1:self.max_tree_len + 1],
+                                                  tree.nodes[1:self.max_tree_len + 1]):
+            tree_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[parent_ord].t_lemma,
+                                                       self.UNK_T_LEMMA))
             tree_emb_idxs.append(self.dict_formeme.get(formeme, self.UNK_FORMEME))
-            tree_emb_idxs.append(self.dict_lemma.get(lemma, self.UNK_LEMMA))
+            tree_emb_idxs.append(self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA))
 
         # pad with unknown
         for _ in xrange(len(tree_emb_idxs), self.max_tree_len):
-            tree_emb_idxs.extend([self.UNK_LEMMA, self.UNK_FORMEME, self.UNK_LEMMA])
+            tree_emb_idxs.extend([self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA])
 
         return (da_emb_idxs, tree_emb_idxs)
 
@@ -206,7 +214,14 @@ class EmbNNRanker(BasePerceptronRanker):
                                         T.tanh, self.initialization)],
                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
                                         T.tanh, self.initialization)],
-                      [FeedForwardLayer('perc', self.num_hidden_units, 1, None, self.initialization)]],
+                      [FeedForwardLayer('perc', self.num_hidden_units, 1,
+                                        None, self.initialization)]],
                      input_num=2,
                      input_type=T.ivector)
+
+    def update_weights_sum(self):
+        """Update the current weights sum figure."""
+        vals = self.nn.get_param_values()
+        # only use the last layer for summation (w, b)
+        self.w_sum = np.sum(vals[-2]) + np.sum(vals[-1])
 

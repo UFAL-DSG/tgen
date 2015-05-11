@@ -216,16 +216,16 @@ class NN(object):
             else:
                 raise NotImplementedError("Only n-n and n-1 layer connections supported.")
 
-            # TODO FIX this -- should be a flat array, is not!
-            self.params.extend([l_part.params for l_part in layer])
+            for l_part in layer:
+                self.params.extend(l_part.params)
 
         # prediction function
         self.score = theano.function(x, y, allow_input_downcast=True)
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
-        cost = T.sum(y[0] - y_gold[0])  # Y is a list, but should only have a length of 1 (single output)
-        self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True)
+        cost = T.sum(y[0] - y_gold[0])  # y is a list, but should only have a length of 1 (single output)
+        self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True) # x, x_gold are lists
         grad_cost = T.grad(cost, wrt=self.params)
         self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True)
 
@@ -234,7 +234,7 @@ class NN(object):
         rate = T.fscalar('rate')
         for param, grad_param in zip(self.params, grad_cost):
             updates.append((param, param - rate * grad_param))
-        self.update = theano.function([x, x_gold, rate], cost, updates=updates, allow_input_downcast=True)
+        self.update = theano.function(x + x_gold + [rate], cost, updates=updates, allow_input_downcast=True)
 
     def get_param_values(self):
         vals = []
