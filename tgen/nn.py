@@ -178,16 +178,31 @@ class MaxPool1DLayer(Layer):
         return output
 
 
-class ConcatLayer(Layer):
+class Concat(Layer):
 
     def __init__(self, name):
 
-        super(ConcatLayer, self).__init__(name)
+        super(Concat, self).__init__(name)
         self.params = []
 
     def connect(self, inputs):
 
         output = T.concatenate(inputs, axis=0)
+        self.inputs.append(inputs)
+        self.outputs.append(output)
+        return output
+
+
+class Flatten(Layer):
+
+    def __init__(self, name):
+
+        super(Flatten, self).__init__(name)
+        self.params = []
+
+    def connect(self, inputs):
+
+        output = inputs.reshape((T.prod(inputs.shape),))
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output

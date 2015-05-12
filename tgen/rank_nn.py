@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 import theano.tensor as T
 import numpy as np
 
-from tgen.nn import FeedForwardLayer, ConcatLayer, MaxPool1DLayer, Embedding, NN
+from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN
 from tgen.rank import BasePerceptronRanker, FeaturesPerceptronRanker
 from tgen.logf import log_debug, log_info
 
@@ -179,7 +179,7 @@ class EmbNNRanker(BasePerceptronRanker):
 
     def _extract_feats(self, tree, da):
 
-        # DA embeddings
+        # DA embeddings (slot - value; size == 2x self.max_da_len)
         da_emb_idxs = []
         for dai in da[:self.max_da_len]:
             da_emb_idxs.append(self.dict_slot.get(dai.name, self.UNK_SLOT))
@@ -189,7 +189,7 @@ class EmbNNRanker(BasePerceptronRanker):
         for _ in xrange(len(da_emb_idxs) / 2, self.max_da_len):
             da_emb_idxs.extend([self.UNK_SLOT, self.UNK_VALUE])
 
-        # tree embeddings
+        # tree embeddings (parent_lemma - formeme - lemma; size == 3x self.max_tree_len)
         tree_emb_idxs = []
         for parent_ord, (t_lemma, formeme) in zip(tree.parents[1:self.max_tree_len + 1],
                                                   tree.nodes[1:self.max_tree_len + 1]):
@@ -209,8 +209,9 @@ class EmbNNRanker(BasePerceptronRanker):
                        Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')],
                       [MaxPool1DLayer('mp_das', self.max_da_len),
                        MaxPool1DLayer('mp_trees', self.max_tree_len)],
-                      [ConcatLayer('concat')],
-                      [FeedForwardLayer('ff1', self.emb_size * 2, self.num_hidden_units,
+                      [Concat('concat')],
+                      [Flatten('flatten')],
+                      [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
                                         T.tanh, self.initialization)],
                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
                                         T.tanh, self.initialization)],
