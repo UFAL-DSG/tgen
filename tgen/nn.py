@@ -87,7 +87,7 @@ class Embedding(Layer):
 
     def connect(self, inputs):
 
-        output = self.e[inputs].reshape((inputs.shape[0], self.width))
+        output = self.e[inputs]
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output
@@ -166,12 +166,13 @@ class MaxPool1DLayer(Layer):
         self.params = []  # no parameters here
 
     def connect(self, inputs):
-        # pad one more dimension that we won't use
-        input_padded = T.shape_padright(inputs, 1)
+        # swap dimensions (we are going to max-pool over the sentence/DA, not over embedding
+        # dimensions) + pad one more dimension that we won't use
+        input_padded = T.shape_padright(inputs.dimshuffle(1, 0), 1)
         # do the max-pooling
         pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), self.ignore_border)
-        # remove the padded dimension
-        output = pooled[:, :, 0]
+        # remove the padded dimension + swap dimensions back
+        output = pooled[:, :, 0].dimshuffle(1, 0)
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output
@@ -220,7 +221,11 @@ class NN(object):
                 self.params.extend(l_part.params)
 
         # prediction function
+        # import theano.compile  # for debugging
+        # from tgen.debug import inspect_input_dims, inspect_output_dims
         self.score = theano.function(x, y, allow_input_downcast=True)
+        # , mode=theano.compile.MonitorMode(pre_func=inspect_input_dims,
+        #                                post_func=inspect_output_dims))
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
