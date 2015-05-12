@@ -175,8 +175,7 @@ class EmbNNRanker(BasePerceptronRanker):
         self.dict_size = dict_ord
 
     def _score(self, cand_embs):
-        import ipdb; ipdb.set_trace()
-        return self.nn.score(cand_embs)[0]
+        return self.nn.score(*cand_embs)[0]
 
     def _extract_feats(self, tree, da):
 
@@ -184,9 +183,10 @@ class EmbNNRanker(BasePerceptronRanker):
         da_emb_idxs = []
         for dai in da[:self.max_da_len]:
             da_emb_idxs.append(self.dict_slot.get(dai.name, self.UNK_SLOT))
+            da_emb_idxs.append(self.dict_value.get(dai.name, self.UNK_VALUE))
 
         # pad with "unknown"
-        for _ in xrange(len(da_emb_idxs), self.max_da_len):
+        for _ in xrange(len(da_emb_idxs) / 2, self.max_da_len):
             da_emb_idxs.extend([self.UNK_SLOT, self.UNK_VALUE])
 
         # tree embeddings
@@ -199,7 +199,7 @@ class EmbNNRanker(BasePerceptronRanker):
             tree_emb_idxs.append(self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA))
 
         # pad with unknown
-        for _ in xrange(len(tree_emb_idxs), self.max_tree_len):
+        for _ in xrange(len(tree_emb_idxs) / 3, self.max_tree_len):
             tree_emb_idxs.extend([self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA])
 
         return (da_emb_idxs, tree_emb_idxs)
