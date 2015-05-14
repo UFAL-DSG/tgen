@@ -49,6 +49,7 @@ class BasePerceptronRanker(Ranker):
         if not cfg:
             cfg = {}
         self.passes = cfg.get('passes', 5)
+        self.alpha = cfg.get('alpha', 1)
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
         # initialize diagnostics
@@ -355,7 +356,6 @@ class FeaturesPerceptronRanker(BasePerceptronRanker):
         self.feats = ['bias: bias']
         self.vectorizer = None
         self.normalizer = None
-        self.alpha = cfg.get('alpha', 1)
         self.binarize = cfg.get('binarize', False)
         # initialize feature functions
         if 'features' in cfg:

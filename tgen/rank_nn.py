@@ -220,9 +220,32 @@ class EmbNNRanker(BasePerceptronRanker):
                      input_num=2,
                      input_type=T.ivector)
 
+    # # TODO -- merge the stuff below with SimpleNNRanker !!!
+
     def update_weights_sum(self):
         """Update the current weights sum figure."""
         vals = self.nn.get_param_values()
         # only use the last layer for summation (w, b)
         self.w_sum = np.sum(vals[-2]) + np.sum(vals[-1])
 
+    def get_weights_sum(self):
+        """Return the sum of weights (at start of current iteration) to be used to weigh future
+        promise."""
+        return self.w_sum
+
+    def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
+        if self.diffing_trees:
+            good_sts, bad_sts = good_tree.diffing_trees(bad_tree, symmetric=True)
+            for good_st, bad_st in zip(good_sts, bad_sts):
+                good_feats = self._extract_feats(good_st, da)
+                bad_feats = self._extract_feats(bad_st, da)
+                subtree_w = 1
+                if self.diffing_trees.endswith('weighted'):
+                    subtree_w = (len(good_st) + len(bad_st)) / float(len(good_tree) + len(bad_tree))
+                self.nn.update(*(bad_feats + good_feats + (subtree_w * self.alpha,)))
+        else:
+            self.nn.update(*(bad_feats + good_feats + (self.alpha,)))
+
+    def store_iter_weights(self):
+        """Remember the current weights to be used for averaged perceptron."""
+        self.w_after_iter.append(self.nn.get_param_values())
