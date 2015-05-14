@@ -17,7 +17,7 @@ from tgen.logf import log_debug, log_info
 
 
 class NNRanker(BasePerceptronRanker):
-    """Set of methods to be used in any NN ranker."""
+    """Abstract ancestor of NN rankers."""
 
     def store_iter_weights(self):
         """Remember the current weights to be used for averaged perceptron."""
@@ -125,6 +125,7 @@ class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
 
 
 class EmbNNRanker(NNRanker):
+    """A ranker using MR and tree embeddings in a NN."""
 
     UNK_SLOT = 0
     UNK_VALUE = 1
@@ -187,6 +188,7 @@ class EmbNNRanker(NNRanker):
         return self.nn.score(*cand_embs)[0]
 
     def _extract_feats(self, tree, da):
+        """Extract DA and tree embeddings (return as a pair)."""
 
         # DA embeddings (slot - value; size == 2x self.max_da_len)
         da_emb_idxs = []
