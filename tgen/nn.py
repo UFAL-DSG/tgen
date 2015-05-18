@@ -178,6 +178,9 @@ class MaxPool1DLayer(Layer):
         return output
 
 
+# TODO add ARG MAX to max pooling
+
+
 class Concat(Layer):
 
     def __init__(self, name):

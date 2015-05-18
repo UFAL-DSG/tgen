@@ -129,7 +129,7 @@ class BasePerceptronRanker(Ranker):
         """Run one training pass, update weights (store them for possible averaging),
         and store diagnostic values."""
 
-        pass_start_time = time.clock()
+        pass_start_time = time.time()
         self.reset_diagnostics()
         self.update_weights_sum()
 
@@ -175,7 +175,7 @@ class BasePerceptronRanker(Ranker):
         log_debug('PASS ACCURACY: %.3f' % self.evaluator.tree_accuracy())
 
         # print and return statistics
-        self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.clock() - pass_start_time)))
+        self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.time() - pass_start_time)))
 
     def diffing_trees_with_scores(self, da, good_tree, bad_tree):
         """For debugging purposes. Return a printout of diffing trees between the chosen candidate
