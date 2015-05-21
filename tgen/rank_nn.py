@@ -21,6 +21,8 @@ class NNRanker(BasePerceptronRanker):
 
     def store_iter_weights(self):
         """Remember the current weights to be used for averaged perceptron."""
+        da_emb = self.nn.layers[0][0].e.get_value()
+        tree_emb = self.nn.layers[0][1].e.get_value()
         self.w_after_iter.append(self.nn.get_param_values())
 
     def update_weights_sum(self):
@@ -50,13 +52,14 @@ class NNRanker(BasePerceptronRanker):
         """Average the remembered weights."""
         self.nn.set_param_values(np.average(self.w_after_iter, axis=0))
 
-    def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
+    def _update_weights(self, good_da, bad_da, good_tree, bad_tree, good_feats, bad_feats):
         """Update NN weights, given a DA, a good and a bad tree, and their features."""
+        # import ipdb; ipdb.set_trace()
         if self.diffing_trees:
             good_sts, bad_sts = good_tree.diffing_trees(bad_tree, symmetric=True)
             for good_st, bad_st in zip(good_sts, bad_sts):
-                good_feats = self._extract_feats(good_st, da)
-                bad_feats = self._extract_feats(bad_st, da)
+                good_feats = self._extract_feats(good_st, good_da)
+                bad_feats = self._extract_feats(bad_st, bad_da)
                 subtree_w = 1
                 if self.diffing_trees.endswith('weighted'):
                     subtree_w = (len(good_st) + len(bad_st)) / float(len(good_tree) + len(bad_tree))
@@ -99,6 +102,10 @@ class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
         # multi-layer perceptron with tanh + linear layer
         if self.net_type == 'mlp':
             self.nn = NN([[FeedForwardLayer('hidden', self.train_feats.shape[1], self.num_hidden_units,
+                                            T.tanh, self.initialization)],
+                          [FeedForwardLayer('hidden2', self.num_hidden_units, self.num_hidden_units,
+                                            T.tanh, self.initialization)],
+                          [FeedForwardLayer('hidden3', self.num_hidden_units, self.num_hidden_units,
                                             T.tanh, self.initialization)],
                           [FeedForwardLayer('output', self.num_hidden_units, 1,
                                             None, self.initialization)]])
@@ -194,7 +201,7 @@ class EmbNNRanker(NNRanker):
         da_emb_idxs = []
         for dai in da[:self.max_da_len]:
             da_emb_idxs.append(self.dict_slot.get(dai.name, self.UNK_SLOT))
-            da_emb_idxs.append(self.dict_value.get(dai.name, self.UNK_VALUE))
+            da_emb_idxs.append(self.dict_value.get(dai.value, self.UNK_VALUE))
 
         # pad with "unknown"
         for _ in xrange(len(da_emb_idxs) / 2, self.max_da_len):
@@ -218,19 +225,60 @@ class EmbNNRanker(NNRanker):
     def _init_neural_network(self):
         self.nn = NN([[Embedding('emb_das', self.dict_size, self.emb_size, 'uniform_005'),
                        Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')],
-                      [MaxPool1DLayer('mp_das', self.max_da_len),
-                       MaxPool1DLayer('mp_trees', self.max_tree_len)],
+                       # [MaxPool1DLayer('mp_das', self.max_da_len),
+                       # MaxPool1DLayer('mp_trees', self.max_tree_len)],
                       [Concat('concat')],
                       [Flatten('flatten')],
-                      [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
+                      # [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
+                      #                  T.tanh, self.initialization)],
+                      # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
+                      #                  T.tanh, self.initialization)],
+                      # [FeedForwardLayer('perc', self.num_hidden_units, 1,
+                      #                  None, self.initialization)]],
+                      [FeedForwardLayer('ff1', self.emb_size * 2 * self.max_da_len + self.emb_size * 3 * self.max_tree_len,
+                                        self.num_hidden_units,
                                         T.tanh, self.initialization)],
-                      [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
-                                        T.tanh, self.initialization)],
+                      # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
+                      #                  T.tanh, self.initialization)],
                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
-                                        None, self.initialization)]],
+                                        None, self.initialization)],
+                      ],
                      input_num=2,
                      input_type=T.ivector)
 
     def _update_nn(self, bad_feats, good_feats, rate):
         """Changing the NN update call to support arrays of parameters."""
-        self.nn.update(*(bad_feats + good_feats + (rate,)))
+        cost_gcost = self.nn.update(*(bad_feats + good_feats + (rate,)))
+        log_debug('Cost:' + str(cost_gcost[0]))
+        log_debug('Param norms : ' + str(self._l2s([param.get_value() for param in self.nn.params])))
+        log_debug('Gparam norms: ' + str(self._l2s(cost_gcost[1:])))
+
+    def _embs_to_str(self):
+        out = ""
+        da_emb = self.nn.layers[0][0].e.get_value()
+        tree_emb = self.nn.layers[0][1].e.get_value()
+        for idx, emb in enumerate(da_emb):
+            for key, val in self.dict_slot.items():
+                if val == idx:
+                    out += key + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
+            for key, val in self.dict_value.items():
+                if val == idx:
+                    out += key + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
+        for idx, emb in enumerate(tree_emb):
+            for key, val in self.dict_t_lemma.items():
+                if val == idx:
+                    out += str(key) + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
+            for key, val in self.dict_formeme.items():
+                if val == idx:
+                    out += str(key) + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
+        return out
+
+    def _l2s(self, params):
+        return [np.linalg.norm(param) for param in params]
+
+    def store_iter_weights(self):
+        """Remember the current weights to be used for averaged perceptron."""
+        fh = open('embs.txt', 'a')
+        print >> fh, '---', self._embs_to_str()
+        fh.close()
+        self.w_after_iter.append(self.nn.get_param_values())

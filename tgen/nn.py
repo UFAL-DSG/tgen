@@ -257,7 +257,7 @@ class NN(object):
         rate = T.fscalar('rate')
         for param, grad_param in zip(self.params, grad_cost):
             updates.append((param, param - rate * grad_param))
-        self.update = theano.function(x + x_gold + [rate], cost, updates=updates, allow_input_downcast=True)
+        self.update = theano.function(x + x_gold + [rate], [cost] + grad_cost, updates=updates, allow_input_downcast=True)
 
     def get_param_values(self):
         vals = []
