@@ -239,7 +239,7 @@ class ASearchPlanner(SentencePlanner):
         # generate and use only 1-best
         open_list, close_list = self.run(da, self.max_iter, self.max_defic_iter)
         best_tree, best_score = close_list.peek()
-        log_debug("RESULT: %9.2f %s" % (best_score, unicode(best_tree)))
+        log_debug("RESULT: %12.5f %s" % (best_score, unicode(best_tree)))
         # return or append the result, return open & close list for inspection if needed
         if gen_doc:
             zone = self.get_target_zone(gen_doc)
@@ -284,7 +284,7 @@ class ASearchPlanner(SentencePlanner):
             # log_debug("   CLOSE: %s" % str(close_list))
             cand, score = open_list.pop()
             close_list.push(cand, score[1])  # only use score without future promise
-            log_debug("-- IT %4d: O %5d S %9.2f -- %s" %
+            log_debug("-- IT %4d: O %5d S %12.5f -- %s" %
                       (num_iter, len(open_list), -score[1], unicode(cand)))
             successors = self.candgen.get_all_successors(cand, cdfs, node_limits)
             # add candidates with score (negative for the min-heap)
