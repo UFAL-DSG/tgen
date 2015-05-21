@@ -256,6 +256,8 @@ class ASearchListsAnalyzer(object):
         close list, gold tree was on open list.
         @rtype: tuple
         """
+        if self.total == 0:
+            return (0.0, 0.0, 0.0)
         tot = float(self.total)
         return (self.gold_best / tot,
                 self.gold_on_close / tot,

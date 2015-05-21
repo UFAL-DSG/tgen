@@ -141,31 +141,35 @@ class BasePerceptronRanker(Ranker):
 
         for tree_no in self.train_order:
             # obtain some 'rival', alternative incorrect candidates
-            gold_tree, gold_feats = self.train_trees[tree_no], self.train_feats[tree_no]
-            rival_trees, rival_feats = self._get_rival_candidates(tree_no, rgen_max_iter,
-                                                                  rgen_max_defic_iter, rgen_beam_size)
-            cands = [gold_feats] + rival_feats
+            gold_da, gold_tree, gold_feats = self.train_das[tree_no], self.train_trees[tree_no], self.train_feats[tree_no]
 
-            # score them along with the right one
-            scores = [self._score(cand) for cand in cands]
-            top_cand_idx = scores.index(max(scores))
-            top_rival_tree = rival_trees[scores[1:].index(max(scores[1:]))]
+            for strategy in self.rival_gen_strategy:
+                rival_das, rival_trees, rival_feats = self._get_rival_candidates(tree_no, strategy, rgen_max_iter,
+                                                                                 rgen_max_defic_iter, rgen_beam_size)
+                cands = [gold_feats] + rival_feats
 
-            # find the top-scoring generated tree, evaluate against gold t-tree
-            # (disregarding whether it was selected as the best one)
-            self.evaluator.append(TreeNode(gold_tree), TreeNode(top_rival_tree), scores[0], max(scores[1:]))
+                # score them along with the right one
+                scores = [self._score(cand) for cand in cands]
+                top_cand_idx = scores.index(max(scores))
+                top_rival_idx = scores[1:].index(max(scores[1:]))
+                top_rival_tree = rival_trees[top_rival_idx]
+                top_rival_da = rival_das[top_rival_idx]
 
-            # debug print: candidate trees
-            log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (tree_no, top_cand_idx, len(cands)))
-            log_debug('SENT: %s' % self.train_sents[tree_no])
-            log_debug('ALL CAND TREES:')
-            for ttree, score in zip([gold_tree] + rival_trees, scores):
-                log_debug("%.3f" % score, "\t", ttree)
+                # find the top-scoring generated tree, evaluate against gold t-tree
+                # (disregarding whether it was selected as the best one)
+                self.evaluator.append(TreeNode(gold_tree), TreeNode(top_rival_tree), scores[0], max(scores[1:]))
 
-            # update weights if the system doesn't give the highest score to the right one
-            if top_cand_idx != 0:
-                self._update_weights(self.train_das[tree_no], gold_tree, top_rival_tree,
-                                     gold_feats, cands[top_cand_idx])
+                # debug print: candidate trees
+                log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (tree_no, top_cand_idx, len(cands)))
+                log_debug('SENT: %s' % self.train_sents[tree_no])
+                log_debug('ALL CAND TREES:')
+                for ttree, score in zip([gold_tree] + rival_trees, scores):
+                    log_debug("%12.5f" % score, "\t", ttree)
+
+                # update weights if the system doesn't give the highest score to the right one
+                if top_cand_idx != 0:
+                    self._update_weights(gold_da, top_rival_da, gold_tree, top_rival_tree,
+                                         gold_feats, cands[top_cand_idx])
 
         # store a copy of the current weights for averaging
         self.store_iter_weights()
@@ -225,7 +229,7 @@ class BasePerceptronRanker(Ranker):
         """Return feature names and values for printing. To be overridden in base classes."""
         return ''
 
-    def _get_rival_candidates(self, tree_no, max_iter, max_defic_iter, beam_size):
+    def _get_rival_candidates(self, tree_no, strategy, max_iter, max_defic_iter, beam_size):
         """Generate some rival candidates for a DA and the correct (gold) tree,
         given the current rival generation strategy (self.rival_gen_strategy).
 
@@ -240,10 +244,13 @@ class BasePerceptronRanker(Ranker):
         da = self.train_das[tree_no]
         train_trees = self.train_trees
 
-        rival_trees, rival_feats = [], []
+        rival_das, rival_trees, rival_feats = [], [], []
+
+        if strategy != 'other_da':
+            rival_das = [da] * self.rival_number
 
         # use current DA but change trees when computing features
-        if 'other_inst' in self.rival_gen_strategy:
+        if strategy == 'other_inst':
             # use alternative indexes, avoid the correct one
             rival_idxs = map(lambda idx: len(train_trees) - 1 if idx == tree_no else idx,
                              rnd.sample(xrange(len(train_trees) - 1), self.rival_number))
@@ -251,8 +258,18 @@ class BasePerceptronRanker(Ranker):
             rival_trees.extend(other_inst_trees)
             rival_feats.extend([self._extract_feats(tree, da) for tree in other_inst_trees])
 
+        # use the current gold tree but change DAs when computing features
+        if strategy == 'other_da':
+            rival_idxs = map(lambda idx: len(train_trees) - 1 if idx == tree_no else idx,
+                             rnd.sample(xrange(len(train_trees) - 1), self.rival_number))
+            other_inst_das = [self.train_das[rival_idx] for rival_idx in rival_idxs]
+            rival_das.extend(other_inst_das)
+            rival_trees.extend([self.train_trees[tree_no]] * self.rival_number)
+            rival_feats.extend([self._extract_feats(self.train_trees[tree_no], da)
+                                for da in other_inst_das])
+
         # candidates generated using the random planner (use the current DA)
-        if 'random' in self.rival_gen_strategy:
+        if strategy == 'random':
             random_trees = []
             while len(random_trees) < self.rival_number:
                 tree = self.sampling_planner.generate_tree(da)
@@ -264,7 +281,7 @@ class BasePerceptronRanker(Ranker):
         # candidates generated using the A*search planner, which uses this ranker with current
         # weights to guide the search, and the current DA as the input
         # TODO: use just one!, others are meaningless
-        if 'gen_cur_weights' in self.rival_gen_strategy:
+        if strategy == 'gen_cur_weights':
             open_list, close_list = self.asearch_planner.run(da, max_iter, max_defic_iter, beam_size)
             self.lists_analyzer.append(train_trees[tree_no], open_list, close_list)
             gen_trees = []
@@ -277,7 +294,7 @@ class BasePerceptronRanker(Ranker):
                                 for tree in gen_trees[:self.rival_number]])
 
         # return all resulting candidates
-        return rival_trees, rival_feats
+        return rival_das, rival_trees, rival_feats
 
     def get_weights(self):
         """Return the current ranker weights (parameters). To be overridden by derived classes."""
@@ -436,7 +453,7 @@ class PerceptronRanker(FeaturesPerceptronRanker):
     def _score(self, cand_feats):
         return np.dot(self.w, cand_feats)
 
-    def _update_weights(self, da, good_tree, bad_tree, good_feats, bad_feats):
+    def _update_weights(self, good_da, bad_da, good_tree, bad_tree, good_feats, bad_feats):
         """Perform a perceptron weights update (not the check if we need to update).
         Also perform differing tree updates."""
         # discount trees leading to the generated one and add trees leading to the gold one
@@ -446,10 +463,10 @@ class PerceptronRanker(FeaturesPerceptronRanker):
             # if set, discount common subtree's features from all subtrees' features
             discount = None
             if 'nocom' in self.diffing_trees:
-                discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), da)
+                discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), good_da)
             # add good trees (leading to gold)
             for good_st in good_sts:
-                good_feats = self._extract_feats(good_st, da)
+                good_feats = self._extract_feats(good_st, good_da)
                 if discount is not None:
                     good_feats -= discount
                 good_tree_w = 1
@@ -462,7 +479,7 @@ class PerceptronRanker(FeaturesPerceptronRanker):
             elif 'onebad' in self.diffing_trees:
                 bad_sts = [bad_tree]
             for bad_st in bad_sts:
-                bad_feats = self._extract_feats(bad_st, da)
+                bad_feats = self._extract_feats(bad_st, bad_da)
                 if discount is not None:
                     bad_feats -= discount
                 bad_tree_w = 1
