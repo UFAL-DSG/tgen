@@ -225,19 +225,19 @@ class EmbNNRanker(NNRanker):
     def _init_neural_network(self):
         self.nn = NN([[Embedding('emb_das', self.dict_size, self.emb_size, 'uniform_005'),
                        Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')],
-                       # [MaxPool1DLayer('mp_das', self.max_da_len),
-                       # MaxPool1DLayer('mp_trees', self.max_tree_len)],
+                      [MaxPool1DLayer('mp_das', 2),
+                       MaxPool1DLayer('mp_trees', stride=3)],
                       [Concat('concat')],
                       [Flatten('flatten')],
-                      # [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
-                      #                  T.tanh, self.initialization)],
+                      [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
+                                        T.tanh, self.initialization)],
                       # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
                       #                  T.tanh, self.initialization)],
                       # [FeedForwardLayer('perc', self.num_hidden_units, 1,
                       #                  None, self.initialization)]],
-                      [FeedForwardLayer('ff1', self.emb_size * 2 * self.max_da_len + self.emb_size * 3 * self.max_tree_len,
-                                        self.num_hidden_units,
-                                        T.tanh, self.initialization)],
+                      # [FeedForwardLayer('ff1', self.emb_size * 2 * self.max_da_len + self.emb_size * 3 * self.max_tree_len,
+                      #                  self.num_hidden_units,
+                      #                  T.tanh, self.initialization)],
                       # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
                       #                  T.tanh, self.initialization)],
                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
@@ -250,8 +250,17 @@ class EmbNNRanker(NNRanker):
         """Changing the NN update call to support arrays of parameters."""
         cost_gcost = self.nn.update(*(bad_feats + good_feats + (rate,)))
         log_debug('Cost:' + str(cost_gcost[0]))
-        log_debug('Param norms : ' + str(self._l2s([param.get_value() for param in self.nn.params])))
+        param_vals = [param.get_value() for param in self.nn.params]
+        log_debug('Param norms : ' + str(self._l2s(param_vals)))
         log_debug('Gparam norms: ' + str(self._l2s(cost_gcost[1:])))
+        l1_params = param_vals[2]
+        log_debug('Layer 1 parts :' + str(self._l2s([l1_params[0:100, :], l1_params[100:200, :],
+                                                    l1_params[200:350, :], l1_params[350:500, :],
+                                                    l1_params[500:, :]])))
+        l1_gparams = cost_gcost[3]
+        log_debug('Layer 1 gparts:' + str(self._l2s([l1_gparams[0:100, :], l1_gparams[100:200, :],
+                                                    l1_gparams[200:350, :], l1_gparams[350:500, :],
+                                                    l1_gparams[500:, :]])))
 
     def _embs_to_str(self):
         out = ""
@@ -274,6 +283,7 @@ class EmbNNRanker(NNRanker):
         return out
 
     def _l2s(self, params):
+        """Compute L2-norm of all members of the given list."""
         return [np.linalg.norm(param) for param in params]
 
     def store_iter_weights(self):
