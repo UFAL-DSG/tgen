@@ -47,9 +47,9 @@ def inspect_outputs(i, node, fn):
 
 def inspect_input_dims(i, node, fn):
     """Inspecting Theano function graph in MonitorMode: print inputs' dimensions."""
-    print i, node, "IN:", [inp[0].shape for inp in fn.inputs],
+    print i, node, "IN:", [inp[0].shape if inp[0].shape else inp[0] for inp in fn.inputs],
 
 
 def inspect_output_dims(i, node, fn):
     """Inspecting Theano function graph in MonitorMode: print outputs' dimensions."""
-    print "OUT:", [output[0].shape for output in fn.outputs]
+    print "OUT:", [output[0].shape if output[0].shape else output[0] for output in fn.outputs]
