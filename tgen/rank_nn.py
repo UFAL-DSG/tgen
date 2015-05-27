@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 import theano.tensor as T
 import numpy as np
 
-from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN
+from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN, DotProduct
 from tgen.rank import BasePerceptronRanker, FeaturesPerceptronRanker
 from tgen.logf import log_debug, log_info
 
@@ -225,23 +225,37 @@ class EmbNNRanker(NNRanker):
     def _init_neural_network(self):
         self.nn = NN([[Embedding('emb_das', self.dict_size, self.emb_size, 'uniform_005'),
                        Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')],
-                      [MaxPool1DLayer('mp_das', 2),
-                       MaxPool1DLayer('mp_trees', stride=3)],
-                      [Concat('concat')],
-                      [Flatten('flatten')],
-                      [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
-                                        T.tanh, self.initialization)],
+
+                      # # Max pooling version
+                      # [MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2),
+                      #  MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3)],
+                      # [Concat('concat')],
+                      # [Flatten('flatten')],
+                      # [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
+                      #                  T.tanh, self.initialization)],
                       # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
                       #                  T.tanh, self.initialization)],
                       # [FeedForwardLayer('perc', self.num_hidden_units, 1,
                       #                  None, self.initialization)]],
+
+                      # # Simple FF version
+                      # [Concat('concat')],
+                      # [Flatten('flatten')],
                       # [FeedForwardLayer('ff1', self.emb_size * 2 * self.max_da_len + self.emb_size * 3 * self.max_tree_len,
                       #                  self.num_hidden_units,
                       #                  T.tanh, self.initialization)],
                       # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
                       #                  T.tanh, self.initialization)],
-                      [FeedForwardLayer('perc', self.num_hidden_units, 1,
-                                        None, self.initialization)],
+                      # [FeedForwardLayer('perc', self.num_hidden_units, 1,
+                      #                  None, self.initialization)],
+
+                      # Dot product version
+                      [Flatten('flat-das'), Flatten('flat-trees')],
+                      [FeedForwardLayer('ff-das', self.emb_size * 2 * self.max_da_len, self.num_hidden_units,
+                                        T.tanh, self.initialization),
+                       FeedForwardLayer('ff-trees', self.emb_size * 3 * self.max_tree_len, self.num_hidden_units,
+                                        T.tanh, self.initialization)],
+                      [DotProduct('dot')],
                       ],
                      input_num=2,
                      input_type=T.ivector)
