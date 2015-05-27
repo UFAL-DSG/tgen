@@ -156,23 +156,22 @@ class Conv1DLayer(Layer):
 
 class MaxPool1DLayer(Layer):
 
-    def __init__(self, name, downscale_factor, ignore_border=False):
+    def __init__(self, name, stride=1):
 
         super(MaxPool1DLayer, self).__init__(name)
 
-        self.downscale_factor = downscale_factor  # an integer
-        self.ignore_border = ignore_border
+        self.stride = stride
 
         self.params = []  # no parameters here
 
     def connect(self, inputs):
-        # swap dimensions (we are going to max-pool over the sentence/DA, not over embedding
-        # dimensions) + pad one more dimension that we won't use
-        input_padded = T.shape_padright(inputs.dimshuffle(1, 0), 1)
-        # do the max-pooling
-        pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), self.ignore_border)
-        # remove the padded dimension + swap dimensions back
-        output = pooled[:, :, 0].dimshuffle(1, 0)
+        if self.stride > 1:
+            output = T.max(T.reshape(inputs,
+                                     (inputs.shape[0] / self.stride,
+                                      inputs.shape[1] * self.stride)),
+                           axis=0)
+        else:
+            output = T.max(inputs, axis=0)
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output
@@ -241,9 +240,9 @@ class NN(object):
         # prediction function
         # import theano.compile  # for debugging
         # from tgen.debug import inspect_input_dims, inspect_output_dims
-        self.score = theano.function(x, y, allow_input_downcast=True)
-        # , mode=theano.compile.MonitorMode(pre_func=inspect_input_dims,
-        #                                post_func=inspect_output_dims))
+        self.score = theano.function(x, y, allow_input_downcast=True)  # ,
+                                     # mode=theano.compile.MonitorMode(pre_func=inspect_input_dims,
+                                     #                                post_func=inspect_output_dims))
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
