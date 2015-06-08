@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-
+from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN, DotProduct
 
 config = {
           # NB: when introducing a new setting, don't forget that it needs to be passed to
@@ -83,12 +83,15 @@ config = {
                                    # (do not use nobad/onebad, it hurts badly)
           'binarize': False,
           'randomize': True,
-          'passes': 100,
+          'passes': 200,
           'rival_gen_max_iter': 200,
           'rival_gen_max_defic_iter': 3,
           # 'rival_gen_beam_size': 20, # actually slows it down
           'future_promise_weight': 0,
           'future_promise_type': 'norm_exp_children',  # default: exp_children
-          'nn': True,
-          'initialization': 'random',
+          'nn': 'emb',
+          'initialization': 'uniform_glorot10',
+          'num_hidden_units': 128,
+          'emb_size': 10,
+          'nn_shape': 'dot-2',
           }
