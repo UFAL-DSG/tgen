@@ -14,6 +14,7 @@ from tgen.rnd import rnd
 
 # TODO fix
 # theano.config.floatX = 'float32'  # using floats instead of doubles ??
+# theano.config.profile = True
 
 
 class Layer(object):
@@ -166,20 +167,20 @@ class MaxPool1DLayer(Layer):
         self.params = []  # no parameters here
 
     def connect(self, inputs):
-#         if self.stride > 1:
-#             output = T.max(T.reshape(inputs,
-#                                      (inputs.shape[0] / self.stride,
-#                                       inputs.shape[1] * self.stride)),
-#                            axis=0)
-#         else:
-#             output = T.max(inputs, axis=0)
+        if self.stride > 1:
+            output = T.max(T.reshape(inputs,
+                                     (inputs.shape[0] / self.stride,
+                                      inputs.shape[1] * self.stride)),
+                           axis=0)
+        else:
+            output = T.max(inputs, axis=0)
 
 
-        input_padded = T.shape_padright(inputs.dimshuffle(1, 0), 1)
-        # do the max-pooling
-        pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), False)
-        # remove the padded dimension + swap dimensions back
-        output = pooled[:, :, 0].dimshuffle(1, 0)
+#         input_padded = T.shape_padright(inputs.dimshuffle(1, 0), 1)
+#         # do the max-pooling
+#         pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), False)
+#         # remove the padded dimension + swap dimensions back
+#         output = pooled[:, :, 0].dimshuffle(1, 0)
 
         self.inputs.append(inputs)
         self.outputs.append(output)
@@ -264,23 +265,23 @@ class NN(object):
         # prediction function
         # import theano.compile  # for debugging
         # from tgen.debug import inspect_input_dims, inspect_output_dims
-        self.score = theano.function(x, y, allow_input_downcast=True)  # ,
-                                      # mode=theano.compile.MonitorMode(pre_func=inspect_input_dims,
-                                      #                               post_func=inspect_output_dims))
+        self.score = theano.function(x, y, allow_input_downcast=True, name='score')  # ,
+                                     # mode=theano.compile.MonitorMode(pre_func=inspect_input_dims,
+                                     #                                post_func=inspect_output_dims))
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
         cost = T.sum(y[0] - y_gold[0])  # y is a list, but should only have a length of 1 (single output)
-        self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True) # x, x_gold are lists
+        self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True, name='cost')  # x, x_gold are lists
         grad_cost = T.grad(cost, wrt=self.params)
-        self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True)
+        self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True, name='grad_cost')
 
         # training function
         updates = []
         rate = T.fscalar('rate')
         for param, grad_param in zip(self.params, grad_cost):
             updates.append((param, param - rate * grad_param))
-        self.update = theano.function(x + x_gold + [rate], [cost] + grad_cost, updates=updates, allow_input_downcast=True)
+        self.update = theano.function(x + x_gold + [rate], [cost] + grad_cost, updates=updates, allow_input_downcast=True, name='update')
 
     def get_param_values(self):
         vals = []

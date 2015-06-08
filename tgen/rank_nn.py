@@ -154,6 +154,8 @@ class EmbNNRanker(NNRanker):
         self.max_da_len = cfg.get('max_da_len', 10)
         self.max_tree_len = cfg.get('max_tree_len', 20)
 
+        self.nn_shape = cfg.get('nn_shape', 'ff')
+
     def _init_training(self, das_file, ttree_file, data_portion):
         super(EmbNNRanker, self)._init_training(das_file, ttree_file, data_portion)
         self._init_dict()
@@ -223,42 +225,58 @@ class EmbNNRanker(NNRanker):
         return (da_emb_idxs, tree_emb_idxs)
 
     def _init_neural_network(self):
-        self.nn = NN([[Embedding('emb_das', self.dict_size, self.emb_size, 'uniform_005'),
-                       Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')],
+        layers = [[Embedding('emb_das', self.dict_size, self.emb_size, 'uniform_005'),
+                   Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')]]
 
-                      # # Max pooling version
-                      # [MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2),
-                      #  MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3)],
-                      # [Concat('concat')],
-                      # [Flatten('flatten')],
-                      # [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
-                      #                  T.tanh, self.initialization)],
-                      # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
-                      #                  T.tanh, self.initialization)],
-                      # [FeedForwardLayer('perc', self.num_hidden_units, 1,
-                      #                  None, self.initialization)]],
+        if self.nn_shape == 'ff':
+            layers += [[Concat('concat')],
+                       [Flatten('flatten')],
+                       [FeedForwardLayer('ff1',
+                                         self.emb_size * 2 * self.max_da_len +
+                                         self.emb_size * 3 * self.max_tree_len,
+                                         self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
+                                         None, self.initialization)]]
 
-                      # # Simple FF version
-                      # [Concat('concat')],
-                      # [Flatten('flatten')],
-                      # [FeedForwardLayer('ff1', self.emb_size * 2 * self.max_da_len + self.emb_size * 3 * self.max_tree_len,
-                      #                  self.num_hidden_units,
-                      #                  T.tanh, self.initialization)],
-                      # [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
-                      #                  T.tanh, self.initialization)],
-                      # [FeedForwardLayer('perc', self.num_hidden_units, 1,
-                      #                  None, self.initialization)],
+        elif self.nn_shape == 'maxpool-ff':
+            layers += [[MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2),
+                        MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3)],
+                       [Concat('concat')],
+                       [Flatten('flatten')],
+                       [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
+                                         None, self.initialization)]]
 
-                      # Dot product version
-                      [Flatten('flat-das'), Flatten('flat-trees')],
-                      [FeedForwardLayer('ff-das', self.emb_size * 2 * self.max_da_len, self.num_hidden_units,
-                                        T.tanh, self.initialization),
-                       FeedForwardLayer('ff-trees', self.emb_size * 3 * self.max_tree_len, self.num_hidden_units,
-                                        T.tanh, self.initialization)],
-                      [DotProduct('dot')],
-                      ],
-                     input_num=2,
-                     input_type=T.ivector)
+        elif self.nn_shape.startswith('dot'):
+            layers += [[Flatten('flat-das'), Flatten('flat-trees')],
+                       [FeedForwardLayer('ff-das', self.emb_size * 2 * self.max_da_len, self.num_hidden_units,
+                                         T.tanh, self.initialization),
+                        FeedForwardLayer('ff-trees', self.emb_size * 3 * self.max_tree_len, self.num_hidden_units,
+                                         T.tanh, self.initialization)]]
+            if self.nn_shape.endswith('2'):
+                layers += [[FeedForwardLayer('ff2-das', self.num_hidden_units, self.num_hidden_units,
+                                             T.tanh, self.initialization),
+                            FeedForwardLayer('ff2-trees', self.num_hidden_units, self.num_hidden_units,
+                                             T.tanh, self.initialization)]]
+            layers += [[DotProduct('dot')]]
+
+        elif self.nn_shape == 'maxpool-dot':
+            layers += [[MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2),
+                        MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3)],
+                       [Flatten('flat-das'), Flatten('flat-trees')],
+                       [FeedForwardLayer('ff-das', self.emb_size * 2, self.num_hidden_units,
+                                         T.tanh, self.initialization),
+                        FeedForwardLayer('ff-trees', self.emb_size * 3, self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [DotProduct('dot')]]
+
+        self.nn = NN(layers=layers, input_num=2, input_type=T.ivector)
 
     def _update_nn(self, bad_feats, good_feats, rate):
         """Changing the NN update call to support arrays of parameters."""
