@@ -11,10 +11,13 @@ import theano.tensor as T
 from theano.tensor.signal import downsample
 import numpy as np
 from tgen.rnd import rnd
+import math
+from numpy import int32
 
 # TODO fix
 # theano.config.floatX = 'float32'  # using floats instead of doubles ??
 # theano.config.profile = True
+theano.config.compute_test_value = 'off'
 
 
 class Layer(object):
@@ -33,6 +36,10 @@ class Layer(object):
                                 newshape=(rows, cols))
         elif init_type == 'uniform_005':
             w_init = np.reshape(np.asarray([rnd.uniform(-0.05, 0.05)
+                                            for _ in xrange(rows * cols)]),
+                                newshape=(rows, cols))
+        elif init_type == 'norm_sqrt':
+            w_init = np.reshape(np.asarray([rnd.gauss(0, math.sqrt(2.0 / rows))
                                             for _ in xrange(rows * cols)]),
                                 newshape=(rows, cols))
         elif init_type == 'ones':
@@ -167,20 +174,19 @@ class MaxPool1DLayer(Layer):
         self.params = []  # no parameters here
 
     def connect(self, inputs):
-        if self.stride > 1:
-            output = T.max(T.reshape(inputs,
-                                     (inputs.shape[0] / self.stride,
-                                      inputs.shape[1] * self.stride)),
-                           axis=0)
-        else:
-            output = T.max(inputs, axis=0)
+#         if self.stride > 1:
+#             output = T.max(T.reshape(inputs,
+#                                      (inputs.shape[0] / self.stride,
+#                                       inputs.shape[1] * self.stride)),
+#                            axis=0)
+#         else:
+#             output = T.max(inputs, axis=0)
 
-
-#         input_padded = T.shape_padright(inputs.dimshuffle(1, 0), 1)
-#         # do the max-pooling
-#         pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), False)
-#         # remove the padded dimension + swap dimensions back
-#         output = pooled[:, :, 0].dimshuffle(1, 0)
+        input_padded = T.shape_padright(inputs.dimshuffle(1, 0), 1)
+        # do the max-pooling
+        pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), False)
+        # remove the padded dimension + swap dimensions back
+        output = pooled[:, :, 0].dimshuffle(1, 0)
 
         self.inputs.append(inputs)
         self.outputs.append(output)
@@ -214,7 +220,7 @@ class DotProduct(Layer):
 
     def connect(self, inputs):
 
-        output = T.dot(inputs[0], inputs[1])
+        output = T.batched_dot(inputs[0], inputs[1])
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output
@@ -229,7 +235,8 @@ class Flatten(Layer):
 
     def connect(self, inputs):
 
-        output = inputs.reshape((T.prod(inputs.shape),))
+        # keep last dimension for vectorized operation
+        output = inputs.reshape((inputs.shape[0], T.prod(inputs.shape[1:])))
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output
@@ -265,9 +272,12 @@ class NN(object):
         # prediction function
         # import theano.compile  # for debugging
         # from tgen.debug import inspect_input_dims, inspect_output_dims
-        self.score = theano.function(x, y, allow_input_downcast=True, name='score')  # ,
-                                     # mode=theano.compile.MonitorMode(pre_func=inspect_input_dims,
-                                     #                                post_func=inspect_output_dims))
+        # mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
+        #                                  post_func=inspect_output_dims).excluding('local_elemwise_fusion', 'inplace')
+        self.score = theano.function(x, y, allow_input_downcast=True,
+                                     on_unused_input='warn', name='score')  # ,
+                                     # mode=mode)
+        # theano.printing.debugprint(self.score)
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
