@@ -28,7 +28,7 @@ class CandidateList(DictMixin):
         self.queue = []
         self.members = {}
         if members:
-            self.pushall(members)
+            self.push_all(members)
         pass
 
     def __nonzero__(self):
@@ -84,7 +84,7 @@ class CandidateList(DictMixin):
         """Push one key-value pair to the heap."""
         self[key] = value  # calling __setitem__; it will test for membership
 
-    def pushall(self, members):
+    def push_all(self, members):
         """Push all members of the given structure to the heap
         (a list of pairs key-value or a dictionary are accepted)."""
         if isinstance(members, dict):
@@ -263,6 +263,7 @@ class ASearchPlanner(SentencePlanner):
         """
         # initialization
         empty_tree = TreeData()
+
         et_score = self.ranker.score(empty_tree, da)
         et_futpr = self.ranker.get_future_promise(empty_tree)
         open_list = CandidateList({empty_tree: (-(et_score + et_futpr), -et_score, -et_futpr)})
@@ -286,19 +287,20 @@ class ASearchPlanner(SentencePlanner):
             close_list.push(cand, score[1])  # only use score without future promise
             log_debug("-- IT %4d: O %5d S %12.5f -- %s" %
                       (num_iter, len(open_list), -score[1], unicode(cand)))
-            successors = self.candgen.get_all_successors(cand, cdfs, node_limits)
-            # add candidates with score (negative for the min-heap)
-            for succ in successors:
-                if succ in close_list:
-                    continue
-                score = self.ranker.score(succ, da)
-                futpr = self.ranker.get_future_promise(succ)
-                open_list.push(succ, (-(score + futpr), -score, -futpr))
-            # pruning (if supposed to do it)
-            # TODO do not even add them on the open list when pruning
-            if beam_size is not None:
-                pruned = open_list.prune(beam_size)
-                close_list.pushall(pruned)
+            successors = [succ for succ in self.candgen.get_all_successors(cand, cdfs, node_limits)
+                          if succ not in close_list]
+
+            if successors:
+                # add candidates with score (negative for the min-heap)
+                scores = self.ranker.score_all(successors, da)
+                futprs = self.ranker.get_future_promise_all(successors)
+                open_list.push_all([(succ, (-(score + futpr), -score, -futpr))
+                                   for succ, score, futpr in zip(successors, scores, futprs)])
+                # pruning (if supposed to do it)
+                # TODO do not even add them on the open list when pruning
+                if beam_size is not None:
+                    pruned = open_list.prune(beam_size)
+                    close_list.push_all(pruned)
             num_iter += 1
             # check where the score is higher -- on the open or on the close list
             # keep track of 'deficit' iterations (and do not allow more than the threshold)

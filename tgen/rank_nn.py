@@ -194,7 +194,7 @@ class EmbNNRanker(NNRanker):
         self.dict_size = dict_ord
 
     def _score(self, cand_embs):
-        return self.nn.score(*cand_embs)[0]
+        return self.nn.score([cand_embs[0]], [cand_embs[1]])[0]
 
     def _extract_feats(self, tree, da):
         """Extract DA and tree embeddings (return as a pair)."""
@@ -276,10 +276,15 @@ class EmbNNRanker(NNRanker):
                                          T.tanh, self.initialization)],
                        [DotProduct('dot')]]
 
-        self.nn = NN(layers=layers, input_num=2, input_type=T.ivector)
+        self.nn = NN(layers=layers, input_num=2, input_type=T.imatrix)
 
     def _update_nn(self, bad_feats, good_feats, rate):
         """Changing the NN update call to support arrays of parameters."""
+        # TODO: this is just adding another dimension to fit the parallelized scoring
+        # (even if updates are not parallelized). Make it nicer.
+        bad_feats = ([bad_feats[0]], [bad_feats[1]])
+        good_feats = ([good_feats[0]], [good_feats[1]])
+
         cost_gcost = self.nn.update(*(bad_feats + good_feats + (rate,)))
         log_debug('Cost:' + str(cost_gcost[0]))
         param_vals = [param.get_value() for param in self.nn.params]
@@ -324,3 +329,8 @@ class EmbNNRanker(NNRanker):
         print >> fh, '---', self._embs_to_str()
         fh.close()
         self.w_after_iter.append(self.nn.get_param_values())
+
+    def score_all(self, trees, da):
+        cand_embs = [self._extract_feats(tree, da) for tree in trees]
+        score = self.nn.score([emb[0] for emb in cand_embs], [emb[1] for emb in cand_embs])
+        return np.atleast_1d(score[0])

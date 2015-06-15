@@ -75,6 +75,10 @@ class BasePerceptronRanker(Ranker):
         """
         return self._score(self._extract_feats(cand_tree, da))
 
+    def score_all(self, cand_trees, da):
+        """Array version of the score() function"""
+        return [self.score(cand_tree, da) for cand_tree in cand_trees]
+
     def _extract_feats(self, tree, da):
         raise NotImplementedError
 
@@ -361,6 +365,10 @@ class BasePerceptronRanker(Ranker):
             return prom * w_sum * self.future_promise_weight
         else:  # expected children (default)
             return self.candgen.get_future_promise(cand_tree) * w_sum * self.future_promise_weight
+
+    def get_future_promise_all(self, cand_trees):
+        """Array version of get_future_promise."""
+        return [self.get_future_promise(cand_tree) for cand_tree in cand_trees]
 
 
 class FeaturesPerceptronRanker(BasePerceptronRanker):
