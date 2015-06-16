@@ -174,19 +174,21 @@ class MaxPool1DLayer(Layer):
         self.params = []  # no parameters here
 
     def connect(self, inputs):
-#         if self.stride > 1:
-#             output = T.max(T.reshape(inputs,
-#                                      (inputs.shape[0] / self.stride,
-#                                       inputs.shape[1] * self.stride)),
-#                            axis=0)
-#         else:
-#             output = T.max(inputs, axis=0)
+        # NB: output is flattened already !
+        if self.stride > 1:
+            output = T.max(T.reshape(inputs,
+                                     (inputs.shape[0],
+                                      inputs.shape[1] / self.stride,
+                                      inputs.shape[2] * self.stride)),
+                           axis=1)
+        else:
+            output = T.max(inputs, axis=0)
 
-        input_padded = T.shape_padright(inputs.dimshuffle(1, 0), 1)
-        # do the max-pooling
-        pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), False)
-        # remove the padded dimension + swap dimensions back
-        output = pooled[:, :, 0].dimshuffle(1, 0)
+#         input_padded = T.shape_padright(inputs.dimshuffle(0, 2, 1), 1)
+#         # do the max-pooling
+#         pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), False)
+#         # remove the padded dimension + swap dimensions back
+#         output = pooled[:, :, :, 0].dimshuffle(0, 2, 1)
 
         self.inputs.append(inputs)
         self.outputs.append(output)
@@ -205,7 +207,7 @@ class Concat(Layer):
 
     def connect(self, inputs):
 
-        output = T.concatenate(inputs, axis=0)
+        output = T.concatenate(inputs, axis=1)
         self.inputs.append(inputs)
         self.outputs.append(output)
         return output
@@ -270,14 +272,14 @@ class NN(object):
                 self.params.extend(l_part.params)
 
         # prediction function
-        # import theano.compile  # for debugging
-        # from tgen.debug import inspect_input_dims, inspect_output_dims
-        # mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
-        #                                  post_func=inspect_output_dims).excluding('local_elemwise_fusion', 'inplace')
+#         import theano.compile  # for debugging
+#         from tgen.debug import inspect_input_dims, inspect_output_dims
+#         mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
+#                                           post_func=inspect_output_dims).excluding('local_elemwise_fusion', 'inplace')
         self.score = theano.function(x, y, allow_input_downcast=True,
                                      on_unused_input='warn', name='score')  # ,
-                                     # mode=mode)
-        # theano.printing.debugprint(self.score)
+#                                      mode=mode)
+        theano.printing.debugprint(self.score)
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
