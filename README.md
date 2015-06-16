@@ -32,3 +32,8 @@ Author: [Ondřej Dušek](http://ufal.cz/ondrej-dusek)
 Copyright © 2014-2015 Institute of Formal and Applied Linguistics, Charles University in Prague.
 
 Licensed under the Apache License, Version 2.0.
+
+Acknowledgements
+----------------
+
+Work on this project was funded by the Ministry of Education, Youth and Sports of the Czech Republic under the grant agreement LK11221 and core research funding, SVV project 260 104, and GAUK grant 2058214 of Charles University in Prague. It used language resources stored and distributed by the LINDAT/CLARIN project of the Ministry of Education, Youth and Sports of the Czech Republic (project LM2010013).
