@@ -8,7 +8,6 @@ config = {
           # NB: when introducing a new setting, don't forget that it needs to be passed to
           #     worker instances through ParallelPerceptronRanker.get_plain_percrank()
           'averaging': True,
-          'alpha': 0.1,
           'prune_feats': 1,  # pruning harms => do not use it
           'intermediate_features': ['rep-lemma', 'rep-slot', 'rep-lemma-formeme', 'not-rep-slot'],
           'features': [
@@ -90,8 +89,10 @@ config = {
           'future_promise_weight': 0,
           'future_promise_type': 'norm_exp_children',  # default: exp_children
           'nn': 'emb',
-          'initialization': 'uniform_glorot10',
+          'initialization': 'norm_sqrt',
           'num_hidden_units': 128,
-          'emb_size': 10,
-          'nn_shape': 'dot-2',
+          'emb_size': 100,
+          'alpha': 0.001,
+          'nn_shape': 'ff',
+          'normgrad': False,
           }
