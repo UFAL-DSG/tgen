@@ -155,6 +155,7 @@ class EmbNNRanker(NNRanker):
         self.max_tree_len = cfg.get('max_tree_len', 20)
 
         self.nn_shape = cfg.get('nn_shape', 'ff')
+        self.normgrad = cfg.get('normgrad', False)
 
     def _init_training(self, das_file, ttree_file, data_portion):
         super(EmbNNRanker, self)._init_training(das_file, ttree_file, data_portion)
@@ -228,7 +229,7 @@ class EmbNNRanker(NNRanker):
         layers = [[Embedding('emb_das', self.dict_size, self.emb_size, 'uniform_005'),
                    Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')]]
 
-        if self.nn_shape == 'ff':
+        if self.nn_shape.startswith('ff'):
             layers += [[Concat('concat')],
                        [Flatten('flatten')],
                        [FeedForwardLayer('ff1',
@@ -237,8 +238,14 @@ class EmbNNRanker(NNRanker):
                                          self.num_hidden_units,
                                          T.tanh, self.initialization)],
                        [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
+                                         T.tanh, self.initialization)]]
+            if self.nn_shape[-1] in ['3', '4']:
+                layers += [[FeedForwardLayer('ff3', self.num_hidden_units, self.num_hidden_units,
+                                             T.tanh, self.initialization)]]
+            if self.nn_shape[-1] == '4':
+                layers += [[FeedForwardLayer('ff4', self.num_hidden_units, self.num_hidden_units,
+                                             T.tanh, self.initialization)]]
+            layers += [[FeedForwardLayer('perc', self.num_hidden_units, 1,
                                          None, self.initialization)]]
 
         elif self.nn_shape == 'maxpool-ff':
@@ -276,7 +283,16 @@ class EmbNNRanker(NNRanker):
                                          T.tanh, self.initialization)],
                        [DotProduct('dot')]]
 
-        self.nn = NN(layers=layers, input_num=2, input_type=T.imatrix)
+        elif self.nn_shape == 'avgpool-dot':
+            layers += [[MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2, pooling_func=T.mean),
+                        MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3, pooling_func=T.mean)],
+                       [FeedForwardLayer('ff-das', self.emb_size * 2, self.num_hidden_units,
+                                         T.tanh, self.initialization),
+                        FeedForwardLayer('ff-trees', self.emb_size * 3, self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [DotProduct('dot')]]
+
+        self.nn = NN(layers=layers, input_num=2, input_type=T.imatrix, normgrad=self.normgrad)
 
     def _update_nn(self, bad_feats, good_feats, rate):
         """Changing the NN update call to support arrays of parameters."""
@@ -325,9 +341,9 @@ class EmbNNRanker(NNRanker):
 
     def store_iter_weights(self):
         """Remember the current weights to be used for averaged perceptron."""
-        fh = open('embs.txt', 'a')
-        print >> fh, '---', self._embs_to_str()
-        fh.close()
+        # fh = open('embs.txt', 'a')
+        # print >> fh, '---', self._embs_to_str()
+        # fh.close()
         self.w_after_iter.append(self.nn.get_param_values())
 
     def score_all(self, trees, da):

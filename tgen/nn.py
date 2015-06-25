@@ -164,23 +164,24 @@ class Conv1DLayer(Layer):
 
 class MaxPool1DLayer(Layer):
 
-    def __init__(self, name, stride=1, downscale_factor=1):
+    def __init__(self, name, stride=1, downscale_factor=1, pooling_func=T.max):
 
         super(MaxPool1DLayer, self).__init__(name)
 
         self.stride = stride
         self.downscale_factor = downscale_factor
+        self.pooling_func = pooling_func
 
         self.params = []  # no parameters here
 
     def connect(self, inputs):
         # NB: output is flattened already !
         if self.stride > 1:
-            output = T.max(T.reshape(inputs,
-                                     (inputs.shape[0],
-                                      inputs.shape[1] / self.stride,
-                                      inputs.shape[2] * self.stride)),
-                           axis=1)
+            output = self.pooling_func(T.reshape(inputs,
+                                                 (inputs.shape[0],
+                                                  inputs.shape[1] / self.stride,
+                                                  inputs.shape[2] * self.stride)),
+                                       axis=1)
         else:
             output = T.max(inputs, axis=0)
 
@@ -247,10 +248,11 @@ class Flatten(Layer):
 class NN(object):
     """A Theano neural network for ranking with perceptron cost function."""
 
-    def __init__(self, layers, input_num=1, input_type=T.fvector):
+    def __init__(self, layers, input_num=1, input_type=T.fvector, normgrad=False):
 
         self.layers = layers
         self.params = []
+        self.normgrad = normgrad
 
         # connect layers, store them & all parameters
         x = [input_type('x' + str(i)) for i in xrange(input_num)]
@@ -287,6 +289,10 @@ class NN(object):
         self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True, name='cost')  # x, x_gold are lists
         grad_cost = T.grad(cost, wrt=self.params)
         self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True, name='grad_cost')
+
+        # normalized gradient, if applicable
+        if self.normgrad:
+            grad_cost = map(lambda x: x / T.sqrt(T.sum(T.pow(x, 2))), grad_cost)
 
         # training function
         updates = []

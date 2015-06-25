@@ -24,7 +24,7 @@ GetOptions(
 die($USAGE) if ( !@ARGV );
 
 # Gather the settings from the command arguments and config files
-my ( $iters, $training_data, $gadgets, $run_setting ) = ( '', '', '', '' );
+my ( $iters, $training_data, $gadgets, $run_setting, $nn_shape ) = ( '', '', '', '', '' );
 my $config_data = read_file( $ARGV[0] );
 
 # iterations
@@ -62,6 +62,18 @@ if ( $config_data =~ /'future_promise_weight'\s*:\s*([0-9.]+)\s*,/ and $1 ) {
     $gadgets =~ s/exp_children/expc/;
 }
 
+# NN shape
+if ( $config_data =~ /'nn'\s*:\s*'emb'/ ) {
+    $nn_shape = ' + ' . ( $config_data =~ /'nn_shape'\s*:\s*'([^']*)'/ )[0];
+    $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0]         // 20 );
+    $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 512 );
+    $nn_shape .= '-A' . ( ( $config_data =~ /'alpha'\s*:\s*([0-9.]+)/ )[0]           // 0.1 );
+    $nn_shape .= '-' .  ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0]   // 'uniform_glorot10' );
+}
+
+# NN gadgets
+$nn_shape .= ' + ngr' if ( $config_data =~ /'normgrad'\s*:\s*True/ );
+
 # run setting
 if ($jobs) {
     $run_setting = $jobs . 'j';
@@ -77,4 +89,4 @@ $run_setting =~ s/^ //;
 $run_setting =~ s/ +/,/g;
 
 # Print the output.
-print "$iters$training_data$gadgets ($run_setting)";
+print "$iters$training_data$gadgets$nn_shape ($run_setting)";
