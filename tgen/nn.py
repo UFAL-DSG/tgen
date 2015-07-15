@@ -121,7 +121,7 @@ class Conv1DLayer(Layer):
         # = ceil(n_in - filter_length + 1)
         self.n_out = (n_in - filter_length + stride) // stride
 
-        w_init = self.get_init_weights(init, (self.n_in, self.n_out))
+        w_init = self.get_init_weights(init, (self.filter_length, 1))
         self.w = theano.shared(value=w_init, name='w-' + self.name)
         if bias:
             self.b = theano.shared(value=np.zeros((self.n_out,)), name='b-' + self.name)
@@ -134,21 +134,21 @@ class Conv1DLayer(Layer):
     def conv1d_mc0(inputs, filters, image_shape=None, filter_shape=None,
                    border_mode='valid', subsample=(1,)):
         """
-        using conv2d with width == 1
+        Adapted from Lasagne (https://github.com/Lasagne/Lasagne)
         """
-        input_mc0 = inputs.dimshuffle(0, 1, 'x', 2)
-        filters_mc0 = filters.dimshuffle(0, 1, 'x', 2)
+        input_mc0 = inputs.dimshuffle(0, 2, 'x', 1)
+        # filters_mc0 = filters.dimshuffle(0, 2, 'x', 1) # not needed ?
         # TODO image and filter shape are used for optimization
-        conved = T.nnet.conv2d(input_mc0, filters_mc0, image_shape=None,
+        conved = T.nnet.conv2d(input_mc0, filters, image_shape=None,
                                filter_shape=None, subsample=(1, subsample[0]),
                                border_mode=border_mode)
-        return conved[:, :, 0, :]  # drop the unused dimension
+        return conved[:, :, 0, :].dimshuffle(0, 2, 1)  # drop the unused dimension
 
     def connect(self, inputs):
-        conved = self.convolution(inputs, self.W, subsample=(self.stride,),
-                                  image_shape=(self.n_in,),
-                                  filter_shape=(self.filter_length,),
-                                  border_mode=self.border_mode)
+        conved = self.conv1d_mc0(inputs, self.w, subsample=(self.stride,),
+                                 image_shape=(self.n_in,),
+                                 filter_shape=(self.filter_length,),
+                                 border_mode=self.border_mode)
         if self.b is None:
             lin_output = conved
             lin_output = conved + self.b
@@ -288,11 +288,11 @@ class NN(object):
         cost = T.sum(y[0] - y_gold[0])  # y is a list, but should only have a length of 1 (single output)
         self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True, name='cost')  # x, x_gold are lists
         grad_cost = T.grad(cost, wrt=self.params)
-        self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True, name='grad_cost')
-
         # normalized gradient, if applicable
         if self.normgrad:
-            grad_cost = map(lambda x: x / T.sqrt(T.sum(T.pow(x, 2))), grad_cost)
+            grad_cost = map(lambda x: x / x.norm(), grad_cost)
+
+        self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True, name='grad_cost')
 
         # training function
         updates = []

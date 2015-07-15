@@ -11,7 +11,8 @@ from __future__ import unicode_literals
 import theano.tensor as T
 import numpy as np
 
-from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN, DotProduct
+from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN, DotProduct, \
+    Conv1DLayer
 from tgen.rank import BasePerceptronRanker, FeaturesPerceptronRanker
 from tgen.logf import log_debug, log_info
 
@@ -21,8 +22,6 @@ class NNRanker(BasePerceptronRanker):
 
     def store_iter_weights(self):
         """Remember the current weights to be used for averaged perceptron."""
-        da_emb = self.nn.layers[0][0].e.get_value()
-        tree_emb = self.nn.layers[0][1].e.get_value()
         self.w_after_iter.append(self.nn.get_param_values())
 
     def update_weights_sum(self):
@@ -203,25 +202,25 @@ class EmbNNRanker(NNRanker):
         # DA embeddings (slot - value; size == 2x self.max_da_len)
         da_emb_idxs = []
         for dai in da[:self.max_da_len]:
-            da_emb_idxs.append(self.dict_slot.get(dai.name, self.UNK_SLOT))
-            da_emb_idxs.append(self.dict_value.get(dai.value, self.UNK_VALUE))
+            da_emb_idxs.append([self.dict_slot.get(dai.name, self.UNK_SLOT),
+                                self.dict_value.get(dai.value, self.UNK_VALUE)])
 
         # pad with "unknown"
-        for _ in xrange(len(da_emb_idxs) / 2, self.max_da_len):
-            da_emb_idxs.extend([self.UNK_SLOT, self.UNK_VALUE])
+        for _ in xrange(len(da_emb_idxs), self.max_da_len):
+            da_emb_idxs.append([self.UNK_SLOT, self.UNK_VALUE])
 
         # tree embeddings (parent_lemma - formeme - lemma; size == 3x self.max_tree_len)
         tree_emb_idxs = []
         for parent_ord, (t_lemma, formeme) in zip(tree.parents[1:self.max_tree_len + 1],
                                                   tree.nodes[1:self.max_tree_len + 1]):
-            tree_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[parent_ord].t_lemma,
-                                                       self.UNK_T_LEMMA))
-            tree_emb_idxs.append(self.dict_formeme.get(formeme, self.UNK_FORMEME))
-            tree_emb_idxs.append(self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA))
+            tree_emb_idxs.append([self.dict_t_lemma.get(tree.nodes[parent_ord].t_lemma,
+                                                        self.UNK_T_LEMMA),
+                                  self.dict_formeme.get(formeme, self.UNK_FORMEME),
+                                  self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA)])
 
         # pad with unknown
-        for _ in xrange(len(tree_emb_idxs) / 3, self.max_tree_len):
-            tree_emb_idxs.extend([self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA])
+        for _ in xrange(len(tree_emb_idxs), self.max_tree_len):
+            tree_emb_idxs.append([self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA])
 
         return (da_emb_idxs, tree_emb_idxs)
 
@@ -230,8 +229,8 @@ class EmbNNRanker(NNRanker):
                    Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')]]
 
         if self.nn_shape.startswith('ff'):
-            layers += [[Concat('concat')],
-                       [Flatten('flatten')],
+            layers += [[Flatten('flat-da'), Flatten('flat-trees')],
+                       [Concat('concat')],
                        [FeedForwardLayer('ff1',
                                          self.emb_size * 2 * self.max_da_len +
                                          self.emb_size * 3 * self.max_tree_len,
@@ -248,7 +247,12 @@ class EmbNNRanker(NNRanker):
             layers += [[FeedForwardLayer('perc', self.num_hidden_units, 1,
                                          None, self.initialization)]]
 
-        elif self.nn_shape == 'maxpool-ff':
+        elif 'maxpool-ff' in self.nn_shape:
+            if self.nn_shape.startswith('conv'):
+                layers += [[Conv1DLayer('conv_das', n_in=self.max_da_len, filter_length=4, stride=2,
+                                        init=self.initialization, activation=T.tanh),
+                            Conv1DLayer('conv_trees', n_in=self.max_da_len, filter_length=9, stride=3,
+                                        init=self.initialization, activation=T.tanh)]]
             layers += [[MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2),
                         MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3)],
                        [Concat('concat')],
@@ -292,7 +296,8 @@ class EmbNNRanker(NNRanker):
                                          T.tanh, self.initialization)],
                        [DotProduct('dot')]]
 
-        self.nn = NN(layers=layers, input_num=2, input_type=T.imatrix, normgrad=self.normgrad)
+        # input: batch * word * sub-embeddings
+        self.nn = NN(layers=layers, input_num=2, input_type=T.itensor3, normgrad=self.normgrad)
 
     def _update_nn(self, bad_feats, good_feats, rate):
         """Changing the NN update call to support arrays of parameters."""

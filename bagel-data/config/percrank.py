@@ -92,7 +92,7 @@ config = {
           'initialization': 'norm_sqrt',
           'num_hidden_units': 128,
           'emb_size': 100,
-          'alpha': 0.001,
-          'nn_shape': 'ff',
+          'alpha': 0.0001,
+          'nn_shape': 'maxpool-ff',
           'normgrad': False,
           }
