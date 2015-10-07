@@ -20,9 +20,10 @@ import sys
 def exc_info_hook(exc_type, value, tb):
     """An exception hook that starts IPdb automatically on error if in interactive mode."""
 
-    if hasattr(sys, 'ps1') or not sys.stderr.isatty():
-        # we are in interactive mode or we don't have a tty-like
-        # device, so we call the default hook
+    if hasattr(sys, 'ps1') or not sys.stderr.isatty() or exc_type == KeyboardInterrupt:
+        # we are in interactive mode, we don't have a tty-like
+        # device,, or the user triggered a KeyboardInterrupt,
+        # so we call the default hook
         sys.__excepthook__(exc_type, value, tb)
     else:
         import traceback
