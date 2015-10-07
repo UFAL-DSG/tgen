@@ -17,7 +17,9 @@ from numpy import int32
 # TODO fix
 # theano.config.floatX = 'float32'  # using floats instead of doubles ??
 # theano.config.profile = True
-theano.config.compute_test_value = 'off'
+# theano.config.compute_test_value = 'warn'
+# theano.config.optimizer = 'None'
+theano.config.exception_verbosity = 'high'
 
 
 class Layer(object):
@@ -231,17 +233,21 @@ class DotProduct(Layer):
 
 class Flatten(Layer):
 
-    def __init__(self, name):
+    def __init__(self, name, num_dims=-1):
 
         super(Flatten, self).__init__(name)
         self.params = []
+        self.num_dims = num_dims
 
     def connect(self, inputs):
 
-        # keep last dimension for vectorized operation
-        output = inputs.reshape((inputs.shape[0], T.prod(inputs.shape[1:])))
-        self.inputs.append(inputs)
-        self.outputs.append(output)
+        keep_dims = -self.num_dims
+        if keep_dims < 0:
+            keep_dims = len(inputs.shape) - keep_dims
+        # keep the first keep_dims dimensions, flatten the rest
+        output = inputs.reshape(T.concatenate([inputs.shape[0:keep_dims],
+                                               [T.prod(inputs.shape[keep_dims:])]]),
+                                ndim=(keep_dims + 1))
         return output
 
 
@@ -257,6 +263,10 @@ class NN(object):
         # connect layers, store them & all parameters
         x = [input_type('x' + str(i)) for i in xrange(input_num)]
         x_gold = [input_type('x' + str(i)) for i in xrange(input_num)]
+#         if input_type == T.itensor3:
+#             for x_part, x_gold_part in zip(x, x_gold):
+#                 x_part.tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
+#                 x_gold_part.tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
         y = x
         y_gold = x_gold
 
@@ -276,21 +286,22 @@ class NN(object):
         # prediction function
 #         import theano.compile  # for debugging
 #         from tgen.debug import inspect_input_dims, inspect_output_dims
-#         mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
-#                                           post_func=inspect_output_dims).excluding('local_elemwise_fusion', 'inplace')
+#        mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
+#                                          post_func=inspect_output_dims)  # .excluding('local_elemwise_fusion', 'inplace')
         self.score = theano.function(x, y, allow_input_downcast=True,
                                      on_unused_input='warn', name='score')  # ,
-#                                      mode=mode)
+#                                     mode=mode)
         theano.printing.debugprint(self.score)
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
         cost = T.sum(y[0] - y_gold[0])  # y is a list, but should only have a length of 1 (single output)
         self.cost = theano.function(x + x_gold, cost, allow_input_downcast=True, name='cost')  # x, x_gold are lists
+
         grad_cost = T.grad(cost, wrt=self.params)
-        # normalized gradient, if applicable
+        # normalized gradient, if applicable (TODO fix!)
         if self.normgrad:
-            grad_cost = map(lambda x: x / x.norm(), grad_cost)
+            grad_cost = map(lambda x: x / x.norm(2), grad_cost)
 
         self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True, name='grad_cost')
 
