@@ -7,19 +7,22 @@ Neural network components
 """
 
 import theano
+import theano.compile
 import theano.tensor as T
 from theano.tensor.signal import downsample
 import numpy as np
 from tgen.rnd import rnd
 import math
-from numpy import int32
+from numpy import int32, float32
 
 # TODO fix
 # theano.config.floatX = 'float32'  # using floats instead of doubles ??
 # theano.config.profile = True
-# theano.config.compute_test_value = 'warn'
-# theano.config.optimizer = 'None'
+theano.config.compute_test_value = 'warn'
+theano.config.optimizer = 'None'
 theano.config.exception_verbosity = 'high'
+
+DEBUG_MODE = 0
 
 
 class Layer(object):
@@ -166,26 +169,17 @@ class Conv1DLayer(Layer):
 
 class MaxPool1DLayer(Layer):
 
-    def __init__(self, name, stride=1, downscale_factor=1, pooling_func=T.max):
+    def __init__(self, name, axis=1, pooling_func=T.max):
 
         super(MaxPool1DLayer, self).__init__(name)
 
-        self.stride = stride
-        self.downscale_factor = downscale_factor
         self.pooling_func = pooling_func
+        self.axis = axis
 
         self.params = []  # no parameters here
 
     def connect(self, inputs):
-        # NB: output is flattened already !
-        if self.stride > 1:
-            output = self.pooling_func(T.reshape(inputs,
-                                                 (inputs.shape[0],
-                                                  inputs.shape[1] / self.stride,
-                                                  inputs.shape[2] * self.stride)),
-                                       axis=1)
-        else:
-            output = T.max(inputs, axis=0)
+        output = T.max(inputs, axis=self.axis)
 
 #         input_padded = T.shape_padright(inputs.dimshuffle(0, 2, 1), 1)
 #         # do the max-pooling
@@ -263,10 +257,11 @@ class NN(object):
         # connect layers, store them & all parameters
         x = [input_type('x' + str(i)) for i in xrange(input_num)]
         x_gold = [input_type('x' + str(i)) for i in xrange(input_num)]
-#         if input_type == T.itensor3:
-#             for x_part, x_gold_part in zip(x, x_gold):
-#                 x_part.tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
-#                 x_gold_part.tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
+        if input_type == T.itensor3 and len(x) == 2:
+            x[0].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
+            x_gold[0].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
+            x[1].tag.test_value = np.random.randint(0, 20, (5, 20, 2)).astype('int32')
+            x_gold[1].tag.test_value = np.random.randint(0, 20, (5, 20, 2)).astype('int32')
         y = x
         y_gold = x_gold
 
@@ -283,14 +278,15 @@ class NN(object):
             for l_part in layer:
                 self.params.extend(l_part.params)
 
-        # prediction function
-#         import theano.compile  # for debugging
-#         from tgen.debug import inspect_input_dims, inspect_output_dims
-#        mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
-#                                          post_func=inspect_output_dims)  # .excluding('local_elemwise_fusion', 'inplace')
+        # prediction function (different compilation mode for debugging and running)
+        if DEBUG_MODE:
+            from tgen.debug import inspect_input_dims, inspect_output_dims
+            mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
+                                              post_func=inspect_output_dims)  # .excluding('local_elemwise_fusion', 'inplace')
+        else:
+            mode = theano.compile.mode.FAST_COMPILE
         self.score = theano.function(x, y, allow_input_downcast=True,
-                                     on_unused_input='warn', name='score')  # ,
-#                                     mode=mode)
+                                     on_unused_input='warn', name='score', mode=mode)
         theano.printing.debugprint(self.score)
 
         # cost function
@@ -308,6 +304,7 @@ class NN(object):
         # training function
         updates = []
         rate = T.fscalar('rate')
+        rate.tag.test_value = float32(0.1)
         for param, grad_param in zip(self.params, grad_cost):
             updates.append((param, param - rate * grad_param))
         self.update = theano.function(x + x_gold + [rate], [cost] + grad_cost, updates=updates, allow_input_downcast=True, name='update')

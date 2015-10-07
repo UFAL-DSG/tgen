@@ -253,8 +253,8 @@ class EmbNNRanker(NNRanker):
                                         init=self.initialization, activation=T.tanh),
                             Conv1DLayer('conv_trees', n_in=self.max_da_len, filter_length=9, stride=3,
                                         init=self.initialization, activation=T.tanh)]]
-            layers += [[MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2),
-                        MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3)],
+            layers += [[MaxPool1DLayer('mp_das'),
+                        MaxPool1DLayer('mp_trees')],
                        [Concat('concat')],
                        [Flatten('flatten')],
                        [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
@@ -278,8 +278,8 @@ class EmbNNRanker(NNRanker):
             layers += [[DotProduct('dot')]]
 
         elif self.nn_shape == 'maxpool-dot':
-            layers += [[MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2),
-                        MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3)],
+            layers += [[MaxPool1DLayer('mp_das'),
+                        MaxPool1DLayer('mp_trees')],
                        [Flatten('flat-das'), Flatten('flat-trees')],
                        [FeedForwardLayer('ff-das', self.emb_size * 2, self.num_hidden_units,
                                          T.tanh, self.initialization),
@@ -288,8 +288,8 @@ class EmbNNRanker(NNRanker):
                        [DotProduct('dot')]]
 
         elif self.nn_shape == 'avgpool-dot':
-            layers += [[MaxPool1DLayer('mp_das', downscale_factor=self.max_da_len, stride=2, pooling_func=T.mean),
-                        MaxPool1DLayer('mp_trees', downscale_factor=self.max_tree_len, stride=3, pooling_func=T.mean)],
+            layers += [[MaxPool1DLayer('mp_das', pooling_func=T.mean),
+                        MaxPool1DLayer('mp_trees', pooling_func=T.mean)],
                        [FeedForwardLayer('ff-das', self.emb_size * 2, self.num_hidden_units,
                                          T.tanh, self.initialization),
                         FeedForwardLayer('ff-trees', self.emb_size * 3, self.num_hidden_units,
