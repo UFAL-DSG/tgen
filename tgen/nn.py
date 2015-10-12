@@ -109,7 +109,7 @@ class Embedding(Layer):
 class Conv1DLayer(Layer):
 
     def __init__(self, name, n_in,
-                 filter_length, stride,
+                 num_filters, filter_length, stride,
                  border_mode='valid', bias=True,
                  init='uniform_glorot10',
                  activation=None):
@@ -117,7 +117,7 @@ class Conv1DLayer(Layer):
         super(Conv1DLayer, self).__init__(name)
         self.activation = activation
         self.n_in = n_in
-        # self.num_filters = num_filters
+        self.num_filters = num_filters
         self.filter_length = filter_length
         self.stride = stride
         self.border_mode = border_mode
@@ -126,7 +126,7 @@ class Conv1DLayer(Layer):
         # = ceil(n_in - filter_length + 1)
         self.n_out = (n_in - filter_length + stride) // stride
 
-        w_init = self.get_init_weights(init, (self.filter_length, 1))
+        w_init = self.get_init_weights(init, (self.num_filters, self.filter_length, 1))
         self.w = theano.shared(value=w_init, name='w-' + self.name)
         if bias:
             self.b = theano.shared(value=np.zeros((self.n_out,)), name='b-' + self.name)
@@ -141,13 +141,18 @@ class Conv1DLayer(Layer):
         """
         Adapted from Lasagne (https://github.com/Lasagne/Lasagne)
         """
-        input_mc0 = inputs.dimshuffle(0, 2, 'x', 1)
+        import ipdb; ipdb.set_trace()
+        # dimensions: batch x words x sub-embeddings x embedding size
+        # converted to: batch x stack size x nb row x nb col
+        # (+ all filters have cols of size 1, cols stride is size 1,
+        #    so nothing is done with the embeddings themselves (is it??) )
+        input_mc0 = inputs.dimshuffle(0, 2, 1, 3)
         # filters_mc0 = filters.dimshuffle(0, 2, 'x', 1) # not needed ?
         # TODO image and filter shape are used for optimization
         conved = T.nnet.conv2d(input_mc0, filters, image_shape=None,
-                               filter_shape=None, subsample=(1, subsample[0]),
+                               filter_shape=None, subsample=(subsample[0], 1),
                                border_mode=border_mode)
-        return conved[:, :, 0, :].dimshuffle(0, 2, 1)  # drop the unused dimension
+        return conved.dimshuffle(0, 2, 1, 3)  # shuffle the dimension back
 
     def connect(self, inputs):
         conved = self.conv1d_mc0(inputs, self.w, subsample=(self.stride,),
