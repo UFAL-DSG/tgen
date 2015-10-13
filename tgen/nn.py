@@ -33,24 +33,25 @@ class Layer(object):
         self.outputs = []
 
     def get_init_weights(self, init_type, shape):
-        rows, cols = shape
+        total_size = np.prod(shape)
+        dim_sum = np.sum(shape)
         if init_type == 'uniform_glorot10':
-            w_init = np.reshape(np.asarray([rnd.uniform(-np.sqrt(6. / (rows + cols)),
-                                                        np.sqrt(6. / (rows + cols)))
-                                            for _ in xrange(rows * cols)]),
-                                newshape=(rows, cols))
+            w_init = np.reshape(np.asarray([rnd.uniform(-np.sqrt(6. / dim_sum),
+                                                        np.sqrt(6. / dim_sum))
+                                            for _ in xrange(total_size)]),
+                                newshape=shape)
         elif init_type == 'uniform_005':
             w_init = np.reshape(np.asarray([rnd.uniform(-0.05, 0.05)
-                                            for _ in xrange(rows * cols)]),
-                                newshape=(rows, cols))
+                                            for _ in xrange(total_size)]),
+                                newshape=shape)
         elif init_type == 'norm_sqrt':
-            w_init = np.reshape(np.asarray([rnd.gauss(0, math.sqrt(2.0 / rows))
-                                            for _ in xrange(rows * cols)]),
-                                newshape=(rows, cols))
+            w_init = np.reshape(np.asarray([rnd.gauss(0, math.sqrt(2.0 / shape[0]))
+                                            for _ in xrange(total_size)]),
+                                newshape=shape)
         elif init_type == 'ones':
-            w_init = np.ones(shape=(rows, cols))
+            w_init = np.ones(shape=shape)
         else:
-            w_init = np.zeros(shape=(rows, cols))
+            w_init = np.zeros(shape=shape)
         return w_init
 
 
@@ -109,27 +110,35 @@ class Embedding(Layer):
 class Conv1DLayer(Layer):
 
     def __init__(self, name, n_in,
-                 num_filters, filter_length, stride,
-                 border_mode='valid', bias=True,
+                 num_filters, filter_length, stride=1,
+                 border_mode='valid', bias=True, untie_bias=False,
                  init='uniform_glorot10',
                  activation=None):
 
         super(Conv1DLayer, self).__init__(name)
         self.activation = activation
-        self.n_in = n_in
-        self.num_filters = num_filters
+        self.n_in = n_in  # 3D: num. positions x stack size (sub-embeddings) x embedding size
+        self.num_filters = num_filters  # output "stack size" (sub-embeddings)
         self.filter_length = filter_length
         self.stride = stride
         self.border_mode = border_mode
+        self.untie_bias = untie_bias
 
-        # output length
-        # = ceil(n_in - filter_length + 1)
-        self.n_out = (n_in - filter_length + stride) // stride
+        # output shape:
+        # 0] num. of positions according to convolution (1D),
+        #    = ceil(n_in - filter_length + 1)
+        # 1] num. of filters,
+        # 2] no change in embeddings dimension
+        self.n_out = ((n_in[0] - filter_length + stride) // stride, num_filters, n_in[2])
 
-        w_init = self.get_init_weights(init, (self.num_filters, self.filter_length, 1))
+        # num. filters x stack size x num. rows x num. cols
+        w_init = self.get_init_weights(init, (num_filters, n_in[1], filter_length, 1))
         self.w = theano.shared(value=w_init, name='w-' + self.name)
         if bias:
-            self.b = theano.shared(value=np.zeros((self.n_out,)), name='b-' + self.name)
+            if untie_bias:
+                self.b = theano.shared(value=np.zeros(self.n_out), name='b-' + self.name)
+            else:
+                self.b = theano.shared(value=np.zeros(self.n_out[1:]), name='b-' + self.name)
             self.params = [self.w, self.b]
         else:
             self.b = None
@@ -141,14 +150,13 @@ class Conv1DLayer(Layer):
         """
         Adapted from Lasagne (https://github.com/Lasagne/Lasagne)
         """
-        import ipdb; ipdb.set_trace()
         # dimensions: batch x words x sub-embeddings x embedding size
-        # converted to: batch x stack size x nb row x nb col
-        # (+ all filters have cols of size 1, cols stride is size 1,
+        # converted to: batch x stack size x num. rows x num. cols
+        # (+ all filters num. cols=1, cols stride is size 1,
         #    so nothing is done with the embeddings themselves (is it??) )
         input_mc0 = inputs.dimshuffle(0, 2, 1, 3)
-        # filters_mc0 = filters.dimshuffle(0, 2, 'x', 1) # not needed ?
         # TODO image and filter shape are used for optimization
+        import ipdb; ipdb.set_trace()
         conved = T.nnet.conv2d(input_mc0, filters, image_shape=None,
                                filter_shape=None, subsample=(subsample[0], 1),
                                border_mode=border_mode)
@@ -161,7 +169,11 @@ class Conv1DLayer(Layer):
                                  border_mode=self.border_mode)
         if self.b is None:
             lin_output = conved
-            lin_output = conved + self.b
+        else:
+            if self.untie_bias:
+                lin_output = conved + self.b
+            else:
+                lin_output = conved + self.b.dimshuffle('x', 0, 1)
 
         if self.activation is None:
             output = lin_output
@@ -263,10 +275,10 @@ class NN(object):
         x = [input_type('x' + str(i)) for i in xrange(input_num)]
         x_gold = [input_type('x' + str(i)) for i in xrange(input_num)]
         if input_type == T.itensor3 and len(x) == 2:
-            x[0].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
-            x_gold[0].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
-            x[1].tag.test_value = np.random.randint(0, 20, (5, 20, 2)).astype('int32')
-            x_gold[1].tag.test_value = np.random.randint(0, 20, (5, 20, 2)).astype('int32')
+            x[0].tag.test_value = np.random.randint(0, 20, (5, 10, 2)).astype('int32')
+            x_gold[0].tag.test_value = np.random.randint(0, 20, (5, 10, 2)).astype('int32')
+            x[1].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
+            x_gold[1].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
         y = x
         y_gold = x_gold
 

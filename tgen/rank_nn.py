@@ -249,9 +249,11 @@ class EmbNNRanker(NNRanker):
 
         elif 'maxpool-ff' in self.nn_shape:
             if self.nn_shape.startswith('conv'):
-                layers += [[Conv1DLayer('conv_das', n_in=self.max_da_len, filter_length=3,
+                layers += [[Conv1DLayer('conv_das', n_in=(self.max_da_len, 2, self.emb_size),
+                                        num_filters=2, filter_length=3,
                                         init=self.initialization, activation=T.tanh),
-                            Conv1DLayer('conv_trees', n_in=self.max_da_len, filter_length=3,
+                            Conv1DLayer('conv_trees', n_in=(self.max_tree_len, 3, self.emb_size),
+                                        num_filters=3, filter_length=3,
                                         init=self.initialization, activation=T.tanh)]]
             layers += [[MaxPool1DLayer('mp_das'),
                         MaxPool1DLayer('mp_trees')],
