@@ -156,7 +156,6 @@ class Conv1DLayer(Layer):
         #    so nothing is done with the embeddings themselves (is it??) )
         input_mc0 = inputs.dimshuffle(0, 2, 1, 3)
         # TODO image and filter shape are used for optimization
-        import ipdb; ipdb.set_trace()
         conved = T.nnet.conv2d(input_mc0, filters, image_shape=None,
                                filter_shape=None, subsample=(subsample[0], 1),
                                border_mode=border_mode)
