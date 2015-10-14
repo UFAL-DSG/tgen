@@ -196,11 +196,11 @@ cv_run: prepare_dir
 cv_run:
 	for CV_NUM in $(CV_NUMS); do \
 		if [[ -n "$(RANDS)" ]]; then \
-			SEEDS=(s0 s1 s2 s3 s4);
+			SEEDS=(s0 s1 s2 s3 s4); \
 		else \
 			SEEDS=(""); \
 		fi; \
-		for SEED in $${SEEDS[@]}; do \
+		for SEED in "$${SEEDS[@]}"; do \
 			make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 			JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
 			make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
