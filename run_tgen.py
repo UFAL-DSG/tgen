@@ -141,7 +141,11 @@ def percrank_train(args):
         if work_dir is None:
             work_dir, _ = os.path.split(fname_rank_config)
         ranker = ParallelRanker(rank_config, work_dir, experiment_id, ranker_class)
+
     ranker.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
+
+    # avoid the "maximum recursion depth exceeded" error
+    sys.setrecursionlimit(100000)
     ranker.save_to_file(fname_rank_model)
 
 
