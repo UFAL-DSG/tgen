@@ -18,8 +18,8 @@ from numpy import int32, float32
 # TODO fix
 # theano.config.floatX = 'float32'  # using floats instead of doubles ??
 # theano.config.profile = True
-theano.config.compute_test_value = 'warn'
-theano.config.optimizer = 'None'
+# theano.config.compute_test_value = 'warn'
+# theano.config.optimizer = 'None'
 theano.config.exception_verbosity = 'high'
 
 DEBUG_MODE = 0
@@ -303,7 +303,9 @@ class NN(object):
             mode = theano.compile.mode.FAST_COMPILE
         self.score = theano.function(x, y, allow_input_downcast=True,
                                      on_unused_input='warn', name='score', mode=mode)
-        theano.printing.debugprint(self.score)
+        # print the prediction function when debugging
+        if DEBUG_MODE:
+            theano.printing.debugprint(self.score)
 
         # cost function
         # TODO how to implant T.max in here? Is it needed when I still decide when the update is done?
