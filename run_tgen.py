@@ -15,7 +15,8 @@ candgen_train -- train candidate generator (probability distributions)
 
 percrank_train -- train perceptron global ranker
     - arguments: [-d debug-output] [-c candgen-model] [-s data-portion] [-j parallel-jobs] [-w parallel-work-dir] \\
-                 [-e experiment_id] ranker-config train-das train-ttrees output-model
+                 [-r rand_seed] [-e experiment_id] ranker-config train-das train-ttrees output-model
+                 * r = random seed is used as a string; no seed change if empty string is passed
 
 sample_gen -- generate using the given candidate generator
     - arguments: [-n trees-per-da] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
@@ -47,6 +48,7 @@ from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelRanker
 from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
 from tgen.debug import exc_info_hook
+from tgen.rnd import rnd
 
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
@@ -91,7 +93,7 @@ def candgen_train(args):
 
 
 def percrank_train(args):
-    opts, files = getopt(args, 'c:d:s:j:w:e:')
+    opts, files = getopt(args, 'c:d:s:j:w:e:r:')
     candgen_model = None
     train_size = 1.0
     parallel = False
@@ -113,6 +115,8 @@ def percrank_train(args):
             work_dir = arg
         elif opt == '-e':
             experiment_id = arg
+        elif opt == '-r' and arg:
+            rnd.seed(arg)
 
     if len(files) != 4:
         sys.exit(__doc__)

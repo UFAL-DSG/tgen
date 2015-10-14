@@ -117,6 +117,7 @@ make norm_log LOGFILE=path/to/debug.log
 make cv_run J=[XX] D='Description'
 * Run a 10-fold cross-validation experiment where percrank
   training is directly followed by A*search generation.
+  - set SEEDS=1 to use 5 different random seeds for each CV run.
 
 make cv_score-XXX
 * Retrieve a cross-validation run score.
@@ -194,9 +195,16 @@ cv_run: RUN_NAME := cv_run
 cv_run: prepare_dir
 cv_run:
 	for CV_NUM in $(CV_NUMS); do \
-		make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
-		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-		make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
+		if [[ -n "$(RANDS)" ]]; then \
+			SEEDS=(s0 s1 s2 s3 s4);
+		else \
+			SEEDS=(""); \
+		fi; \
+		for SEED in $${SEEDS[@]}; do \
+			make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+			JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
+			make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
+		done; \
 	done
 
 cv_score-%:
@@ -227,7 +235,7 @@ percrank_train:
 	# run the experiment
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) percrank_train $(DEBUG_LOG_TRAIN) -c $(TRY_DIR)/candgen.pickle.gz  \
-		-s $(TRAIN_PORTION) $(PARALLEL) -e "T.$(TRY_NUM)" \
+		-s $(TRAIN_PORTION) $(PARALLEL) -e "T.$(TRY_NUM)" -r "$(SEED)" \
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
