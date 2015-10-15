@@ -12,13 +12,14 @@ use File::stat;
 use File::Slurp;
 use Getopt::Long;
 
-my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d DEBUG] [-c CV] file1.log file2.log [...]\n";
+my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d DEBUG] [-c CV] [-r RANDS] file1.log file2.log [...]\n";
 
-my ( $training_set, $jobs, $debug, $cv ) = ( '', '', '', '' );
+my ( $training_set, $jobs, $debug, $cv, $rands ) = ( '', '', '', '', '' );
 GetOptions(
     'training_set|training|t=s' => \$training_set,
     'jobs|j=s'                  => \$jobs,
     'debug|d'                   => \$debug,
+    'rands|r'                   => \$rands,
     'cv_runs|cv|c=s'            => \$cv,
 ) or die($USAGE);
 die($USAGE) if ( !@ARGV );
@@ -35,8 +36,8 @@ $iters =~ s/\/\//\/~\//;
 $iters =~ s/\/$/\/~/;
 
 # data
-$training_data = ' + all data' if ( $training_set =~ /^training2/ );
-$training_data = ' + half'     if ( $training_set =~ /^training1/ );
+$training_data = ' + all' if ( $training_set =~ /^training2/ );
+$training_data = ' + 1/2'     if ( $training_set =~ /^training1/ );
 $training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
 $training_data .= ' + rc'        if ( $training_set =~ /^training[12]_rc/ );
 $training_data .= ' + sc'        if ( $training_set =~ /^training[12]_sc/ );
@@ -52,7 +53,7 @@ if ( $training_set =~ /-(s?comp[_a-z0-9]*)$/ ) {
 
 # gadgets
 if ( $config_data =~ /'diffing_trees'\s*:\s*'([^']*)'/ ) {
-    $gadgets = ' + difftr ' . $1;
+    $gadgets = ' + dt ' . $1;
     $gadgets =~ s/weighted/wt/;
 }
 
@@ -84,6 +85,9 @@ if ($cv) {
 }
 if ($debug) {
     $run_setting .= ' DEBUG';
+}
+if ($rands){
+    $run_setting .= ' RANDS';
 }
 $run_setting =~ s/^ //;
 $run_setting =~ s/ +/,/g;
