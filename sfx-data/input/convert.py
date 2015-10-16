@@ -23,7 +23,7 @@ class DAI(recordclass('DAI', ['type', 'slot', 'value'])):
         if self.slot is None:
             return self.type + '()'
         if self.value is None:
-            return self.type + '(' + self.slot + ')'        
+            return self.type + '(' + self.slot + ')'
         quote = '\'' if ' ' in self.value else ''
         return self.type + '(' + self.slot + '=' + quote + self.value + quote + ')'
 
@@ -64,9 +64,9 @@ class DA(object):
 
 def parse_da(da_text):
     """Parse a DA string into DAIs (DA types, slots, and values)."""
-    
+
     da = DA()
-    
+
     for dai_text in re.finditer(r'(\??[a-z_]+)\(([^)]*)\)', da_text):
         da_type, svps = dai_text.groups()
 
@@ -86,8 +86,7 @@ def parse_da(da_text):
             slot, value = svp.split('=', 1)
             if re.match(r'^\'.*\'$', value):
                 value = value[1:-1]
-            if re.match(r'^\'', value) or re.match(r'\'$', value):
-                import ipdb; ipdb.set_trace()
+            assert not re.match(r'^\'', value) and not re.match(r'\'$', value)
 
             da.append(DAI(da_type, slot, value))
 
@@ -109,6 +108,7 @@ def find_substr(needle, haystack):
     @param needle: the shorter list – the list whose position is to be found
     @return: a tuple of starting and ending position of needle in the haystack, or None if not found
     """
+    # TODO: we need some fuzzy matching for "and/or", "and/to", "-ly"
     h = 0
     n = 0
     while True:
@@ -121,6 +121,38 @@ def find_substr(needle, haystack):
             h += 1
         else:
             if n > 0:
+                n = 0
+            else:
+                h += 1
+
+
+def find_substr_approx(needle, haystack):
+    """Try to find a sub-list in a list of tokens using fuzzy matching (skipping some
+    common prepositions and punctuation, checking for similar-length substrings)"""
+    # some common 'meaningless words'
+    stops = set(['and', 'or', 'in', 'of', 'the', 'to', ','])
+    h = 0
+    n = 0
+    while True:
+        n_orig = n  # remember that we skipped some stop words at beginning of needle
+                    # (since we check needle position before moving on in haystack)
+        while n < len(needle) and needle[n] in stops:
+            n += 1
+        while h < len(haystack) and haystack[h] in stops:
+            h += 1
+        if n >= len(needle):
+            return h - n, h
+        if h >= len(haystack):
+            return None
+        # fuzzy match: one may be substring of the other, with up to 2 chars difference
+        # (moderate/moderately etc.)
+        if (haystack[h] == needle[n] or
+            ((haystack[h] in needle[n] or needle[n] in haystack[h]) and
+             abs(len(haystack[h]) - len(needle[n])) <= 2)):
+            n += 1
+            h += 1
+        else:
+            if n_orig > 0:
                 n = 0
             else:
                 h += 1
@@ -139,17 +171,17 @@ def abstract_sent(da, conc, abst_slots):
     absts = []
     abst_da = DA()
 
-    if 'and their phone number is 4159212956' in conc:
-        import ipdb; ipdb.set_trace()
-
     # find all values in the sentence, building the abstracted DA along the way
     for dai in da:
         # first, create the 'abstracted' DAI as the copy of the current DAI
         abst_da.append(DAI(dai.type, dai.slot, dai.value))
         if dai.value is None:
             continue
+        # try to find the value in the sentence (first exact, then fuzzy)
         val_toks = dai.value.split(' ')
         pos = find_substr(val_toks, toks)
+        if pos is None:
+            pos = find_substr_approx(val_toks, toks)
         if pos is not None:
             # save the abstraction instruction
             absts.append(Abst(dai.slot, dai.value, pos[0], pos[1]))
