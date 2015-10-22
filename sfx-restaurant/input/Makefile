@@ -1,7 +1,7 @@
 
 SHELL=/bin/bash
 ABSTRACTED = 'name,address,phone,near,area,price'
-CONVERT_SETTINGS = -a $(ABSTRACTED)
+CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1
 COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 
 ifeq ($(COORD),stanford)
@@ -22,6 +22,9 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
    test-text.pickle.gz test-das.txt test-abst.txt test-conc.txt \
    grammatemes.tsv
 
+# prevent deleting intermediate files
+.SECONDARY:
+
 %-text.pickle.gz: %-text.yaml.gz
 	../../util/yaml2pickle.py $<
 
@@ -33,14 +36,8 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abst.txt x_only=1 $(COORD_ADJUST) \
 	 	Write::Treex to=$@
 
-all-abst.txt: all-das.txt
-
-all-text.txt: all-das.txt
-
-all-conc.txt: all-das.txt
-
-all-das.txt: sfxrestaurant.emnlp.json
-	./convert.py $(CONVERT_SETTINGS) $< all
+train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt: sfxrestaurant.emnlp.json
+	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
 %-conc.sgm: %-conc.txt
 	treex -Len Read::Sentences from=$< Util::Eval document='$$.set_path(""); $$.set_file_stem("$*");' Write::SgmMTEval to=$@ set_id=BAGEL sys_id=manual add_header=refset

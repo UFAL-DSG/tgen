@@ -98,6 +98,7 @@ def postprocess_sent(sent):
     sent = re.sub(r'child -s', 'children', sent)
     sent = re.sub(r' -s', 's', sent)
     sent = re.sub(r' -ly', 'ly', sent)
+    sent = re.sub(r'\s+', ' ', sent)
     return sent
 
 
@@ -106,9 +107,9 @@ def find_substr(needle, haystack):
     
     @param haystack: the longer list of tokens – the list where we should search
     @param needle: the shorter list – the list whose position is to be found
-    @return: a tuple of starting and ending position of needle in the haystack, or None if not found
+    @return: a tuple of starting and ending position of needle in the haystack, \ 
+            or None if not found
     """
-    # TODO: we need some fuzzy matching for "and/or", "and/to", "-ly"
     h = 0
     n = 0
     while True:
@@ -221,6 +222,7 @@ def convert(args):
     texts = []  # abstracted sentences
     absts = []  # abstraction descriptions
 
+    # process the input data and store it in memory
     with open(args.in_file, 'r') as fh:
         data = json.load(fh, encoding='UTF-8')
         turns = 0
@@ -238,26 +240,53 @@ def convert(args):
 
         print 'Processed', turns, 'turns.'
 
-    with open(args.out_name + '-das.txt', 'w') as fh:
-        for da in das:
-            fh.write(unicode(da).encode('utf-8') + "\n")
+    if args.split:
+        # get file name prefixes and compute data sizes for all the parts to be split
+        out_names = re.split(r'[, ]+', args.out_name)
+        data_sizes = [int(part_size) for part_size in args.split.split(':')]
+        assert len(out_names) == len(data_sizes)
+        # compute sizes for all but the 1st part (+ round them)
+        total = float(sum(data_sizes))
+        remain = turns
+        for part_no in xrange(len(data_sizes) - 1, 0, -1):
+            part_size = int(round(turns * (data_sizes[part_no] / total)))
+            data_sizes[part_no] = part_size
+            remain -= part_size
+        # put whatever remained into the 1st part
+        data_sizes[0] = remain
+    else:
+        # use just one part -- containing all the data
+        data_sizes = [turns]
+        out_names = [out_name]
 
-    with open(args.out_name + '-conc.txt', 'w') as fh:
-        for conc in concs:
-            fh.write(conc.encode('utf-8') + "\n")
+    # write all data parts
+    for part_size, part_name in zip(data_sizes, out_names):
+        with open(part_name + '-das.txt', 'w') as fh:
+            for da in das[0:part_size]:
+                fh.write(unicode(da).encode('utf-8') + "\n")
+            del das[0:part_size]
 
-    with open(args.out_name + '-abst.txt', 'w') as fh:
-        for abst in absts:
-            fh.write("\t".join([unicode(a) for a in abst]).encode('utf-8') + "\n")
+        with open(part_name + '-conc.txt', 'w') as fh:
+            for conc in concs[0:part_size]:
+                fh.write(conc.encode('utf-8') + "\n")
+            del concs[0:part_size]
 
-    with open(args.out_name + '-text.txt', 'w') as fh:
-        for text in texts:
-            fh.write(text.encode('utf-8') + "\n")
+        with open(part_name + '-abst.txt', 'w') as fh:
+            for abst in absts[0:part_size]:
+                fh.write("\t".join([unicode(a) for a in abst]).encode('utf-8') + "\n")
+            del absts[0:part_size]
+
+        with open(part_name + '-text.txt', 'w') as fh:
+            for text in texts[0:part_size]:
+                fh.write(text.encode('utf-8') + "\n")
+            del texts[0:part_size]
+
 
 if  __name__ == '__main__':
     argp = argparse.ArgumentParser()
     argp.add_argument('in_file', help='Input JSON file')
-    argp.add_argument('out_name', help='Output files name prefix')
+    argp.add_argument('out_name', help='Output files name prefix(es - when used with -s, comma-separated)')
     argp.add_argument('-a', '--abstract', help='Comma-separated list of slots to be abstracted')
+    argp.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
     args = argp.parse_args()
     convert(args)
