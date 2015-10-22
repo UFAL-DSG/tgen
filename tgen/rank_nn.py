@@ -247,6 +247,24 @@ class EmbNNRanker(NNRanker):
             layers += [[FeedForwardLayer('perc', self.num_hidden_units, 1,
                                          None, self.initialization)]]
 
+        elif self.nn_shape.startswith('conv-ff'):
+            conv_das = Conv1DLayer('conv_das', n_in=(self.max_da_len, 2, self.emb_size),
+                                   num_filters=2, filter_length=3,
+                                   init=self.initialization, activation=T.tanh)
+            conv_trees = Conv1DLayer('conv_trees', n_in=(self.max_tree_len, 3, self.emb_size),
+                                     num_filters=3, filter_length=3,
+                                     init=self.initialization, activation=T.tanh)
+            layers += [[conv_das, conv_trees],
+                       [Flatten('flatten_das'), Flatten('flatten_trees')],
+                       [Concat('concat')],
+                       [FeedForwardLayer('ff1', np.prod(conv_das.n_out) + np.prod(conv_trees.n_out),
+                                         self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
+                                         T.tanh, self.initialization)],
+                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
+                                         None, self.initialization)]]
+
         elif 'maxpool-ff' in self.nn_shape:
             if self.nn_shape.startswith('conv'):
                 layers += [[Conv1DLayer('conv_das', n_in=(self.max_da_len, 2, self.emb_size),
