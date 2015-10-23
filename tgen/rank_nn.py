@@ -247,13 +247,22 @@ class EmbNNRanker(NNRanker):
             layers += [[FeedForwardLayer('perc', self.num_hidden_units, 1,
                                          None, self.initialization)]]
 
-        elif self.nn_shape.startswith('conv-ff'):
+        elif self.nn_shape == 'conv-ff' or self.nn_shape == 'conv2-ff':
             conv_das = Conv1DLayer('conv_das', n_in=(self.max_da_len, 2, self.emb_size),
                                    num_filters=2, filter_length=3,
                                    init=self.initialization, activation=T.tanh)
             conv_trees = Conv1DLayer('conv_trees', n_in=(self.max_tree_len, 3, self.emb_size),
                                      num_filters=3, filter_length=3,
                                      init=self.initialization, activation=T.tanh)
+            # two stacked convolutions
+            if self.nn_shape == 'conv2-ff':
+                layers += [[conv_das, conv_trees]]
+                conv_das = Conv1DLayer('conv_das', n_in=conv_das.n_out,
+                                       num_filters=2, filter_length=3,
+                                       init=self.initialization, activation=T.tanh)
+                conv_trees = Conv1DLayer('conv_trees', n_in=conv_trees.n_out,
+                                         num_filters=3, filter_length=3,
+                                         init=self.initialization, activation=T.tanh)
             layers += [[conv_das, conv_trees],
                        [Flatten('flatten_das'), Flatten('flatten_trees')],
                        [Concat('concat')],
