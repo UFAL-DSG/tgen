@@ -5,7 +5,7 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
-MEM = 4g
+MEM = 8g
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
@@ -221,7 +221,7 @@ cv_train_stats-%:
 	make cv_train_stats TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
 
 cv_train_stats:
-	$(AVERAGE_SCORES) $(TRY_DIR)/cv??/T.*.percrank_train.o* | tee $(TRY_DIR)/percrank_train.log.txt
+	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.percrank_train.o* | tee $(TRY_DIR)/percrank_train.log.txt
 
 
 percrank_train: RUN_NAME := percrank_train
@@ -300,14 +300,14 @@ rerun-%:
 	$(eval TRY_NUM := $*)
 	$(eval RUN_NAME := $(shell ls -t $(TRY_DIR)/T.* | head -n 1 | sed 's/.*\/T\.[0-9]\+\.//;s/\..*//;'))
 	# select last log file, extract command from it and run it
-	if ls -d $(TRY_DIR)/cv?? >/dev/null 2>&1; then \
-	    for DIR in `ls -d $(TRY_DIR)/cv??`; do \
+	if ls -d $(TRY_DIR)/cv* >/dev/null 2>&1; then \
+	    for DIR in `find $(TRY_DIR)/cv* -type d`; do \
 	    	make rerun TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) RUN_NAME=percrank_train 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
 		if `ls $$DIR/T.*.asearch_gen.* >/dev/null 2>&1`; then \
 			make rerun TRY_NUM=$(TRY_NUM) TRY_DIR=$$DIR RUN_NAME=asearch_gen QP="--hold $$JOB_NUM" ; \
 		else \
-			make asearch_gen_cv TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) CV_NUM=`basename $$DIR` QP="--hold $$JOB_NUM"; \
+			make asearch_gen_cv TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) CV_NUM=`basename $$DIR | sed 's/s.$$//'` QP="--hold $$JOB_NUM"; \
 		fi ; \
 	    done ; \
 	else \
@@ -318,7 +318,8 @@ rerun-%:
 rerun:
 	LAST_LOGFILE=`ls -t $(TRY_DIR)/T.*.$(RUN_NAME).* | head -n 1` ; \
 	COMMAND=`cat $$LAST_LOGFILE | sed '1,/^== Directory/d;/^== Hard res/,$$d;s/^== Command:\s*//;'` ; \
-	$(QSUBMIT) "$$COMMAND" 2>&1 | tee -a $(TRY_DIR)/$(RUN_NAME).log.txt ; \
+	echo "Rerunning command: $$COMMAND"; \
+	$(QSUBMIT) "$$COMMAND" 2>&1 | tee -a $(TRY_DIR)/$(RUN_NAME).log.txt ;
 
 
 norm_log:
