@@ -39,9 +39,6 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt: sfxrestaurant.emnlp.json
 	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
-%-conc.sgm: %-conc.txt
-	treex -Len Read::Sentences from=$< Util::Eval document='$$.set_path(""); $$.set_file_stem("$*");' Write::SgmMTEval to=$@ set_id=BAGEL sys_id=manual add_header=refset
-
 train-%.txt: all-%.txt
 	head -n 362 $< > $@
 
@@ -51,3 +48,11 @@ test-%.txt: all-%.txt
 grammatemes.tsv: train-text.treex.gz
 	treex -Len Read::Treex from=$< Print::GrammatemesForTgen to=$@
 
+%-conc.sgm: %-conc.txt
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset to=$@
+
+%-text.sgm: %-text.txt
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset to=$@
+
+%-das.sgm: %-das.txt
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=source add_header=srcset to=$@

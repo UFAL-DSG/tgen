@@ -70,10 +70,10 @@ if ( $config_data =~ /'nn'\s*:\s*'emb'/ ) {
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 512 );
     $nn_shape .= '-A' . ( ( $config_data =~ /'alpha'\s*:\s*([0-9.]+)/ )[0]           // 0.1 );
     $nn_shape .= '-' .  ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0]   // 'uniform_glorot10' );
-}
 
-# NN gadgets
-$nn_shape .= ' + ngr' if ( $config_data =~ /'normgrad'\s*:\s*True/ );
+    # NN gadgets
+    $nn_shape .= ' + ngr' if ( $config_data =~ /'normgrad'\s*:\s*True/ );
+}
 
 # run setting
 if ($jobs) {

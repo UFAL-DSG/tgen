@@ -34,9 +34,8 @@ RUNS_DIR  := runs# main directory for experiment outputs
 TRY_NUM   := $(shell perl -e '$$m=0; for(<$(RUNS_DIR)/*>){/\/(\d+)_/ and $$1 > $$m and $$m=$$1;} printf "%03d", $$m+1;')# experiment number
 RUN_NAME  := experiment# default name, to be overridden by targets
 DATE      := $(shell date +%Y-%m-%d_%H-%M-%S)
-TRY_DIR    = $(RUNS_DIR)/$(TRY_NUM)_$(DATE)_$(RUN_NAME)/$(CV_NUM)# experiment output directory
+TRY_DIR    = $(RUNS_DIR)/$(TRY_NUM)_$(DATE)_$(RUN_NAME)# experiment output directory
 TRAINING_SET := training2
-CV_NUMS   := cv00 cv01 cv02 cv03 cv04 cv05 cv06 cv07 cv08 cv09
 
 ifdef D # Shortcut D -> DESC
   DESC := $(D)
@@ -51,32 +50,25 @@ endif
 
 # Input data file defaults
 
-CANDGEN_MODEL = model/$(TRAINING_SET)/$(CV_NUM)/candgen.pickle.gz
+CANDGEN_MODEL = model/$(TRAINING_SET)/candgen.pickle.gz
 #PERCRANK_MODEL = model/percrank.pickle.gz
 PERCRANK_CONFIG = config/percrank.py
 ASEARCH_CONFIG = config/asearch.py
 TRAIN_PORTION = 1.0
-TRAIN_DAS = data/$(TRAINING_SET)/$(CV_NUM)/train-das.txt
-TRAIN_TREES = data/$(TRAINING_SET)/$(CV_NUM)/train-text.pickle.gz
-TRAIN_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/train-abstr.txt
-TRAIN_CONC = data/$(TRAINING_SET)/$(CV_NUM)/train-conc.sgm
-GRAMMATEMES = data/$(TRAINING_SET)/$(CV_NUM)/grammatemes.tsv
-TEST_DAS = data/$(TRAINING_SET)/$(CV_NUM)/test-das.txt
-TEST_REF = data/$(TRAINING_SET)/$(CV_NUM)/test-das.sgm
-TEST_TREES = data/$(TRAINING_SET)/$(CV_NUM)/test-text.pickle.gz
-TEST_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/test-abstr.txt
-TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-conc.sgm
-SURFACE_SCEN = surface/en_synthesis.scen
+TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
+TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
+TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
+TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
+GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
+TEST_DAS = data/$(TRAINING_SET)/test-das.txt
+TEST_REF = data/$(TRAINING_SET)/test-das.sgm
+TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
+TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
+TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
+SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
 
 XS_INSTEAD = 0
 EVAL_SELECTOR = ""
-
-ifdef CV_NUM
-    TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-text.sgm
-    XS_INSTEAD = 1
-    EVAL_SELECTOR = ref0
-    TEST_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/test.0-abstr.txt
-endif
 
 # Help text
 
@@ -194,17 +186,15 @@ prepare_dir:
 cv_run: RUN_NAME := cv_run
 cv_run: prepare_dir
 cv_run:
-	for CV_NUM in $(CV_NUMS); do \
-		if [[ -n "$(RANDS)" ]]; then \
-			SEEDS=(s0 s1 s2 s3 s4); \
-		else \
-			SEEDS=(""); \
-		fi; \
-		for SEED in "$${SEEDS[@]}"; do \
-			make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
-			JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-			make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
-		done; \
+	if [[ -n "$(RANDS)" ]]; then \
+		SEEDS=(s0 s1 s2 s3 s4); \
+	else \
+		SEEDS=(""); \
+	fi; \
+	for SEED in "$${SEEDS[@]}"; do \
+		make percrank_train TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
+		make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="--hold $$JOB_NUM"; \
 	done
 
 cv_score-%:
@@ -250,21 +240,21 @@ asearch_gen:
 	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
 
 
-asearch_gen_cv: RUN_NAME := asearch_gen.$(CV_NUM)
+asearch_gen_cv: RUN_NAME := asearch_gen
 asearch_gen_cv:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
 	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
 
 asearch_gen-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
@@ -274,9 +264,9 @@ asearch_gen-%:
 	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
 
 asearch_gen_process: RUN_NAME := asearch_gen
 asearch_gen_process:
@@ -288,7 +278,7 @@ asearch_gen_process:
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
 			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv \
-			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
+			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abst.txt xs_instead=$(XS_INSTEAD) \
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
@@ -331,10 +321,8 @@ norm_log:
 
 candgen_train:
 	for D in training1$(CANDGEN_ID) training2$(CANDGEN_ID); do \
-	    for CV in cv0{0,1,2,3,4,5,6,7,8,9}; do \
-		mkdir -p model/$$D/$$CV; \
-		../run_tgen.py candgen_train $(CANDGEN_PARAMS) data/$$D/$$CV/train-das.txt data/$$D/$$CV/train-text.pickle.gz model/$$D/$$CV/candgen.pickle.gz; \
-		done; \
+	    mkdir -p model/$$D; \
+	    ../run_tgen.py candgen_train $(CANDGEN_PARAMS) data/$$D/train-das.txt data/$$D/train-text.pickle.gz model/$$D/candgen.pickle.gz; \
 	done
 
 compare_output:
