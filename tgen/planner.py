@@ -58,7 +58,8 @@ class CandidateList(DictMixin):
         queue_index = (i for i, v in enumerate(self.queue) if v[1] == key).next()
         self.queue[queue_index] = self.queue[-1]
         del self.queue[-1]
-        self._siftup(queue_index)
+        if queue_index < len(self.queue):  # skip if we deleted the last item
+            self._siftup(queue_index)
 
     def keys(self):
         return self.members.keys()

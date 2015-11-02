@@ -126,7 +126,7 @@ class BasePerceptronRanker(Ranker):
             self.sampling_planner = SamplingPlanner({'language': self.language,
                                                      'selector': self.selector,
                                                      'candgen': self.candgen})
-        if 'gen_cur_weights' in self.rival_gen_strategy:
+        if 'gen_cur_weights' in self.rival_gen_strategy or 'gen_update' in self.rival_gen_strategy:
             assert self.candgen is not None
             self.asearch_planner = ASearchPlanner({'candgen': self.candgen,
                                                    'language': self.language,
@@ -340,7 +340,7 @@ class BasePerceptronRanker(Ranker):
             self.asearch_planner.run_iter()
 
             # look if we are on the right track to the gold tree
-            cur_top, score = self.asearch_planner.open_list.peek()[0]
+            cur_top, score = self.asearch_planner.open_list.peek()
             csi, _ = gold.tree.common_subtree_idxs(cur_top)
 
             # if not, update
