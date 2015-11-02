@@ -259,6 +259,12 @@ def dai_presence(tree, context):
     return ret
 
 
+def dat_presence(tree, context):
+    """Dialogue act type (assuming the same type for all DAIs).
+    """
+    return {context['da'][0].dat: 1}
+
+
 def slot_presence(tree, context):
     """Return 1 for all DA slots in the given context.
 
@@ -267,6 +273,8 @@ def slot_presence(tree, context):
     """
     ret = {}
     for dai in context['da']:
+        if dai.name is None:
+            continue
         ret[dai.name] = 1
     return ret
 
@@ -279,6 +287,8 @@ def slot_count(tree, context):
     """
     ret = defaultdict(int)
     for dai in context['da']:
+        if dai.name is None:
+            continue
         ret[dai.name] += 1
     return ret
 
