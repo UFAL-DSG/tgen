@@ -51,20 +51,19 @@ class NNRanker(BasePerceptronRanker):
         """Average the remembered weights."""
         self.nn.set_param_values(np.average(self.w_after_iter, axis=0))
 
-    def _update_weights(self, good_da, bad_da, good_tree, bad_tree, good_feats, bad_feats):
-        """Update NN weights, given a DA, a good and a bad tree, and their features."""
-        # import ipdb; ipdb.set_trace()
+    def _update_weights(self, good, bad):
+        """Update NN weights, given a good and a bad data instance (DA, tree, features)."""
         if self.diffing_trees:
-            good_sts, bad_sts = good_tree.diffing_trees(bad_tree, symmetric=True)
+            good_sts, bad_sts = good.tree.diffing_trees(bad.tree, symmetric=True)
             for good_st, bad_st in zip(good_sts, bad_sts):
-                good_feats = self._extract_feats(good_st, good_da)
-                bad_feats = self._extract_feats(bad_st, bad_da)
+                good_feats = self._extract_feats(good_st, good.da)
+                bad_feats = self._extract_feats(bad_st, bad.da)
                 subtree_w = 1
                 if self.diffing_trees.endswith('weighted'):
-                    subtree_w = (len(good_st) + len(bad_st)) / float(len(good_tree) + len(bad_tree))
+                    subtree_w = (len(good_st) + len(bad_st)) / float(len(good.tree) + len(bad.tree))
                 self._update_nn(bad_feats, good_feats, subtree_w * self.alpha)
         else:
-            self._update_nn(bad_feats, good_feats, self.alpha)
+            self._update_nn(bad.feats, good.feats, self.alpha)
 
     def _update_nn(self, bad_feats, good_feats, rate):
         """Direct call to NN weights update."""

@@ -10,7 +10,7 @@ import numpy as np
 import cPickle as pickle
 import time
 import datetime
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from alex.components.nlg.tectotpl.core.util import file_stream
 
@@ -24,6 +24,10 @@ from eval import Evaluator, EvalTypes
 from tree import TreeNode
 from tgen.eval import ASearchListsAnalyzer
 from tgen.rnd import rnd
+
+
+class Inst(namedtuple('Inst', ['tree', 'da', 'feats', 'score'])):
+    pass
 
 
 class Ranker(object):
@@ -143,37 +147,39 @@ class BasePerceptronRanker(Ranker):
         rgen_max_defic_iter = self._get_num_iters(pass_no, self.rival_gen_max_defic_iter)
         rgen_beam_size = self.rival_gen_beam_size
 
+        import ipdb; ipdb.set_trace()
         for tree_no in self.train_order:
+
+            log_debug('TREE-NO: %d' % tree_no)
+            log_debug('SENT: %s' % self.train_sents[tree_no])
+
             # obtain some 'rival', alternative incorrect candidates
-            gold_da, gold_tree, gold_feats = self.train_das[tree_no], self.train_trees[tree_no], self.train_feats[tree_no]
+            gold = Inst(da=self.train_das[tree_no],
+                        tree=self.train_trees[tree_no],
+                        score=self._score(self.train_feats[tree_no]),
+                        feats=self.train_feats[tree_no])
 
             for strategy in self.rival_gen_strategy:
-                rival_das, rival_trees, rival_feats = self._get_rival_candidates(tree_no, strategy, rgen_max_iter,
-                                                                                 rgen_max_defic_iter, rgen_beam_size)
-                cands = [gold_feats] + rival_feats
 
-                # score them along with the right one
-                scores = [self._score(cand) for cand in cands]
-                top_cand_idx = scores.index(max(scores))
-                top_rival_idx = scores[1:].index(max(scores[1:]))
-                top_rival_tree = rival_trees[top_rival_idx]
-                top_rival_da = rival_das[top_rival_idx]
+                # generate using current weights
+                if strategy == 'gen_cur_weights':
+                    gen = self._gen_cur_weights(gold, rgen_max_iter, rgen_max_defic_iter, rgen_beam_size)
 
-                # find the top-scoring generated tree, evaluate against gold t-tree
+                # generate while trying to update weights
+                elif strategy == 'gen_update':
+                    gen = self._gen_update(gold, rgen_max_iter, rgen_max_defic_iter, rgen_beam_size)
+
+                # check against other possible candidates/combinations
+                else:
+                    gen = self._get_rival_candidates(gold, tree_no, strategy)
+
+                # evaluate the top-scoring generated tree against gold t-tree
                 # (disregarding whether it was selected as the best one)
-                self.evaluator.append(TreeNode(gold_tree), TreeNode(top_rival_tree), scores[0], max(scores[1:]))
-
-                # debug print: candidate trees
-                log_debug('TTREE-NO: %04d, SEL_CAND: %04d, LEN: %02d' % (tree_no, top_cand_idx, len(cands)))
-                log_debug('SENT: %s' % self.train_sents[tree_no])
-                log_debug('ALL CAND TREES:')
-                for ttree, score in zip([gold_tree] + rival_trees, scores):
-                    log_debug("%12.5f" % score, "\t", ttree)
+                self.evaluator.append(TreeNode(gold.tree), TreeNode(gen.tree), gold.score, gen.score)
 
                 # update weights if the system doesn't give the highest score to the right one
-                if top_cand_idx != 0:
-                    self._update_weights(gold_da, top_rival_da, gold_tree, top_rival_tree,
-                                         gold_feats, cands[top_cand_idx])
+                if gold.score < gen.score:
+                    self._update_weights(gold, gen)
 
         # store a copy of the current weights for averaging
         self.store_iter_weights()
@@ -233,25 +239,22 @@ class BasePerceptronRanker(Ranker):
         """Return feature names and values for printing. To be overridden in base classes."""
         return ''
 
-    def _get_rival_candidates(self, tree_no, strategy, max_iter, max_defic_iter, beam_size):
+    def _get_rival_candidates(self, gold, tree_no, strategy):
         """Generate some rival candidates for a DA and the correct (gold) tree,
         given the current rival generation strategy (self.rival_gen_strategy).
 
         TODO: checking for trees identical to the gold one slows down the process
 
-        TODO: remove other generation strategies, remove support for multiple generated trees
-
         @param tree_no: the index of the current training data item (tree, DA)
         @rtype: tuple of two lists: one of TreeData's, one of arrays
         @return: an array of rival trees and an array of the corresponding features
         """
-        da = self.train_das[tree_no]
         train_trees = self.train_trees
 
         rival_das, rival_trees, rival_feats = [], [], []
 
         if strategy != 'other_da':
-            rival_das = [da] * self.rival_number
+            rival_das = [gold.da] * self.rival_number
 
         # use current DA but change trees when computing features
         if strategy == 'other_inst':
@@ -260,7 +263,7 @@ class BasePerceptronRanker(Ranker):
                              rnd.sample(xrange(len(train_trees) - 1), self.rival_number))
             other_inst_trees = [train_trees[rival_idx] for rival_idx in rival_idxs]
             rival_trees.extend(other_inst_trees)
-            rival_feats.extend([self._extract_feats(tree, da) for tree in other_inst_trees])
+            rival_feats.extend([self._extract_feats(tree, gold.da) for tree in other_inst_trees])
 
         # use the current gold tree but change DAs when computing features
         if strategy == 'other_da':
@@ -282,23 +285,90 @@ class BasePerceptronRanker(Ranker):
             rival_trees.extend(random_trees)
             rival_feats.extend([self._extract_feats(tree, da) for tree in random_trees])
 
-        # candidates generated using the A*search planner, which uses this ranker with current
-        # weights to guide the search, and the current DA as the input
-        # TODO: use just one!, others are meaningless
-        if strategy == 'gen_cur_weights':
-            open_list, close_list = self.asearch_planner.run(da, max_iter, max_defic_iter, beam_size)
-            self.lists_analyzer.append(train_trees[tree_no], open_list, close_list)
-            gen_trees = []
-            while close_list and len(gen_trees) < self.rival_number:
-                tree = close_list.pop()[0]
-                if tree != train_trees[tree_no]:
-                    gen_trees.append(tree)
-            rival_trees.extend(gen_trees[:self.rival_number])
-            rival_feats.extend([self._extract_feats(tree, da)
-                                for tree in gen_trees[:self.rival_number]])
+        # score them along with the right one
+        rival_scores = [self._score(r) for r in rival_feats]
+        top_rival_idx = rival_scores.index(max(rival_scores))
+        gen = Inst(tree=rival_trees[top_rival_idx],
+                   da=rival_das[top_rival_idx],
+                   score=rival_scores[top_rival_idx],
+                   feats=rival_feats[top_rival_idx])
 
-        # return all resulting candidates
-        return rival_das, rival_trees, rival_feats
+        # debug print: candidate trees
+        log_debug('#RIVALS: %02d' % len(rival_feats))
+        log_debug('SEL: GOLD' if gold.score >= gen.score else ('SEL: RIVAL#%d' % top_rival_idx))
+        log_debug('ALL CAND TREES:')
+        for ttree, score in zip([gold.tree] + rival_trees, [gold.score] + rival_scores):
+            log_debug("%12.5f" % score, "\t", ttree)
+
+        return gen
+
+    def _gen_cur_weights(self, gold, max_iter, max_defic_iter, beam_size):
+        """
+        Get the best candidate generated using the A*search planner, which uses this ranker with current
+        weights to guide the search, and the current DA as the input.
+        """
+        # TODO make asearch_planner remember features (for last iteration, maybe)
+        self.asearch_planner.run(gold.da, max_iter, max_defic_iter, beam_size)
+        self.lists_analyzer.append(gold.tree,
+                                   self.asearch_planner.open_list,
+                                   self.asearch_planner.close_list)
+        return self.get_best_generated(gold)
+
+    def get_best_generated(self, gold):
+        """TODO"""
+
+        gen_tree = gold.tree
+        while self.asearch_planner.close_list and gen_tree == gold.tree:
+            gen_tree, gen_score = self.asearch_planner.close_list.pop()
+
+        gen = Inst(tree=gen_tree, da=gold.da, score=gen_score,
+                   feats=self._extract_feats(gen_tree, gold.da))
+        log_debug('GEN-CUR-WEIGHTS')
+        log_debug('SEL: GOLD' if gold.score >= gen.score else 'SEL: GEN')
+        log_debug("GOLD:\t", "%12.5f" % gold.score, "\t", gold.tree)
+        log_debug("GEN :\t", "%12.5f" % gen.score, "\t", gen.tree)
+        return gen
+
+    def _gen_update(self, gold, max_iter, max_defic_iter, beam_size):
+        """TODO"""
+
+        self.asearch_planner.init_run(gold.da, max_iter, max_defic_iter, beam_size)
+
+        while not self.asearch_planner.check_finalize():
+            # run one A*search iteration
+            self.asearch_planner.run_iter()
+
+            # look if we are on the right track to the gold tree
+            cur_top, score = self.asearch_planner.open_list.peek()[0]
+            csi, _ = gold.tree.common_subtree_idxs(cur_top)
+
+            # if not, update
+            if len(csi) != len(cur_top):
+
+                feats = self._extract_feats(cur_top, gold.da)
+                gen = Inst(tree=cur_top, da=gold.da, feats=feats, score=score)
+
+                # for small wrong trees,
+                # fake the current open list to only include a subtree of the gold tree
+                # TODO fake it better, include more variants
+                # update using a subtree of the gold tree
+                if len(cur_top) < len(gold.tree):
+                    diff = sorted(list(set(range(len(gold.tree))) - set(csi)),
+                                  cmp=gold.tree._compare_node_depth)
+                    gold_sub = gold.tree.get_subtree(csi + diff[0:len(cur_top) - len(gold.tree)])
+
+                    self.asearch_planner.open_list.clear()
+                    self.asearch_planner.open_list.push(gold_sub, score)
+                    # TODO speed up by remembering the features in planner
+                    feats = self._extract_feats(gold_sub, gold.da)
+                    gold_sub = Inst(tree=gold_sub, da=gold.da, feats=feats, score=0)
+                    self._update_weights(gold_sub, gen)
+
+                # otherwise, update using the full gold tree
+                else:
+                    self._update_weights(gold, gen)
+
+        return self.get_best_generated(gold)
 
     def get_weights(self):
         """Return the current ranker weights (parameters). To be overridden by derived classes."""
@@ -461,38 +531,38 @@ class PerceptronRanker(FeaturesPerceptronRanker):
     def _score(self, cand_feats):
         return np.dot(self.w, cand_feats)
 
-    def _update_weights(self, good_da, bad_da, good_tree, bad_tree, good_feats, bad_feats):
+    def _update_weights(self, good, bad):
         """Perform a perceptron weights update (not the check if we need to update).
         Also perform differing tree updates."""
         # discount trees leading to the generated one and add trees leading to the gold one
         if self.diffing_trees:
-            good_sts, bad_sts = good_tree.diffing_trees(bad_tree,
+            good_sts, bad_sts = good.tree.diffing_trees(bad.tree,
                                                         symmetric=self.diffing_trees.startswith('sym'))
             # if set, discount common subtree's features from all subtrees' features
             discount = None
             if 'nocom' in self.diffing_trees:
-                discount = self._extract_feats(good_tree.get_common_subtree(bad_tree), good_da)
+                discount = self._extract_feats(good.tree.get_common_subtree(bad.tree), good.da)
             # add good trees (leading to gold)
             for good_st in good_sts:
-                good_feats = self._extract_feats(good_st, good_da)
+                good_feats = self._extract_feats(good_st, good.da)
                 if discount is not None:
                     good_feats -= discount
                 good_tree_w = 1
                 if self.diffing_trees.endswith('weighted'):
-                    good_tree_w = len(good_st) / float(len(good_tree))
+                    good_tree_w = len(good_st) / float(len(good.tree))
                 self.w += self.alpha * good_tree_w * good_feats
             # discount bad trees (leading to the generated one)
             if 'nobad' in self.diffing_trees:
                 bad_sts = []
             elif 'onebad' in self.diffing_trees:
-                bad_sts = [bad_tree]
+                bad_sts = [bad.tree]
             for bad_st in bad_sts:
-                bad_feats = self._extract_feats(bad_st, bad_da)
+                bad_feats = self._extract_feats(bad_st, bad.da)
                 if discount is not None:
                     bad_feats -= discount
                 bad_tree_w = 1
                 if self.diffing_trees.endswith('weighted'):
-                    bad_tree_w = len(bad_st) / float(len(bad_tree))
+                    bad_tree_w = len(bad_st) / float(len(bad.tree))
                 self.w -= self.alpha * bad_tree_w * bad_feats
         # just discount the best generated tree and add the gold tree
         else:
