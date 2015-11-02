@@ -147,7 +147,6 @@ class BasePerceptronRanker(Ranker):
         rgen_max_defic_iter = self._get_num_iters(pass_no, self.rival_gen_max_defic_iter)
         rgen_beam_size = self.rival_gen_beam_size
 
-        import ipdb; ipdb.set_trace()
         for tree_no in self.train_order:
 
             log_debug('TREE-NO: %d' % tree_no)
@@ -307,6 +306,7 @@ class BasePerceptronRanker(Ranker):
         Get the best candidate generated using the A*search planner, which uses this ranker with current
         weights to guide the search, and the current DA as the input.
         """
+        log_debug('GEN-CUR-WEIGHTS')
         # TODO make asearch_planner remember features (for last iteration, maybe)
         self.asearch_planner.run(gold.da, max_iter, max_defic_iter, beam_size)
         self.lists_analyzer.append(gold.tree,
@@ -321,9 +321,9 @@ class BasePerceptronRanker(Ranker):
         while self.asearch_planner.close_list and gen_tree == gold.tree:
             gen_tree, gen_score = self.asearch_planner.close_list.pop()
 
-        gen = Inst(tree=gen_tree, da=gold.da, score=gen_score,
+        # scores are negative on the close list – reverse the sign
+        gen = Inst(tree=gen_tree, da=gold.da, score=-gen_score,
                    feats=self._extract_feats(gen_tree, gold.da))
-        log_debug('GEN-CUR-WEIGHTS')
         log_debug('SEL: GOLD' if gold.score >= gen.score else 'SEL: GEN')
         log_debug("GOLD:\t", "%12.5f" % gold.score, "\t", gold.tree)
         log_debug("GEN :\t", "%12.5f" % gen.score, "\t", gen.tree)
@@ -332,6 +332,7 @@ class BasePerceptronRanker(Ranker):
     def _gen_update(self, gold, max_iter, max_defic_iter, beam_size):
         """TODO"""
 
+        log_debug('GEN-UPDATE')
         self.asearch_planner.init_run(gold.da, max_iter, max_defic_iter, beam_size)
 
         while not self.asearch_planner.check_finalize():
@@ -566,7 +567,7 @@ class PerceptronRanker(FeaturesPerceptronRanker):
                 self.w -= self.alpha * bad_tree_w * bad_feats
         # just discount the best generated tree and add the gold tree
         else:
-            self.w += (self.alpha * good_feats - self.alpha * bad_feats)
+            self.w += (self.alpha * good.feats - self.alpha * bad.feats)
         # # log_debug('Updated  w: ' + str(np.frombuffer(self.w, "uint8").sum()))
 
     def _feat_val_str(self, sep='\n', nonzero=False):

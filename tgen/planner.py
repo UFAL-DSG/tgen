@@ -282,7 +282,6 @@ class ASearchPlanner(SentencePlanner):
         @param max_defic_iter: Maximum number of deficit iteration (soft termination)
         @param beam_size: Beam size if pruning is to be used
         """
-
         log_debug('GEN TREE for DA: %s' % unicode(input_da))
 
         # initialization
@@ -301,7 +300,7 @@ class ASearchPlanner(SentencePlanner):
         if max_iter is not None:
             self.max_iter = max_iter
         if max_defic_iter is not None:
-            self.max_defic_iter = self.max_defic_iter
+            self.max_defic_iter = max_defic_iter
         if beam_size is not None:
             self.beam_size = beam_size
 
