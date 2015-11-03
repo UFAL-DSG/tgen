@@ -290,7 +290,7 @@ rerun-%:
 	$(eval TRY_NUM := $*)
 	$(eval RUN_NAME := $(shell ls -t $(TRY_DIR)/T.* | head -n 1 | sed 's/.*\/T\.[0-9]\+\.//;s/\..*//;'))
 	# select last log file, extract command from it and run it
-	if ls -d $(TRY_DIR)/cv* >/dev/null 2>&1; then \
+	if find $(TRY_DIR)/cv* -type d >/dev/null 2>&1 | grep -qz .; then \
 	    for DIR in `find $(TRY_DIR)/cv* -type d`; do \
 	    	make rerun TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) RUN_NAME=percrank_train 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
@@ -301,7 +301,7 @@ rerun-%:
 		fi ; \
 	    done ; \
 	else \
-		make rerun TRY_DIR=$(TRY_NUM) RUN_NAME=$(RUN_NAME) ; \
+		make rerun TRY_DIR=$(TRY_DIR) RUN_NAME=$(RUN_NAME) TRY_NUM=$(TRY_NUM) ; \
 	fi
 
 # Use only through rerun-XXX (TRY_DIR, RUN_NAME must be set)
