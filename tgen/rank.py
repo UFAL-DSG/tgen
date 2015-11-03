@@ -397,6 +397,10 @@ class BasePerceptronRanker(Ranker):
             # run one A*search iteration
             self.asearch_planner.run_iter()
 
+            # stop if there's nothing on the open list
+            if not self.asearch_planner.open_list:
+                break
+
             # look if we are on the right track to the gold tree
             cur_top, score = self.asearch_planner.open_list.peek()
             csi, _ = gold.tree.common_subtree_idxs(cur_top)
