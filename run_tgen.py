@@ -9,9 +9,10 @@ Usage: ./tgen.py <action> <argument1 ...>
 Actions:
 
 candgen_train -- train candidate generator (probability distributions)
-    - arguments: [-l] [-n] [-p prune_threshold] train-das train-ttrees output-model
+    - arguments: [-l] [-n] [-p prune_threshold] [-c <lemma|node>:limit] [-s] train-das train-ttrees output-model
                  * l = create lexicalized candgen (limit using parent lemmas as well as formemes)
                  * n = engage limits on number of nodes (on depth levels + total number)
+                 * s = enforce compatibility for slots as well
 
 percrank_train -- train perceptron global ranker
     - arguments: [-d debug-output] [-c candgen-model] [-s data-portion] [-j parallel-jobs] [-w parallel-work-dir] \\
