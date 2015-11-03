@@ -27,6 +27,7 @@ from tgen.rnd import rnd
 
 
 class Inst(namedtuple('Inst', ['tree', 'da', 'feats', 'score'])):
+    """A holder for one data instance (input tree, output DA, extracted features, ranker score)."""
     pass
 
 
@@ -163,12 +164,12 @@ class BasePerceptronRanker(Ranker):
             log_debug('TREE-NO: %d' % tree_no)
             log_debug('SENT: %s' % self.train_sents[tree_no])
 
-            # obtain some 'rival', alternative incorrect candidates
             gold = Inst(da=self.train_das[tree_no],
                         tree=self.train_trees[tree_no],
                         score=self._score(self.train_feats[tree_no]),
                         feats=self.train_feats[tree_no])
 
+            # obtain some 'rival', alternative incorrect candidates
             for strategy in rgen_strategy:
 
                 # generate using current weights
@@ -187,7 +188,7 @@ class BasePerceptronRanker(Ranker):
                 # (disregarding whether it was selected as the best one)
                 self.evaluator.append(TreeNode(gold.tree), TreeNode(gen.tree), gold.score, gen.score)
 
-                # update weights if the system doesn't give the highest score to the right one
+                # update weights if the system doesn't give the highest score to the gold standard tree
                 if gold.score < gen.score:
                     self._update_weights(gold, gen)
 

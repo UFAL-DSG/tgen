@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
-# Training data inspection. Currently prints only tree sizes
+# Training data inspection.
+# Prints tree sizes, DAs -> nodes/lemmas
 
 from tgen.futil import read_ttrees, trees_from_doc, read_das
 import sys
