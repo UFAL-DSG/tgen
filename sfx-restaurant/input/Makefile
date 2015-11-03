@@ -1,6 +1,6 @@
 
 SHELL=/bin/bash
-ABSTRACTED = 'name,address,phone,near,area,price'
+ABSTRACTED = 'name,address,phone,near,area,price,postcode,count'
 CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1
 COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 
@@ -19,7 +19,9 @@ endif
 
 all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
    devel-text.pickle.gz devel-das.txt devel-abst.txt devel-conc.txt \
+   devel-das.sgm devel-text.sgm devel-conc.sgm \
    test-text.pickle.gz test-das.txt test-abst.txt test-conc.txt \
+   test-das.sgm test-text.sgm test-conc.sgm \
    grammatemes.tsv
 
 # prevent deleting intermediate files
