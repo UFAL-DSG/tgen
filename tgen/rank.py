@@ -120,13 +120,23 @@ class BasePerceptronRanker(Ranker):
         self.train_order = range(len(self.train_trees))
         log_info('Using %d training instances.' % train_size)
 
-        # initialize candidate generator + planner if needed
+        # initialize candidate generator
         if self.candgen_model is not None:
             self.candgen = RandomCandidateGenerator.load_from_file(self.candgen_model)
             self.sampling_planner = SamplingPlanner({'language': self.language,
                                                      'selector': self.selector,
                                                      'candgen': self.candgen})
-        if 'gen_cur_weights' in self.rival_gen_strategy or 'gen_update' in self.rival_gen_strategy:
+
+        # check if A*search planner is needed (i.e., any rival generation strategy requires it)
+        # and initialize it
+        if isinstance(self.rival_gen_strategy[0], tuple):
+            asearch_needed = any([s in ['gen_cur_weights', 'gen_update']
+                                  for _, ss in self.rival_gen_strategy
+                                  for s in ss])
+        else:
+            asearch_needed = any([s in ['gen_cur_weights', 'gen_update']
+                                  for s in self.rival_gen_strategy])
+        if asearch_needed:
             assert self.candgen is not None
             self.asearch_planner = ASearchPlanner({'candgen': self.candgen,
                                                    'language': self.language,
@@ -146,6 +156,7 @@ class BasePerceptronRanker(Ranker):
         rgen_max_iter = self._get_num_iters(pass_no, self.rival_gen_max_iter)
         rgen_max_defic_iter = self._get_num_iters(pass_no, self.rival_gen_max_defic_iter)
         rgen_beam_size = self.rival_gen_beam_size
+        rgen_strategy = self._get_rival_gen_strategy(pass_no)
 
         for tree_no in self.train_order:
 
@@ -158,7 +169,7 @@ class BasePerceptronRanker(Ranker):
                         score=self._score(self.train_feats[tree_no]),
                         feats=self.train_feats[tree_no])
 
-            for strategy in self.rival_gen_strategy:
+            for strategy in rgen_strategy:
 
                 # generate using current weights
                 if strategy == 'gen_cur_weights':
@@ -206,7 +217,11 @@ class BasePerceptronRanker(Ranker):
 
     def _get_num_iters(self, cur_pass_no, iter_setting):
         """Return the maximum number of iterations (total/deficit) given the current pass.
-        Used to keep track of variable iteration number setting in configuration."""
+        Used to keep track of variable iteration number setting in configuration.
+
+        @param cur_pass_no: the number of the current pass
+        @param iter_setting: number of iteration setting (self.max_iter or self.max_defic_iter)
+        """
         if isinstance(iter_setting, (list, tuple)):
             ret = 0
             for set_pass_no, set_iter_no in iter_setting:
@@ -216,6 +231,22 @@ class BasePerceptronRanker(Ranker):
             return ret
         else:
             return iter_setting  # a single setting for all passes
+
+    def _get_rival_gen_strategy(self, cur_pass_no):
+        """Return the rival generation strategy/strategies for the current pass.
+        Used to keep track of variable rival generation setting setting in configuration.
+
+        @param cur_pass_no: the number of the current pass
+        """
+        if isinstance(self.rival_gen_strategy[0], tuple):
+            ret = []
+            for set_pass_no, strategies in self.rival_gen_strategy:
+                if set_pass_no > cur_pass_no:
+                    break
+                ret = strategies
+            return ret
+        else:
+            return self.rival_gen_strategy  # a single setting for all passes
 
     def _print_pass_stats(self, pass_no, pass_duration):
         """Print pass statistics from internal evaluator fields and given pass duration."""
@@ -240,7 +271,10 @@ class BasePerceptronRanker(Ranker):
 
     def _get_rival_candidates(self, gold, tree_no, strategy):
         """Generate some rival candidates for a DA and the correct (gold) tree,
-        given the current rival generation strategy (self.rival_gen_strategy).
+        given a strategy; using other DAs for the correct tree, other trees for the correct
+        DA, or random trees.
+
+        NB: This has not been shown to be usable in practice; use _gen_cur_weights() instead.
 
         TODO: checking for trees identical to the gold one slows down the process
 
@@ -305,17 +339,30 @@ class BasePerceptronRanker(Ranker):
         """
         Get the best candidate generated using the A*search planner, which uses this ranker with current
         weights to guide the search, and the current DA as the input.
+
+        @param gold: the gold-standard Inst holding the input DA for generation and the reference tree
+        @param max_iter: maximum number of A*-search iterations to run
+        @param max_defic_iter: maximum number of deficit A*-search iterations (stopping criterion)
+        @param beam_size: beam size for pruning
+        @return: The best generated tree that is different from the gold-standard tree
+        @rtype: Inst
         """
         log_debug('GEN-CUR-WEIGHTS')
         # TODO make asearch_planner remember features (for last iteration, maybe)
         self.asearch_planner.run(gold.da, max_iter, max_defic_iter, beam_size)
-        self.lists_analyzer.append(gold.tree,
-                                   self.asearch_planner.open_list,
-                                   self.asearch_planner.close_list)
         return self.get_best_generated(gold)
 
     def get_best_generated(self, gold):
-        """TODO"""
+        """Return the best generated tree that is different from the gold-standard tree
+        (to be used for updates, if it scores better). Also, keep track of logging and
+        update analyzer lists.
+
+        @param gold: the gold-standard Inst from which the generated tree must differ
+        @rtype: Inst
+        """
+        self.lists_analyzer.append(gold.tree,
+                                   self.asearch_planner.open_list,
+                                   self.asearch_planner.close_list)
 
         gen_tree = gold.tree
         while self.asearch_planner.close_list and gen_tree == gold.tree:
@@ -330,7 +377,17 @@ class BasePerceptronRanker(Ranker):
         return gen
 
     def _gen_update(self, gold, max_iter, max_defic_iter, beam_size):
-        """TODO"""
+        """Try generating using the current weights, but update the weights after each
+        iteration if the result is not going in the right direction (not a subtree of the
+        gold-standard tree).
+
+        @param gold: the gold-standard Inst holding the input DA for generation and the reference tree
+        @param max_iter: maximum number of A*-search iterations to run
+        @param max_defic_iter: maximum number of deficit A*-search iterations (stopping criterion)
+        @param beam_size: beam size for pruning
+        @return: The best generated tree that is different from the gold-standard tree
+        @rtype: Inst
+        """
 
         log_debug('GEN-UPDATE')
         self.asearch_planner.init_run(gold.da, max_iter, max_defic_iter, beam_size)
