@@ -1,9 +1,13 @@
 
 SHELL=/bin/bash
-ABSTRACTED = 'name,address,phone,near,area,price,postcode,count'
 CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1
-COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 
+ABSTRACTED = 'address,area,count,name,near,phone,postcode,price'
+ifdef AALL
+  ABSTRACTED = 'address,area,count,food,good_for_meal,name,near,phone,postcode,price,price_range,type'
+endif
+
+COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 ifeq ($(COORD),stanford)
   COORD_ADJUST = Misc::DeleteCoordNodes attach_below_1st=1 delete_conj=0
 endif
