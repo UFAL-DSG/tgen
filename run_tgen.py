@@ -129,12 +129,15 @@ def percrank_train(args):
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
     if rank_config.get('nn'):
-        if rank_config['nn'] == 'emb':
+        if rank_config['nn'] in ['emb', 'emb_trees']:
             ranker_class = EmbNNRanker
         else:
             ranker_class = SimpleNNRanker
     else:
         ranker_class = PerceptronRanker
+
+    log_info('Using %s for ranking' % ranker_class.__name__)
+
     if not parallel:
         ranker = ranker_class(rank_config)
     else:
