@@ -37,7 +37,7 @@ $iters =~ s/\/$/\/~/;
 
 # data
 $training_data = ' + all' if ( $training_set =~ /^training2/ );
-$training_data = ' + 1/2'     if ( $training_set =~ /^training1/ );
+$training_data = ' + 1/2' if ( $training_set =~ /^training1/ );
 $training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
 $training_data .= ' + rc'        if ( $training_set =~ /^training[12]_rc/ );
 $training_data .= ' + sc'        if ( $training_set =~ /^training[12]_sc/ );
@@ -63,13 +63,17 @@ if ( $config_data =~ /'future_promise_weight'\s*:\s*([0-9.]+)\s*,/ and $1 ) {
     $gadgets =~ s/exp_children/expc/;
 }
 
+if ( $config_data =~ /'nn'\s*:\s*'/ ) {
+    $nn_shape = ' + ' . ( $config_data =~ /'nn'\s*:\s*'([^']*)'/ )[0];
+}
+
 # NN shape
-if ( $config_data =~ /'nn'\s*:\s*'emb'/ ) {
-    $nn_shape = ' + ' . ( $config_data =~ /'nn_shape'\s*:\s*'([^']*)'/ )[0];
-    $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0]         // 20 );
+if ( $config_data =~ /'nn'\s*:\s*'emb/ ) {
+    $nn_shape .= '/' .  ( $config_data =~ /'nn_shape'\s*:\s*'([^']*)'/ )[0];
+    $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 20 );
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 512 );
-    $nn_shape .= '-A' . ( ( $config_data =~ /'alpha'\s*:\s*([0-9.]+)/ )[0]           // 0.1 );
-    $nn_shape .= '-' .  ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0]   // 'uniform_glorot10' );
+    $nn_shape .= '-A' . ( ( $config_data =~ /'alpha'\s*:\s*([0-9.]+)/ )[0] // 0.1 );
+    $nn_shape .= '-' .  ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0] // 'uniform_glorot10' );
 
     # NN gadgets
     $nn_shape .= ' + ngr' if ( $config_data =~ /'normgrad'\s*:\s*True/ );
@@ -86,7 +90,7 @@ if ($cv) {
 if ($debug) {
     $run_setting .= ' DEBUG';
 }
-if ($rands){
+if ($rands) {
     $run_setting .= ' RANDS';
 }
 $run_setting =~ s/^ //;
