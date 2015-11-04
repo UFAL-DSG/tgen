@@ -321,6 +321,9 @@ norm_log:
 
 candgen_train:
 	for D in training1$(CANDGEN_ID) training2$(CANDGEN_ID); do \
+	    if [[ ! -d data/$$D ]]; then \
+		continue; \
+	    fi; \
 	    mkdir -p model/$$D; \
 	    ../run_tgen.py candgen_train $(CANDGEN_PARAMS) data/$$D/train-das.txt data/$$D/train-text.pickle.gz model/$$D/candgen.pickle.gz; \
 	done
