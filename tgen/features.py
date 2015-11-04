@@ -259,8 +259,25 @@ def dai_presence(tree, context):
     return ret
 
 
+def svp_presence(tree, context):
+    """Return 1 for all DA slot+value pairs in the given context.
+
+    @rtype: dict
+    @return: dictionary with DA slot-value pairs as keys and values equal to 1
+    """
+    ret = {}
+    for dai in context['da']:
+        if dai.name is None:
+            continue
+        ret[dai.name + '=' + dai.value] = 1
+    return ret
+
+
 def dat_presence(tree, context):
     """Dialogue act type (assuming the same type for all DAIs).
+
+    @rtype: dict
+    @return: dictionary with one key – DA type – and a value equal to 1
     """
     return {context['da'][0].dat: 1}
 
@@ -361,7 +378,7 @@ def bias(tree, context):
 
 class Features(object):
 
-    def __init__(self, feat_list, interm_feats):
+    def __init__(self, feat_list, interm_feats=set()):
         self.features = self.parse_feature_spec(feat_list)
         self.intermediate_features = set(interm_feats)
 
