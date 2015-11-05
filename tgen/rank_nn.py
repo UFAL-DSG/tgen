@@ -248,6 +248,7 @@ class EmbNNRanker(NNRanker):
 
     def _init_neural_network(self):
         # initial layer – tree embeddings & DA 1-hot or embeddings
+        # input shapes don't contain the batch dimension, but the input Theano types do!
         if self.da_emb:
             input_shapes = ([self.max_da_len, 2], [self.max_tree_len, 3])
             input_types = (T.itensor3, T.itensor3)

@@ -180,7 +180,7 @@ class Conv1D(Layer):
     def connect(self, in_var, n_in=None):
 
         if not self.n_in:
-            # assuming 3D: num. positions x stack size (sub-embeddings) x embedding size
+            # assuming batches + 3D: num. positions x stack size (sub-embeddings) x embedding size
             self.n_in = n_in
 
             # output shape:
@@ -329,6 +329,14 @@ class NN(object):
     """A Theano neural network for ranking with perceptron cost function."""
 
     def __init__(self, layers, input_shapes, input_types=(T.fvector,), normgrad=False):
+        """Build the neural network.
+
+        @param layers: The layers of the network, to be connected
+        @param input_shapes: Shapes of the input, minus the 1st dimension that will be used \
+            for (variable-sized) batches
+        @param input_types: Theano tensor types for the input (including the batch dimension)
+        @param normgrad: Use normalized gradients?
+        """
 
         self.layers = layers
         self.params = []
