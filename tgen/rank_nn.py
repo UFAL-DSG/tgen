@@ -11,14 +11,21 @@ from __future__ import unicode_literals
 import theano.tensor as T
 import numpy as np
 
-from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN, DotProduct, \
-    Conv1DLayer
+from tgen.nn import FeedForward, Concat, Flatten, Pool1D, Embedding, NN, DotProduct, \
+    Conv1D, Identity
 from tgen.rank import BasePerceptronRanker, FeaturesPerceptronRanker
 from tgen.logf import log_debug, log_info
+from tgen.features import Features
+from tgen.ml import DictVectorizer
 
 
 class NNRanker(BasePerceptronRanker):
     """Abstract ancestor of NN rankers."""
+
+    def __init__(self, cfg):
+        super(NNRanker, self).__init__(cfg)
+        self.num_hidden_units = cfg.get('num_hidden_units', 512)
+        self.init = cfg.get('initialization', 'uniform_glorot10')
 
     def store_iter_weights(self):
         """Remember the current weights to be used for averaged perceptron."""
@@ -69,6 +76,14 @@ class NNRanker(BasePerceptronRanker):
         """Direct call to NN weights update."""
         self.nn.update(bad_feats, good_feats, rate)
 
+    def _ff_layers(self, name, num_layers, perc_layer=False):
+        ret = []
+        for i in xrange(num_layers):
+            ret.append([FeedForward(name + str(i + 1), self.num_hidden_units, T.tanh, self.init)])
+        if perc_layer:
+            ret.append([FeedForward('perc', 1, None, self.init)])
+        return ret
+
 
 class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
     """A simple ranker using a neural network on top of the usual features; using the same
@@ -76,8 +91,6 @@ class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
 
     def __init__(self, cfg):
         super(SimpleNNRanker, self).__init__(cfg)
-        self.num_hidden_units = cfg.get('num_hidden_units', 512)
-        self.initialization = cfg.get('initialization', 'uniform_glorot10')
         self.net_type = cfg.get('nn', 'linear_perc')
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -98,19 +111,12 @@ class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
 
     def _init_neural_network(self):
         # multi-layer perceptron with tanh + linear layer
+        # TODO make number of layers configurable
         if self.net_type == 'mlp':
-            self.nn = NN([[FeedForwardLayer('hidden', self.train_feats.shape[1], self.num_hidden_units,
-                                            T.tanh, self.initialization)],
-                          [FeedForwardLayer('hidden2', self.num_hidden_units, self.num_hidden_units,
-                                            T.tanh, self.initialization)],
-                          [FeedForwardLayer('hidden3', self.num_hidden_units, self.num_hidden_units,
-                                            T.tanh, self.initialization)],
-                          [FeedForwardLayer('output', self.num_hidden_units, 1,
-                                            None, self.initialization)]])
+            self.nn = self._ff_layers('ff', 3, perc_layer=True)
         # linear perceptron
         else:
-            self.nn = NN([[FeedForwardLayer('perc', self.train_feats.shape[1], 1,
-                                            None, self.initialization)]])
+            self.nn = self._ff_layers('ff', 0, perc_layer=True)
 
 #     def __getstate__(self):
 #         state = dict(self.__dict__)
@@ -140,20 +146,24 @@ class EmbNNRanker(NNRanker):
 
     def __init__(self, cfg):
         super(EmbNNRanker, self).__init__(cfg)
-        self.num_hidden_units = cfg.get('num_hidden_units', 512)
-        self.initialization = cfg.get('initialization', 'uniform_glorot10')
         self.emb_size = cfg.get('emb_size', 20)
-
-        self.dict_slot = {'UNK_SLOT': self.UNK_SLOT}
-        self.dict_value = {'UNK_VALUE': self.UNK_VALUE}
-        self.dict_t_lemma = {'UNK_T_LEMMA': self.UNK_T_LEMMA}
-        self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
-
-        self.max_da_len = cfg.get('max_da_len', 10)
-        self.max_tree_len = cfg.get('max_tree_len', 20)
-
         self.nn_shape = cfg.get('nn_shape', 'ff')
         self.normgrad = cfg.get('normgrad', False)
+
+        # 'emb' = embeddings for both, 'emb_trees' = embeddings for tree only, 1-hot DA
+        self.da_emb = cfg.get('nn', 'emb') == 'emb'
+
+        self.dict_t_lemma = {'UNK_T_LEMMA': self.UNK_T_LEMMA}
+        self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
+        self.max_tree_len = cfg.get('max_tree_len', 20)
+
+        if self.da_emb:
+            self.dict_slot = {'UNK_SLOT': self.UNK_SLOT}
+            self.dict_value = {'UNK_VALUE': self.UNK_VALUE}
+            self.max_da_len = cfg.get('max_da_len', 10)
+        else:
+            self.da_feats = Features(['dat: dat_presence', 'svp: svp_presence'])
+            self.vectorizer = None
 
     def _init_training(self, das_file, ttree_file, data_portion):
         super(EmbNNRanker, self)._init_training(das_file, ttree_file, data_portion)
@@ -172,15 +182,27 @@ class EmbNNRanker(NNRanker):
         clashes among different types of inputs."""
         dict_ord = self.MIN_VALID
 
-        for da in self.train_das:
-            for dai in da:
-                if dai.name not in self.dict_slot:
-                    self.dict_slot[dai.name] = dict_ord
-                    dict_ord += 1
-                if dai.value not in self.dict_value:
-                    self.dict_value[dai.value] = dict_ord
-                    dict_ord += 1
+        # DA embeddings
+        if self.da_emb:
+            for da in self.train_das:
+                for dai in da:
+                    if dai.name not in self.dict_slot:
+                        self.dict_slot[dai.name] = dict_ord
+                        dict_ord += 1
+                    if dai.value not in self.dict_value:
+                        self.dict_value[dai.value] = dict_ord
+                        dict_ord += 1
 
+        # DA one-hot representation
+        else:
+            X = []
+            for da, tree in zip(self.train_das, self.train_trees):
+                X.append(self.da_feats.get_features(tree, {'da': da}))
+
+            self.vectorizer = DictVectorizer(sparse=False, binarize_numeric=True)
+            self.vectorizer.fit(X)
+
+        # Tree embeddings
         for tree in self.train_trees:
             for t_lemma, formeme in tree.nodes:
                 if t_lemma not in self.dict_t_lemma:
@@ -197,16 +219,18 @@ class EmbNNRanker(NNRanker):
 
     def _extract_feats(self, tree, da):
         """Extract DA and tree embeddings (return as a pair)."""
-
-        # DA embeddings (slot - value; size == 2x self.max_da_len)
-        da_emb_idxs = []
-        for dai in da[:self.max_da_len]:
-            da_emb_idxs.append([self.dict_slot.get(dai.name, self.UNK_SLOT),
+        if self.da_emb:
+            # DA embeddings (slot - value; size == 2x self.max_da_len)
+            da_repr = []
+            for dai in da[:self.max_da_len]:
+                da_repr.append([self.dict_slot.get(dai.name, self.UNK_SLOT),
                                 self.dict_value.get(dai.value, self.UNK_VALUE)])
-
-        # pad with "unknown"
-        for _ in xrange(len(da_emb_idxs), self.max_da_len):
-            da_emb_idxs.append([self.UNK_SLOT, self.UNK_VALUE])
+            # pad with "unknown"
+            for _ in xrange(len(da_repr), self.max_da_len):
+                da_repr.append([self.UNK_SLOT, self.UNK_VALUE])
+        else:
+            # DA one-hot representation
+            da_repr = self.vectorizer.transform([self.da_feats.get_features(tree, {'da': da})])[0]
 
         # tree embeddings (parent_lemma - formeme - lemma; size == 3x self.max_tree_len)
         tree_emb_idxs = []
@@ -216,116 +240,99 @@ class EmbNNRanker(NNRanker):
                                                         self.UNK_T_LEMMA),
                                   self.dict_formeme.get(formeme, self.UNK_FORMEME),
                                   self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA)])
-
         # pad with unknown
         for _ in xrange(len(tree_emb_idxs), self.max_tree_len):
             tree_emb_idxs.append([self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA])
 
-        return (da_emb_idxs, tree_emb_idxs)
+        return (da_repr, tree_emb_idxs)
 
     def _init_neural_network(self):
-        layers = [[Embedding('emb_das', self.dict_size, self.emb_size, 'uniform_005'),
-                   Embedding('emb_trees', self.dict_size, self.emb_size, 'uniform_005')]]
+        # initial layer – tree embeddings & DA 1-hot or embeddings
+        if self.da_emb:
+            input_shapes = ([self.max_da_len, 2], [self.max_tree_len, 3])
+            input_types = (T.itensor3, T.itensor3)
+            layers = [[Embedding('emb_da', self.dict_size, self.emb_size, 'uniform_005'),
+                       Embedding('emb_tree', self.dict_size, self.emb_size, 'uniform_005')]]
+        else:
+            input_shapes = ([len(self.vectorizer.get_feature_names())], [self.max_tree_len, 3])
+            input_types = (T.fmatrix, T.itensor3)
+            layers = [[Identity('id_da'),
+                       Embedding('emb_tree', self.dict_size, self.emb_size, 'uniform_005')]]
 
+        # plain feed-forward networks
         if self.nn_shape.startswith('ff'):
-            layers += [[Flatten('flat-da'), Flatten('flat-trees')],
-                       [Concat('concat')],
-                       [FeedForwardLayer('ff1',
-                                         self.emb_size * 2 * self.max_da_len +
-                                         self.emb_size * 3 * self.max_tree_len,
-                                         self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
-                                         T.tanh, self.initialization)]]
+
+            layers += [[Flatten('flat_da'), Flatten('flat_tree')], [Concat('concat')]]
+            num_ff_layers = 2
             if self.nn_shape[-1] in ['3', '4']:
-                layers += [[FeedForwardLayer('ff3', self.num_hidden_units, self.num_hidden_units,
-                                             T.tanh, self.initialization)]]
-            if self.nn_shape[-1] == '4':
-                layers += [[FeedForwardLayer('ff4', self.num_hidden_units, self.num_hidden_units,
-                                             T.tanh, self.initialization)]]
-            layers += [[FeedForwardLayer('perc', self.num_hidden_units, 1,
-                                         None, self.initialization)]]
+                num_ff_layers = int(self.nn_shape[-1])
+            layers += self._ff_layers('ff', num_ff_layers, perc_layer=True)
 
-        elif self.nn_shape == 'conv-ff' or self.nn_shape == 'conv2-ff':
-            conv_das = Conv1DLayer('conv_das', n_in=(self.max_da_len, 2, self.emb_size),
-                                   num_filters=2, filter_length=3,
-                                   init=self.initialization, activation=T.tanh)
-            conv_trees = Conv1DLayer('conv_trees', n_in=(self.max_tree_len, 3, self.emb_size),
-                                     num_filters=3, filter_length=3,
-                                     init=self.initialization, activation=T.tanh)
-            # two stacked convolutions
-            if self.nn_shape == 'conv2-ff':
-                layers += [[conv_das, conv_trees]]
-                conv_das = Conv1DLayer('conv_das', n_in=conv_das.n_out,
-                                       num_filters=2, filter_length=3,
-                                       init=self.initialization, activation=T.tanh)
-                conv_trees = Conv1DLayer('conv_trees', n_in=conv_trees.n_out,
-                                         num_filters=3, filter_length=3,
-                                         init=self.initialization, activation=T.tanh)
-            layers += [[conv_das, conv_trees],
-                       [Flatten('flatten_das'), Flatten('flatten_trees')],
-                       [Concat('concat')],
-                       [FeedForwardLayer('ff1', np.prod(conv_das.n_out) + np.prod(conv_trees.n_out),
-                                         self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
-                                         None, self.initialization)]]
+        # convolution with or without max/avg-pooling
+        elif self.nn_shape.startswith('conv'):
 
+            num_conv_layers = 2 if self.nn_shape.startswith('conv2') else 1
+            pooling = None
+            if 'maxpool' in self.nn_shape:
+                pooling = T.max
+            elif 'avgpool' in self.nn_shape:
+                pooling = T.mean
+
+            if self.da_emb:
+                da_layers = self._conv_layers('conv_da', num_conv_layers,
+                                              filter_length=3, num_filters=2, pooling=pooling)
+            else:
+                da_layers = self._id_layers('id_da', num_conv_layers)
+            tree_layers = self._conv_layers('conv_tree', num_conv_layers,
+                                            filter_length=3, num_filters=3, pooling=pooling)
+
+            for da_layer, tree_layer in zip(da_layers, tree_layers):
+                layers.append([da_layer[0], tree_layer[0]])
+            layers += [[Flatten('flat_da'), Flatten('flat_tree')], [Concat('concat')]]
+            layers += self._ff_layers('ff', 2, perc_layer=True)
+
+        # max-pooling without convolution
         elif 'maxpool-ff' in self.nn_shape:
-            if self.nn_shape.startswith('conv'):
-                layers += [[Conv1DLayer('conv_das', n_in=(self.max_da_len, 2, self.emb_size),
-                                        num_filters=2, filter_length=3,
-                                        init=self.initialization, activation=T.tanh),
-                            Conv1DLayer('conv_trees', n_in=(self.max_tree_len, 3, self.emb_size),
-                                        num_filters=3, filter_length=3,
-                                        init=self.initialization, activation=T.tanh)]]
-            layers += [[MaxPool1DLayer('mp_das'),
-                        MaxPool1DLayer('mp_trees')],
-                       [Concat('concat')],
-                       [Flatten('flatten')],
-                       [FeedForwardLayer('ff1', self.emb_size * 5, self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [FeedForwardLayer('ff2', self.num_hidden_units, self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [FeedForwardLayer('perc', self.num_hidden_units, 1,
-                                         None, self.initialization)]]
+            layers += [[Pool1D('mp_da') if self.da_emb else Identity('id_da'),
+                        Pool1D('mp_trees')]
+                       [Concat('concat')], [Flatten('flat')]]
+            layers += self._ff_layers('ff', 2, perc_layer=True),
 
-        elif self.nn_shape.startswith('dot'):
-            layers += [[Flatten('flat-das'), Flatten('flat-trees')],
-                       [FeedForwardLayer('ff-das', self.emb_size * 2 * self.max_da_len, self.num_hidden_units,
-                                         T.tanh, self.initialization),
-                        FeedForwardLayer('ff-trees', self.emb_size * 3 * self.max_tree_len, self.num_hidden_units,
-                                         T.tanh, self.initialization)]]
-            if self.nn_shape.endswith('2'):
-                layers += [[FeedForwardLayer('ff2-das', self.num_hidden_units, self.num_hidden_units,
-                                             T.tanh, self.initialization),
-                            FeedForwardLayer('ff2-trees', self.num_hidden_units, self.num_hidden_units,
-                                             T.tanh, self.initialization)]]
-            layers += [[DotProduct('dot')]]
+        # dot-product FF network
+        elif 'dot' in self.nn_shape:
+            # with max or average pooling
+            if 'maxpool' in self.nn_shape or 'avgpool' in self.nn_shape:
+                pooling = T.mean if 'avgpool' in self.nn_shape else T.max
+                layers += [[Pool1D('mp_da', pooling_func=pooling)
+                            if self.da_emb else Identity('id_da'),
+                            Pool1D('mp_tree', pooling_func=pooling)]]
+            layers += [[Flatten('flat_da') if self.da_emb else Identity('id_da'),
+                        Flatten('flat_tree')]]
 
-        elif self.nn_shape == 'maxpool-dot':
-            layers += [[MaxPool1DLayer('mp_das'),
-                        MaxPool1DLayer('mp_trees')],
-                       [Flatten('flat-das'), Flatten('flat-trees')],
-                       [FeedForwardLayer('ff-das', self.emb_size * 2, self.num_hidden_units,
-                                         T.tanh, self.initialization),
-                        FeedForwardLayer('ff-trees', self.emb_size * 3, self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [DotProduct('dot')]]
-
-        elif self.nn_shape == 'avgpool-dot':
-            layers += [[MaxPool1DLayer('mp_das', pooling_func=T.mean),
-                        MaxPool1DLayer('mp_trees', pooling_func=T.mean)],
-                       [FeedForwardLayer('ff-das', self.emb_size * 2, self.num_hidden_units,
-                                         T.tanh, self.initialization),
-                        FeedForwardLayer('ff-trees', self.emb_size * 3, self.num_hidden_units,
-                                         T.tanh, self.initialization)],
-                       [DotProduct('dot')]]
+            num_ff_layers = int(self.nn_shape[-1]) if self.nn_shape[-1] in ['2', '3', '4'] else 1
+            for da_layer, tree_layer in zip(self._ff_layers('ff_da', num_ff_layers),
+                                            self._ff_layers('ff_tree', num_ff_layers)):
+                layers.append([da_layer[0], tree_layer[0]])
+            layers.append([DotProduct('dot')])
 
         # input: batch * word * sub-embeddings
-        self.nn = NN(layers=layers, input_num=2, input_type=T.itensor3, normgrad=self.normgrad)
+        self.nn = NN(layers, input_shapes, input_types, self.normgrad)
+
+    def _conv_layers(self, name, num_layers=1, filter_length=3, num_filters=3, pooling=None):
+        ret = []
+        for i in xrange(num_layers):
+            ret.append([Conv1D(name + str(i + 1),
+                               filter_length=filter_length, num_filters=num_filters,
+                               init=self.init, activation=T.tanh)])
+            if pooling is not None:
+                ret.append([Pool1D(name + str(i + 1) + 'pool', pooling_func=pooling)])
+        return ret
+
+    def _id_layers(self, name, num_layers):
+        ret = []
+        for i in xrange(num_layers):
+            ret.append([Identity(name + str(i + 1))])
+        return ret
 
     def _update_nn(self, bad_feats, good_feats, rate):
         """Changing the NN update call to support arrays of parameters."""
@@ -339,14 +346,6 @@ class EmbNNRanker(NNRanker):
         param_vals = [param.get_value() for param in self.nn.params]
         log_debug('Param norms : ' + str(self._l2s(param_vals)))
         log_debug('Gparam norms: ' + str(self._l2s(cost_gcost[1:])))
-        l1_params = param_vals[2]
-        log_debug('Layer 1 parts :' + str(self._l2s([l1_params[0:100, :], l1_params[100:200, :],
-                                                    l1_params[200:350, :], l1_params[350:500, :],
-                                                    l1_params[500:, :]])))
-        l1_gparams = cost_gcost[3]
-        log_debug('Layer 1 gparts:' + str(self._l2s([l1_gparams[0:100, :], l1_gparams[100:200, :],
-                                                    l1_gparams[200:350, :], l1_gparams[350:500, :],
-                                                    l1_gparams[500:, :]])))
 
     def _embs_to_str(self):
         out = ""

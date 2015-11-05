@@ -31,6 +31,8 @@ class Layer(object):
         self.name = name
         self.inputs = []
         self.outputs = []
+        self.n_in = None
+        self.n_out = None
 
     def get_init_weights(self, init_type, shape):
         total_size = np.prod(shape)
@@ -55,36 +57,6 @@ class Layer(object):
         return w_init
 
 
-class FeedForwardLayer(Layer):
-    """One feed forward layer, using Theano shared variables. Can be connected to more
-    inputs, i.e., use the same weights to process different inputs."""
-
-    def __init__(self, name, n_in, n_out, activation, init='uniform_glorot10'):
-
-        super(FeedForwardLayer, self).__init__(name)
-
-        self.name = name
-        self.n_in = n_in
-        self.n_out = n_out
-        self.activation = activation
-
-        w_init = self.get_init_weights(init, (self.n_in, self.n_out))
-
-        self.w = theano.shared(value=w_init, name='w-' + self.name)
-        self.b = theano.shared(value=np.zeros((self.n_out,)), name='b-' + self.name)
-
-        # storing parameters
-        self.params = [self.w, self.b]
-
-    def connect(self, inputs):
-        # creating output function
-        lin_output = T.dot(inputs, self.w) + self.b
-        output = lin_output if self.activation is None else self.activation(lin_output)
-        self.inputs.append(inputs)
-        self.outputs.append(output)
-        return output
-
-
 class Embedding(Layer):
 
     def __init__(self, name, dict_size, width, init='uniform_005'):
@@ -99,50 +71,94 @@ class Embedding(Layer):
 
         self.params = [self.e]
 
-    def connect(self, inputs):
+    def connect(self, in_var, n_in=None):
 
-        output = self.e[inputs]
-        self.inputs.append(inputs)
+        if not self.n_in:
+            # compute shape
+            self.n_in = n_in
+            self.n_out = self.n_in + [self.width]
+
+        # create output function
+        output = self.e[in_var]
+        self.inputs.append(in_var)
         self.outputs.append(output)
         return output
 
 
-class Conv1DLayer(Layer):
+class Identity(Layer):
 
-    def __init__(self, name, n_in,
+    def __init__(self, name, convert_to_float=False):
+        super(Identity, self).__init__(name)
+        self.name = name
+        self.convert_to_float = convert_to_float
+        # no parameters
+        self.params = []
+
+    def connect(self, in_var, n_in=None):
+
+        if not self.n_in:
+            self.n_in = n_in
+            self.n_out = self.n_in
+
+        self.inputs.append(in_var)
+        output = in_var
+        if self.convert_to_float:
+            output = T.cast(output, 'float32')
+        self.outputs.append(output)
+        return output
+
+
+class FeedForward(Layer):
+    """One feed forward layer, using Theano shared variables. Can be connected to more
+    inputs, i.e., use the same weights to process different inputs."""
+
+    def __init__(self, name, num_hidden_units, activation, init='uniform_glorot10'):
+        super(FeedForward, self).__init__(name)
+
+        self.name = name
+        self.num_hidden_units = num_hidden_units
+        self.init = init
+        self.activation = activation
+
+    def connect(self, in_var, n_in=None):
+
+        if not self.n_in:
+            # computing shape
+            self.n_in = n_in
+            self.n_out = [self.num_hidden_units]
+
+            # creating parameters
+            w_init = self.get_init_weights(self.init, self.n_in + self.n_out)
+
+            self.w = theano.shared(value=w_init, name='w-' + self.name)
+            self.b = theano.shared(value=np.zeros(self.n_out), name='b-' + self.name)
+            self.params = [self.w, self.b]
+
+        # creating output function
+        lin_output = T.dot(in_var, self.w) + self.b
+        output = lin_output if self.activation is None else self.activation(lin_output)
+        self.inputs.append(in_var)
+        self.outputs.append(output)
+        return output
+
+
+class Conv1D(Layer):
+
+    def __init__(self, name,
                  num_filters, filter_length, stride=1,
                  border_mode='valid', bias=True, untie_bias=False,
                  init='uniform_glorot10',
                  activation=None):
 
-        super(Conv1DLayer, self).__init__(name)
+        super(Conv1D, self).__init__(name)
+        self.init = init
         self.activation = activation
-        self.n_in = n_in  # 3D: num. positions x stack size (sub-embeddings) x embedding size
         self.num_filters = num_filters  # output "stack size" (sub-embeddings)
         self.filter_length = filter_length
         self.stride = stride
         self.border_mode = border_mode
+        self.bias = bias
         self.untie_bias = untie_bias
-
-        # output shape:
-        # 0] num. of positions according to convolution (1D),
-        #    = ceil(n_in - filter_length + 1)
-        # 1] num. of filters,
-        # 2] no change in embeddings dimension
-        self.n_out = ((n_in[0] - filter_length + stride) // stride, num_filters, n_in[2])
-
-        # num. filters x stack size x num. rows x num. cols
-        w_init = self.get_init_weights(init, (num_filters, n_in[1], filter_length, 1))
-        self.w = theano.shared(value=w_init, name='w-' + self.name)
-        if bias:
-            if untie_bias:
-                self.b = theano.shared(value=np.zeros(self.n_out), name='b-' + self.name)
-            else:
-                self.b = theano.shared(value=np.zeros(self.n_out[1:]), name='b-' + self.name)
-            self.params = [self.w, self.b]
-        else:
-            self.b = None
-            self.params = [self.w]
 
     @staticmethod
     def conv1d_mc0(inputs, filters, image_shape=None, filter_shape=None,
@@ -161,12 +177,42 @@ class Conv1DLayer(Layer):
                                border_mode=border_mode)
         return conved.dimshuffle(0, 2, 1, 3)  # shuffle the dimension back
 
-    def connect(self, inputs):
-        conved = self.conv1d_mc0(inputs, self.w, subsample=(self.stride,),
+    def connect(self, in_var, n_in=None):
+
+        if not self.n_in:
+            # assuming 3D: num. positions x stack size (sub-embeddings) x embedding size
+            self.n_in = n_in
+
+            # output shape:
+            # 0] num. of positions according to convolution (1D),
+            #    = ceil(n_in - filter_length + 1)
+            # 1] num. of filters,
+            # 2] no change in embeddings dimension
+            self.n_out = [(self.n_in[0] - self.filter_length + self.stride) // self.stride,
+                          self.num_filters,
+                          self.n_in[2]]
+
+            # create parameters
+            # num. filters x stack size x num. rows x num. cols
+            w_init = self.get_init_weights(self.init,
+                                           (self.num_filters, self.n_in[1], self.filter_length, 1))
+            self.w = theano.shared(value=w_init, name='w-' + self.name)
+            if self.bias:
+                if self.untie_bias:
+                    self.b = theano.shared(value=np.zeros(self.n_out), name='b-' + self.name)
+                else:
+                    self.b = theano.shared(value=np.zeros(self.n_out[1:]), name='b-' + self.name)
+                self.params = [self.w, self.b]
+            else:
+                self.b = None
+                self.params = [self.w]
+
+        # create output function
+        conved = self.conv1d_mc0(in_var, self.w, subsample=(self.stride,),
                                  image_shape=(self.n_in,),
                                  filter_shape=(self.filter_length,),
                                  border_mode=self.border_mode)
-        if self.b is None:
+        if not self.bias:
             lin_output = conved
         else:
             if self.untie_bias:
@@ -178,50 +224,80 @@ class Conv1DLayer(Layer):
             output = lin_output
         else:
             output = self.activation(lin_output)
-        self.inputs.append(inputs)
+        self.inputs.append(in_var)
         self.outputs.append(output)
         return output
 
 
-class MaxPool1DLayer(Layer):
+class Pool1D(Layer):
 
     def __init__(self, name, axis=1, pooling_func=T.max):
 
-        super(MaxPool1DLayer, self).__init__(name)
+        super(Pool1D, self).__init__(name)
 
         self.pooling_func = pooling_func
         self.axis = axis
 
         self.params = []  # no parameters here
 
-    def connect(self, inputs):
-        output = T.max(inputs, axis=self.axis)
+    def connect(self, in_var, n_in=None):
 
-#         input_padded = T.shape_padright(inputs.dimshuffle(0, 2, 1), 1)
-#         # do the max-pooling
-#         pooled = downsample.max_pool_2d(input_padded, (self.downscale_factor, 1), False)
-#         # remove the padded dimension + swap dimensions back
-#         output = pooled[:, :, :, 0].dimshuffle(0, 2, 1)
+        if not self.n_in:
+            self.n_in = n_in
+            self.n_out = [dim for a, dim in enumerate(self.n_in) if a != self.axis - 1]
 
-        self.inputs.append(inputs)
+        output = self.pooling_func(in_var, axis=self.axis)
+
+        self.inputs.append(in_var)
+        self.outputs.append(output)
+        return output
+        # TODO add ARG MAX to max pooling
+
+
+class Flatten(Layer):
+
+    def __init__(self, name, keep_dims=1):
+
+        super(Flatten, self).__init__(name)
+        self.params = []
+        self.keep_dims = keep_dims
+
+    def connect(self, in_var, n_in=None):
+
+        # compute output dimensions
+        if not self.n_in:
+            self.n_in = n_in
+            # NB: we actually have 1 dimension less here (batch size will be variable)
+            self.n_out = self.n_in[0:self.keep_dims - 1] + [np.prod(self.n_in[self.keep_dims - 1:])]
+
+        # keep the first keep_dims dimensions, flatten the rest
+        output = in_var.reshape(T.concatenate([in_var.shape[0:self.keep_dims],
+                                               [T.prod(in_var.shape[self.keep_dims:])]]),
+                                ndim=(self.keep_dims + 1))
+        self.inputs.append(in_var)
         self.outputs.append(output)
         return output
 
 
-# TODO add ARG MAX to max pooling
-
-
 class Concat(Layer):
 
-    def __init__(self, name):
+    def __init__(self, name, axis=1):
 
         super(Concat, self).__init__(name)
         self.params = []
+        self.axis = axis
 
-    def connect(self, inputs):
+    def connect(self, in_vars, n_in=None):
 
-        output = T.concatenate(inputs, axis=1)
-        self.inputs.append(inputs)
+        if not self.n_in:
+            self.n_in = n_in
+            self.n_out = self.n_in[0][:]
+            # NB: we actually have 1 dimension less here (batch size will be variable)
+            self.n_out[self.axis - 1] = sum(ni[self.axis - 1] for ni in self.n_in)
+
+        output = T.concatenate(in_vars, axis=self.axis)
+
+        self.inputs.append(in_vars)
         self.outputs.append(output)
         return output
 
@@ -233,66 +309,65 @@ class DotProduct(Layer):
         super(DotProduct, self).__init__(name)
         self.params = []
 
-    def connect(self, inputs):
+    def connect(self, in_vars, n_in=None):
 
-        output = T.batched_dot(inputs[0], inputs[1])
-        self.inputs.append(inputs)
+        if not self.n_in:
+            # NB: we actually have 1 dimension less here (batch size will be variable)
+            self.n_in = n_in
+            assert len(self.n_in) == 2 and len(self.n_in[0] == 2) and len(self.n_in[1] == 2)
+            self.n_out = [self.n_in[0][0], self.n_in[1][1]]
+
+        output = T.batched_dot(in_vars)
+        self.n_out = output.shape
+
+        self.inputs.append(in_vars)
         self.outputs.append(output)
-        return output
-
-
-class Flatten(Layer):
-
-    def __init__(self, name, num_dims=-1):
-
-        super(Flatten, self).__init__(name)
-        self.params = []
-        self.num_dims = num_dims
-
-    def connect(self, inputs):
-
-        keep_dims = -self.num_dims
-        if keep_dims < 0:
-            keep_dims = len(inputs.shape) - keep_dims
-        # keep the first keep_dims dimensions, flatten the rest
-        output = inputs.reshape(T.concatenate([inputs.shape[0:keep_dims],
-                                               [T.prod(inputs.shape[keep_dims:])]]),
-                                ndim=(keep_dims + 1))
         return output
 
 
 class NN(object):
     """A Theano neural network for ranking with perceptron cost function."""
 
-    def __init__(self, layers, input_num=1, input_type=T.fvector, normgrad=False):
+    def __init__(self, layers, input_shapes, input_types=(T.fvector,), normgrad=False):
 
         self.layers = layers
         self.params = []
         self.normgrad = normgrad
 
-        # connect layers, store them & all parameters
-        x = [input_type('x' + str(i)) for i in xrange(input_num)]
-        x_gold = [input_type('x' + str(i)) for i in xrange(input_num)]
-        if input_type == T.itensor3 and len(x) == 2:
-            x[0].tag.test_value = np.random.randint(0, 20, (5, 10, 2)).astype('int32')
-            x_gold[0].tag.test_value = np.random.randint(0, 20, (5, 10, 2)).astype('int32')
+        # create variables
+        x = [input_types[i]('x' + str(i)) for i in xrange(len(layers[0]))]
+        x_gold = [input_types[i]('x' + str(i)) for i in xrange(len(layers[0]))]
+
+        # TODO: make this depend on input_shapes
+        # Debugging: test values
+        if input_types[1] == T.itensor3 and len(x) == 2:
+            if input_types[0] == T.fmatrix:
+                x[0].tag.test_value = np.random.randint(0, 2, (5, 11)).astype('float32')
+                x_gold[0].tag.test_value = np.random.randint(0, 2, (5, 11)).astype('float32')
+            else:
+                x[0].tag.test_value = np.random.randint(0, 20, (5, 10, 2)).astype('int32')
+                x_gold[0].tag.test_value = np.random.randint(0, 20, (5, 10, 2)).astype('int32')
             x[1].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
             x_gold[1].tag.test_value = np.random.randint(0, 20, (5, 20, 3)).astype('int32')
+
         y = x
         y_gold = x_gold
+        shapes = input_shapes
 
+        # connect all layers
         for layer in layers:
             if len(layer) == len(y):
-                y = [l_part.connect(y_part) for y_part, l_part in zip(y, layer)]
-                y_gold = [l_part.connect(y_gold_part) for y_gold_part, l_part in zip(y_gold, layer)]
+                y = [l_i.connect(y_i, shape) for l_i, y_i, shape in zip(layer, y, shapes)]
+                y_gold = [l_i.connect(y_gold_i) for l_i, y_gold_i in zip(layer, y_gold)]
             elif len(layer) == 1:
-                y = [layer[0].connect(y)]
+                y = [layer[0].connect(y, shapes)]
                 y_gold = [layer[0].connect(y_gold)]
             else:
                 raise NotImplementedError("Only n-n and n-1 layer connections supported.")
 
-            for l_part in layer:
-                self.params.extend(l_part.params)
+            shapes = [l_i.n_out for l_i in layer]
+            for l_i in layer:  # remember parameters for gradient
+                self.params.extend(l_i.params)
 
         # prediction function (different compilation mode for debugging and running)
         if DEBUG_MODE:
