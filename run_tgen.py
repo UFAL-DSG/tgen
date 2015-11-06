@@ -263,9 +263,8 @@ def asearch_gen(args):
                                                   trees_from_doc(eval_doc, tgen.language, eval_selector)),
                                               start=1):
             log_debug("\n\nTREE No. %03d" % num)
-            open_list, close_list = tgen.generate_tree(da, gen_doc, return_lists=True)
-            lists_analyzer.append(gold_tree, open_list, close_list)
-            gen_tree = close_list.peek()[0]
+            gen_tree = tgen.generate_tree(da, gen_doc)
+            lists_analyzer.append(gold_tree, tgen.open_list, tgen.close_list)
             if gen_tree != gold_tree:
                 log_debug("\nDIFFING TREES:\n" + tgen.ranker.diffing_trees_with_scores(da, gold_tree, gen_tree) + "\n")
 
