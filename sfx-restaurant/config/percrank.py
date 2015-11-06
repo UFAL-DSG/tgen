@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-from tgen.nn import FeedForwardLayer, Concat, Flatten, MaxPool1DLayer, Embedding, NN, DotProduct
 
 config = {
           # NB: when introducing a new setting, don't forget that it needs to be passed to
@@ -75,14 +74,14 @@ config = {
                        # 'trigrams-lemma-formeme+dai: combine trigrams-lemma-formeme dai',
                        ],
           'rival_number': 1,
-          'rival_gen_strategy': ['gen_cur_weights'],
+          'rival_gen_strategy': [ (0, ['gen_update']), (5, ['gen_update','gen_cur_weights']), (10, ['gen_cur_weights']) ],
 #          'rival_gen_strategy': ['other_inst', 'random'],
 #          'rival_gen_strategy': ['gen_cur_weights', 'other_inst', 'random'],
           'diffing_trees': 'sym',  # False - sym/asym - nocommon? - nobad/onebad? - weighted?
                                    # (do not use nobad/onebad, it hurts badly)
           'binarize': False,
           'randomize': True,
-          'passes': 200,
+          'passes': 100,
           'rival_gen_max_iter': 200,
           'rival_gen_max_defic_iter': 3,
           # 'rival_gen_beam_size': 20, # actually slows it down
