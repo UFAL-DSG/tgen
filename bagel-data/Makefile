@@ -311,7 +311,7 @@ rerun-%:
 		fi ; \
 	    done ; \
 	else \
-		make rerun TRY_DIR=$(TRY_NUM) RUN_NAME=$(RUN_NAME) ; \
+		make rerun TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) RUN_NAME=$(RUN_NAME) ; \
 	fi
 
 # Use only through rerun-XXX (TRY_DIR, RUN_NAME must be set)
