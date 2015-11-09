@@ -12,7 +12,7 @@ use File::stat;
 use File::Slurp;
 use Getopt::Long;
 
-my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d DEBUG] [-c CV] [-r RANDS] file1.log file2.log [...]\n";
+my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d] [-c CV] [-r] file1.log file2.log [...]\n";
 
 my ( $training_set, $jobs, $debug, $cv, $rands ) = ( '', '', '', '', '' );
 GetOptions(
