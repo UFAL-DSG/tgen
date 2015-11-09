@@ -118,22 +118,6 @@ class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
         else:
             self.nn = self._ff_layers('ff', 0, perc_layer=True)
 
-#     def __getstate__(self):
-#         state = dict(self.__dict__)
-#         w = self.nn.get_param_values()
-#         del state['nn']
-#         state['w'] = w
-#         return state
-#
-#     def __setstate__(self, state):
-#         if 'w' in state:
-#             w = state['w']
-#             del state['w']
-#         self.__dict__.update(state)
-#         if 'w' in state:
-#             self._init_neural_network()
-#             self.set_weights(w)
-
 
 class EmbNNRanker(NNRanker):
     """A ranker using MR and tree embeddings in a NN."""
@@ -152,6 +136,8 @@ class EmbNNRanker(NNRanker):
 
         # 'emb' = embeddings for both, 'emb_trees' = embeddings for tree only, 1-hot DA
         self.da_emb = cfg.get('nn', 'emb') == 'emb'
+        # 'emb_prev' = embeddings for tree only incl. prev node at each step + 1-hot DA
+        self.prev_node_emb = cfg.get('nn', 'emb') == 'emb_prev'
 
         self.dict_t_lemma = {'UNK_T_LEMMA': self.UNK_T_LEMMA}
         self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
@@ -234,12 +220,15 @@ class EmbNNRanker(NNRanker):
 
         # tree embeddings (parent_lemma - formeme - lemma; size == 3x self.max_tree_len)
         tree_emb_idxs = []
-        for parent_ord, (t_lemma, formeme) in zip(tree.parents[1:self.max_tree_len + 1],
-                                                  tree.nodes[1:self.max_tree_len + 1]):
-            tree_emb_idxs.append([self.dict_t_lemma.get(tree.nodes[parent_ord].t_lemma,
-                                                        self.UNK_T_LEMMA),
-                                  self.dict_formeme.get(formeme, self.UNK_FORMEME),
-                                  self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA)])
+        for pos in xrange(1, min(self.max_tree_len + 1, len(tree))):
+            t_lemma, formeme = tree.nodes[pos]
+            parent_ord = tree.parents[pos]
+            node_emb_idxs = [self.dict_t_lemma.get(tree.nodes[parent_ord].t_lemma, self.UNK_T_LEMMA),
+                             self.dict_formeme.get(formeme, self.UNK_FORMEME),
+                             self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA)]
+            if self.prev_node_emb:
+                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[pos - 1]))
+            tree_emb_idxs.append(node_emb_idxs)
         # pad with unknown
         for _ in xrange(len(tree_emb_idxs), self.max_tree_len):
             tree_emb_idxs.append([self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA])
@@ -250,12 +239,14 @@ class EmbNNRanker(NNRanker):
         # initial layer – tree embeddings & DA 1-hot or embeddings
         # input shapes don't contain the batch dimension, but the input Theano types do!
         if self.da_emb:
-            input_shapes = ([self.max_da_len, 2], [self.max_tree_len, 3])
+            input_shapes = ([self.max_da_len, 2],
+                            [self.max_tree_len, 4 if self.prev_node_emb else 3])
             input_types = (T.itensor3, T.itensor3)
             layers = [[Embedding('emb_da', self.dict_size, self.emb_size, 'uniform_005'),
                        Embedding('emb_tree', self.dict_size, self.emb_size, 'uniform_005')]]
         else:
-            input_shapes = ([len(self.vectorizer.get_feature_names())], [self.max_tree_len, 3])
+            input_shapes = ([len(self.vectorizer.get_feature_names())],
+                            [self.max_tree_len, 4 if self.prev_node_emb else 3])
             input_types = (T.fmatrix, T.itensor3)
             layers = [[Identity('id_da'),
                        Embedding('emb_tree', self.dict_size, self.emb_size, 'uniform_005')]]
@@ -319,6 +310,7 @@ class EmbNNRanker(NNRanker):
 
         # input: batch * word * sub-embeddings
         self.nn = NN(layers, input_shapes, input_types, self.normgrad)
+        log_info("Network shape:\n\n" + str(self.nn))
 
     def _conv_layers(self, name, num_layers=1, filter_length=3, num_filters=3, pooling=None):
         ret = []

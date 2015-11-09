@@ -56,6 +56,11 @@ class Layer(object):
             w_init = np.zeros(shape=shape)
         return w_init
 
+    def __str__(self, *args, **kwargs):
+        out = self.__class__.__name__
+        out += ' ' + str(self.n_in) + ' -> ' + str(self.n_out)
+        return out
+
 
 class Embedding(Layer):
 
@@ -339,6 +344,8 @@ class NN(object):
         """
 
         self.layers = layers
+        self.input_shapes = input_shapes
+        self.input_types = input_types
         self.params = []
         self.normgrad = normgrad
 
@@ -419,3 +426,11 @@ class NN(object):
     def set_param_values(self, vals):
         for param, val in zip(self.params, vals):
             param.set_value(val)
+
+    def __str__(self, *args, **kwargs):
+        out = ''
+        for l_num, layer in enumerate(self.layers):
+            out += str(l_num) + ': '
+            out += ', '.join(str(li) for li in layer)
+            out += "\n"
+        return out
