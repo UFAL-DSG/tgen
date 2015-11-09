@@ -247,20 +247,19 @@ class ASearchPlanner(SentencePlanner):
     def generate_tree(self, da, gen_doc=None):
         """Generate a tree for the given DA.
         @param da: The input DA
-        @param gen_doc: Save the generated tree into this PyTreex document, if given, otherwise return it
-        @return: the generated document (or None, if gen_doc is set)
+        @param gen_doc: Save the generated tree into this PyTreex document, if given
+        @return: the generated tree
         """
         # generate and use only 1-best
         self.run(da)
         best_tree, best_score = self.close_list.peek()
         log_debug("RESULT: %12.5f %s" % (best_score, unicode(best_tree)))
-        # return or append the result, return open & close list for inspection if needed
+        # if requested, append the result
         if gen_doc:
             zone = self.get_target_zone(gen_doc)
             zone.ttree = best_tree.create_ttree()
             zone.sentence = unicode(da)
-        if gen_doc:
-            return
+        # return the result
         return best_tree
 
     def reset(self):
