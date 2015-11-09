@@ -218,7 +218,7 @@ class EmbNNRanker(NNRanker):
             # DA one-hot representation
             da_repr = self.vectorizer.transform([self.da_feats.get_features(tree, {'da': da})])[0]
 
-        # tree embeddings (parent_lemma - formeme - lemma; size == 3x self.max_tree_len)
+        # tree embeddings (parent_lemma - formeme - lemma), for emb_prev + prev_lemma
         tree_emb_idxs = []
         for pos in xrange(1, min(self.max_tree_len + 1, len(tree))):
             t_lemma, formeme = tree.nodes[pos]
@@ -227,11 +227,17 @@ class EmbNNRanker(NNRanker):
                              self.dict_formeme.get(formeme, self.UNK_FORMEME),
                              self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA)]
             if self.prev_node_emb:
-                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[pos - 1]))
+                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[pos - 1].t_lemma))
             tree_emb_idxs.append(node_emb_idxs)
-        # pad with unknown
-        for _ in xrange(len(tree_emb_idxs), self.max_tree_len):
-            tree_emb_idxs.append([self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA])
+
+        # pad with unknown values (except for last lemma in case of emb_prev)
+        for pos in xrange(len(tree) - 1, self.max_tree_len):
+            node_emb_idxs = [self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA]
+            if self.prev_node_emb:
+                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[-1].t_lemma, self.UNK_T_LEMMA)
+                                     if pos == len(tree) - 1
+                                     else self.UNK_T_LEMMA)
+            tree_emb_idxs.append(node_emb_idxs)
 
         return (da_repr, tree_emb_idxs)
 

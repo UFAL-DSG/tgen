@@ -129,7 +129,7 @@ def percrank_train(args):
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
     if rank_config.get('nn'):
-        if rank_config['nn'] in ['emb', 'emb_trees']:
+        if rank_config['nn'] in ['emb', 'emb_trees', 'emb_prev']:
             ranker_class = EmbNNRanker
         else:
             ranker_class = SimpleNNRanker
