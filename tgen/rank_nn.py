@@ -283,7 +283,8 @@ class EmbNNRanker(NNRanker):
                 da_layers = self._conv_layers('conv_da', num_conv_layers,
                                               filter_length=3, num_filters=2, pooling=pooling)
             else:
-                da_layers = self._id_layers('id_da', num_conv_layers)
+                da_layers = self._id_layers('id_da',
+                                            num_conv_layers + (1 if pooling is not None else 0))
             tree_layers = self._conv_layers('conv_tree', num_conv_layers,
                                             filter_length=3, num_filters=3, pooling=pooling)
 
@@ -325,8 +326,8 @@ class EmbNNRanker(NNRanker):
             ret.append([Conv1D(name + str(i + 1),
                                filter_length=filter_length, num_filters=num_filters,
                                init=self.init, activation=T.tanh)])
-            if pooling is not None:
-                ret.append([Pool1D(name + str(i + 1) + 'pool', pooling_func=pooling)])
+        if pooling is not None:
+            ret.append([Pool1D(name + str(i + 1) + 'pool', pooling_func=pooling)])
         return ret
 
     def _id_layers(self, name, num_layers):
