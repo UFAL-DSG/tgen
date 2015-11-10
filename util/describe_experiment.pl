@@ -73,6 +73,8 @@ if ( $config_data =~ /'nn'\s*:\s*'emb/ ) {
     $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 20 );
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 512 );
     $nn_shape .= '-A' . ( ( $config_data =~ /'alpha'\s*:\s*([0-9.]+)/ )[0] // 0.1 );
+    $nn_shape .= '-C' . ( ( $config_data =~ /'cnn_filter_length'\s*:\s*([0-9]+)/ )[0] // 3 )
+            . '/' . ( ( $config_data =~ /'cnn_num_filters'\s*:\s*([0-9]+)/ )[0] // 3 );
     $nn_shape .= '-' .  ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0] // 'uniform_glorot10' );
 
     # NN gadgets

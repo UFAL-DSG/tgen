@@ -143,6 +143,9 @@ class EmbNNRanker(NNRanker):
         self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
         self.max_tree_len = cfg.get('max_tree_len', 20)
 
+        self.cnn_num_filters = cfg.get('cnn_num_filters', 3)
+        self.cnn_filter_length = cfg.get('cnn_filter_length', 3)
+
         if self.da_emb:
             self.dict_slot = {'UNK_SLOT': self.UNK_SLOT}
             self.dict_value = {'UNK_VALUE': self.UNK_VALUE}
@@ -277,13 +280,11 @@ class EmbNNRanker(NNRanker):
                 pooling = T.mean
 
             if self.da_emb:
-                da_layers = self._conv_layers('conv_da', num_conv_layers,
-                                              filter_length=3, num_filters=2, pooling=pooling)
+                da_layers = self._conv_layers('conv_da', num_conv_layers, pooling=pooling)
             else:
                 da_layers = self._id_layers('id_da',
                                             num_conv_layers + (1 if pooling is not None else 0))
-            tree_layers = self._conv_layers('conv_tree', num_conv_layers,
-                                            filter_length=3, num_filters=3, pooling=pooling)
+            tree_layers = self._conv_layers('conv_tree', num_conv_layers, pooling=pooling)
 
             for da_layer, tree_layer in zip(da_layers, tree_layers):
                 layers.append([da_layer[0], tree_layer[0]])
@@ -318,11 +319,12 @@ class EmbNNRanker(NNRanker):
         self.nn = NN(layers, input_shapes, input_types, self.normgrad)
         log_info("Network shape:\n\n" + str(self.nn))
 
-    def _conv_layers(self, name, num_layers=1, filter_length=3, num_filters=3, pooling=None):
+    def _conv_layers(self, name, num_layers=1, pooling=None):
         ret = []
         for i in xrange(num_layers):
             ret.append([Conv1D(name + str(i + 1),
-                               filter_length=filter_length, num_filters=num_filters,
+                               filter_length=self.cnn_filter_length,
+                               num_filters=self.cnn_num_filters,
                                init=self.init, activation=T.tanh)])
         if pooling is not None:
             ret.append([Pool1D(name + str(i + 1) + 'pool', pooling_func=pooling)])
