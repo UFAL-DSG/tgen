@@ -14,13 +14,14 @@ use Getopt::Long;
 
 my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d] [-c CV] [-r] file1.log file2.log [...]\n";
 
-my ( $training_set, $jobs, $debug, $cv, $rands ) = ( '', '', '', '', '' );
+my ( $training_set, $jobs, $debug, $cv, $rands, $portion ) = ( '', '', 0, '', 0, 1.0 );
 GetOptions(
     'training_set|training|t=s' => \$training_set,
     'jobs|j=s'                  => \$jobs,
     'debug|d'                   => \$debug,
-    'rands|r'                   => \$rands,
     'cv_runs|cv|c=s'            => \$cv,
+    'rands|r'                   => \$rands,
+    'train_portion|portion|p=f' => \$portion,
 ) or die($USAGE);
 die($USAGE) if ( !@ARGV );
 
@@ -38,6 +39,9 @@ $iters =~ s/\/$/\/~/;
 # data
 $training_data = ' + all' if ( $training_set =~ /^training2/ );
 $training_data = ' + 1/2' if ( $training_set =~ /^training1/ );
+if ($portion < 1.0){
+    $training_data .= '*' . sprintf("%.2g", $portion);
+}
 $training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
 $training_data .= ' + rc'        if ( $training_set =~ /^training[12]_rc/ );
 $training_data .= ' + sc'        if ( $training_set =~ /^training[12]_sc/ );
