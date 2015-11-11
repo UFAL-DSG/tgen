@@ -87,11 +87,11 @@ config = {
           # 'rival_gen_beam_size': 20, # actually slows it down
           'future_promise_weight': 0,
           'future_promise_type': 'norm_exp_children',  # default: exp_children
-          'nn': False,  # 'emb',
+          'nn': 'emb_prev',  # 'emb',
           'initialization': 'norm_sqrt',
-          'num_hidden_units': 64,
+          'num_hidden_units': 128,
           'emb_size': 50,
           'alpha': 0.001,
-          'nn_shape': 'conv-ff',
+          'nn_shape': 'ff',
           'normgrad': False,
           }
