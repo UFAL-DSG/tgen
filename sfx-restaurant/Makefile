@@ -60,11 +60,18 @@ TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
 TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
 GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
-TEST_DAS = data/$(TRAINING_SET)/test-das.txt
-TEST_REF = data/$(TRAINING_SET)/test-das.sgm
-TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
-TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
-TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
+TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
+TEST_REF = data/$(TRAINING_SET)/devel-das.sgm
+TEST_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
+TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
+TEST_CONC = data/$(TRAINING_SET)/devel-conc.sgm
+ifdef EVAL_TEST
+  TEST_DAS = data/$(TRAINING_SET)/test-das.txt
+  TEST_REF = data/$(TRAINING_SET)/test-das.sgm
+  TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
+  TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
+  TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
+endif
 SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
 
 XS_INSTEAD = 0
@@ -110,6 +117,7 @@ make cv_run J=[XX] D='Description'
 * Run a 10-fold cross-validation experiment where percrank
   training is directly followed by A*search generation.
   - set SEEDS=1 to use 5 different random seeds for each CV run.
+  - set EVAL_TEST=1 to evaluate on test data instead of development data
 
 make cv_score-XXX
 * Retrieve a cross-validation run score.
@@ -176,7 +184,8 @@ prepare_dir:
 	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
-	$(DESC_EXP) -t "$(TRAINING_SET)" -j "$(JOBS)" -c "$(CV_NUMS)" $$DEBUG_SETTING $(PERCRANK_CONFIG) > $(TRY_DIR)/ABOUT ; \
+	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$DEBUG_SETTING $$RANDS_SETTING $(PERCRANK_CONFIG) > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
@@ -204,6 +213,15 @@ cv_score-%:
 
 cv_score:
 	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+
+score-%:
+	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
+	$(eval TRY_NUM := $*)
+	make score TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
+
+score:
+	$(AVERAGE_SCORES) $(TRY_DIR)/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+
 
 cv_train_stats-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
