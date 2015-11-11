@@ -230,7 +230,8 @@ class EmbNNRanker(NNRanker):
                              self.dict_formeme.get(formeme, self.UNK_FORMEME),
                              self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA)]
             if self.prev_node_emb:
-                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[pos - 1].t_lemma))
+                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[pos - 1].t_lemma,
+                                                           self.UNK_T_LEMMA))
             tree_emb_idxs.append(node_emb_idxs)
 
         # pad with unknown values (except for last lemma in case of emb_prev)
