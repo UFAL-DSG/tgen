@@ -1,0 +1,10 @@
+all-*.txt
+train-*.txt
+train-conc.sgm
+train-text.treex.gz
+train-text.yaml.gz
+test-*.txt
+test-conc.sgm
+test-text.treex.gz
+test-text.yaml.gz
+cv0*
