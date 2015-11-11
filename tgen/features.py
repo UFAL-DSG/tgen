@@ -269,7 +269,7 @@ def svp_presence(tree, context):
     for dai in context['da']:
         if dai.name is None:
             continue
-        ret[dai.name + '=' + dai.value] = 1
+        ret[dai.name + '=' + str(dai.value)] = 1
     return ret
 
 
