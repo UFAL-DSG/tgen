@@ -39,9 +39,10 @@ $iters =~ s/\/$/\/~/;
 # data
 $training_data = ' + all' if ( $training_set =~ /^training2/ );
 $training_data = ' + 1/2' if ( $training_set =~ /^training1/ );
-if ($portion < 1.0){
-    $training_data .= '*' . sprintf("%.2g", $portion);
+if ( $portion < 1.0 ) {
+    $training_data .= '*' . sprintf( "%.2g", $portion );
 }
+$training_data .= ' aall'        if ( $training_set =~ /^training[12]aall/ );
 $training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
 $training_data .= ' + rc'        if ( $training_set =~ /^training[12]_rc/ );
 $training_data .= ' + sc'        if ( $training_set =~ /^training[12]_sc/ );
@@ -78,8 +79,8 @@ if ( $config_data =~ /'nn'\s*:\s*'emb/ ) {
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 512 );
     $nn_shape .= '-A' . ( ( $config_data =~ /'alpha'\s*:\s*([0-9.]+)/ )[0] // 0.1 );
     $nn_shape .= '-C' . ( ( $config_data =~ /'cnn_filter_length'\s*:\s*([0-9]+)/ )[0] // 3 )
-            . '/' . ( ( $config_data =~ /'cnn_num_filters'\s*:\s*([0-9]+)/ )[0] // 3 );
-    $nn_shape .= '-' .  ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0] // 'uniform_glorot10' );
+        . '/' . ( ( $config_data =~ /'cnn_num_filters'\s*:\s*([0-9]+)/ )[0] // 3 );
+    $nn_shape .= '-' . ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0] // 'uniform_glorot10' );
 
     # NN gadgets
     $nn_shape .= ' + ngr' if ( $config_data =~ /'normgrad'\s*:\s*True/ );

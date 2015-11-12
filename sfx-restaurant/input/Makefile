@@ -55,10 +55,10 @@ grammatemes.tsv: train-text.treex.gz
 	treex -Len Read::Treex from=$< Print::GrammatemesForTgen to=$@
 
 %-conc.sgm: %-conc.txt
-	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset to=$@
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset | sed 's/docid="[^"]*"/docid="test"/' > $@
 
 %-text.sgm: %-text.txt
-	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset to=$@
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset | sed 's/docid="[^"]*"/docid="test"/' > $@
 
 %-das.sgm: %-das.txt
-	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=source add_header=srcset to=$@
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=source add_header=srcset | sed 's/docid="[^"]*"/docid="test"/' > $@
