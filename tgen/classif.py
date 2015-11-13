@@ -34,7 +34,9 @@ class TreeClassifier(object):
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
         self.init = cfg.get('initialization', 'uniform_glorot10')
         self.passes = cfg.get('passes', 200)
+        self.alpha = cfg.get('alpha', 0.1)
         self.randomize = cfg.get('randomize', True)
+        self.batch_size = cfg.get('batch_size', 1)
 
     @staticmethod
     def load_from_file(fname):
@@ -110,6 +112,10 @@ class TreeClassifier(object):
         ret.append([FeedForward('output', self.num_outputs, T.nnet.sigmoid, self.init)])
         return ret
 
+    def batches(self):
+        for i in xrange(0, len(self.train_order), self.batch_size):
+            yield self.train_order[i: i + self.batch_size]
+
     def _training_pass(self, pass_no):
         """Perform one training pass through the whole training data, print statistics."""
 
@@ -120,23 +126,23 @@ class TreeClassifier(object):
         pass_cost = 0
         pass_diff = 0
 
-        for tree_no in self.train_order:
+        for tree_nos in self.batches():
 
-            log_debug('TREE-NO: %d' % tree_no)
-            log_debug(str(self.train_trees[tree_no]))
-            log_debug(str(self.train_das[tree_no]))
-            log_debug('X: ' + str(self.X[tree_no]))
-            log_debug('Y: ' + str(self.y[tree_no]))
+            log_debug('TREE-NOS: ' + str(tree_nos))
+            log_debug("\n".join(unicode(self.train_trees[i]) + "\n" + unicode(self.train_das[i])
+                                for i in tree_nos))
+            log_debug('Y: ' + str(self.y[tree_nos]))
 
-            result = self.classif.classif([self.X[tree_no]])
-            cost_gcost = self.classif.update([self.X[tree_no]], [self.y[tree_no]], 0.1)
-            bin_result = np.array([1. if r > 0.5 else 0. for r in result[0]])
+            results = self.classif.classif(self.X[tree_nos])
+            cost_gcost = self.classif.update(self.X[tree_nos], self.y[tree_nos], self.alpha)
+            bin_result = np.array([[1. if r > 0.5 else 0. for r in result] for result in results])
 
             log_debug('R: ' + str(bin_result))
             log_debug('COST: %f' % cost_gcost[0])
+            log_debug('DIFF: %d' % np.sum(np.abs(self.y[tree_nos] - bin_result)))
 
             pass_cost += cost_gcost[0]
-            pass_diff += np.sum(np.abs(self.y[tree_no] - bin_result))
+            pass_diff += np.sum(np.abs(self.y[tree_nos] - bin_result))
 
         # print and return statistics
         self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.time() - pass_start_time)),
