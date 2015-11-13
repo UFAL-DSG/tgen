@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 import theano.tensor as T
 import numpy as np
 
-from tgen.nn import FeedForward, Concat, Flatten, Pool1D, Embedding, NN, DotProduct, \
+from tgen.nn import FeedForward, Concat, Flatten, Pool1D, Embedding, RankNN, DotProduct, \
     Conv1D, Identity
 from tgen.rank import BasePerceptronRanker, FeaturesPerceptronRanker
 from tgen.logf import log_debug, log_info
@@ -113,10 +113,13 @@ class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
         # multi-layer perceptron with tanh + linear layer
         # TODO make number of layers configurable
         if self.net_type == 'mlp':
-            self.nn = self._ff_layers('ff', 3, perc_layer=True)
+            layers = self._ff_layers('ff', 3, perc_layer=True)
         # linear perceptron
         else:
-            self.nn = self._ff_layers('ff', 0, perc_layer=True)
+            layers = self._ff_layers('ff', 0, perc_layer=True)
+
+        num_features = len(self.vectorizer.get_feature_names())
+        self.nn = RankNN(layers, [num_features], (T.fmatrix,), normgrad=False)
 
 
 class EmbNNRanker(NNRanker):
@@ -317,7 +320,7 @@ class EmbNNRanker(NNRanker):
             layers.append([DotProduct('dot')])
 
         # input: batch * word * sub-embeddings
-        self.nn = NN(layers, input_shapes, input_types, self.normgrad)
+        self.nn = RankNN(layers, input_shapes, input_types, self.normgrad)
         log_info("Network shape:\n\n" + str(self.nn))
 
     def _conv_layers(self, name, num_layers=1, pooling=None):

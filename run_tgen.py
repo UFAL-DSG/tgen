@@ -50,6 +50,7 @@ from tgen.parallel_percrank_train import ParallelRanker
 from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
 from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
+from tgen.classif import TreeClassifier
 
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
@@ -91,6 +92,22 @@ def candgen_train(args):
                                         'compatible_slots': comp_slots})
     candgen.train(fname_da_train, fname_ttrees_train)
     candgen.save_to_file(fname_cand_model)
+
+
+def classif_train(args):
+    opts, files = getopt(args, 'd:')
+    for opt, arg in opts:
+        if opt == '-d':
+            set_debug_stream(file_stream(arg, mode='w'))
+
+    if len(files) != 4:
+        sys.exit("Invalid arguments.\n" + __doc__)
+    fname_classif_config, fname_da_train, fname_ttrees_train, fname_classif_model = files
+
+    log_info('Training tree classifier...')
+    classif = TreeClassifier(Config(fname_classif_config))
+    classif.train(fname_da_train, fname_ttrees_train)
+    classif.save_to_file(fname_classif_model)
 
 
 def percrank_train(args):
@@ -323,6 +340,8 @@ if __name__ == '__main__':
         sample_gen(args)
     elif action == 'asearch_gen':
         asearch_gen(args)
+    elif action == 'classif_train':
+        classif_train(args)
     else:
         # Unknown action
         sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)

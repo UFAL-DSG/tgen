@@ -331,6 +331,52 @@ class DotProduct(Layer):
 
 
 class NN(object):
+
+    def __init__(self, layers, input_shapes, input_types=(T.fvector,), normgrad=False):
+
+        self.layers = layers
+        self.input_shapes = input_shapes
+        self.input_types = input_types
+        self.params = []
+        self.normgrad = normgrad
+
+    def get_param_values(self):
+        vals = []
+        for param in self.params:
+            vals.append(param.get_value())
+        return vals
+
+    def set_param_values(self, vals):
+        for param, val in zip(self.params, vals):
+            param.set_value(val)
+
+    def __str__(self, *args, **kwargs):
+        out = ''
+        for l_num, layer in enumerate(self.layers):
+            out += str(l_num) + ': '
+            out += ', '.join(str(li) for li in layer)
+            out += "\n"
+        return out
+
+    def connect_layer(self, layer, y, shapes=None):
+
+        if len(layer) == len(y):
+            y = [l_i.connect(y_i, shape) for l_i, y_i, shape in zip(layer, y, shapes)]
+        elif len(layer) == 1:
+            y = [layer[0].connect(y, shapes)]
+        else:
+            raise NotImplementedError("Only n-n and n-1 layer connections supported.")
+
+        if shapes is not None:
+            shapes = [l_i.n_out for l_i in layer]
+            for l_i in layer:  # remember parameters for gradient
+                self.params.extend(l_i.params)
+            return y, shapes
+
+        return y
+
+
+class RankNN(NN):
     """A Theano neural network for ranking with perceptron cost function."""
 
     def __init__(self, layers, input_shapes, input_types=(T.fvector,), normgrad=False):
@@ -342,12 +388,7 @@ class NN(object):
         @param input_types: Theano tensor types for the input (including the batch dimension)
         @param normgrad: Use normalized gradients?
         """
-
-        self.layers = layers
-        self.input_shapes = input_shapes
-        self.input_types = input_types
-        self.params = []
-        self.normgrad = normgrad
+        super(RankNN, self).__init__(layers, input_shapes, input_types, normgrad)
 
         # create variables
         x = [input_types[i]('x' + str(i)) for i in xrange(len(layers[0]))]
@@ -371,18 +412,9 @@ class NN(object):
 
         # connect all layers
         for layer in layers:
-            if len(layer) == len(y):
-                y = [l_i.connect(y_i, shape) for l_i, y_i, shape in zip(layer, y, shapes)]
-                y_gold = [l_i.connect(y_gold_i) for l_i, y_gold_i in zip(layer, y_gold)]
-            elif len(layer) == 1:
-                y = [layer[0].connect(y, shapes)]
-                y_gold = [layer[0].connect(y_gold)]
-            else:
-                raise NotImplementedError("Only n-n and n-1 layer connections supported.")
-
-            shapes = [l_i.n_out for l_i in layer]
-            for l_i in layer:  # remember parameters for gradient
-                self.params.extend(l_i.params)
+            y, out_shapes = self.connect_layer(layer, y, shapes)
+            y_gold = self.connect_layer(layer, y_gold)
+            shapes = out_shapes
 
         # prediction function (different compilation mode for debugging and running)
         if DEBUG_MODE:
@@ -417,20 +449,59 @@ class NN(object):
             updates.append((param, param - rate * grad_param))
         self.update = theano.function(x + x_gold + [rate], [cost] + grad_cost, updates=updates, allow_input_downcast=True, name='update')
 
-    def get_param_values(self):
-        vals = []
-        for param in self.params:
-            vals.append(param.get_value())
-        return vals
 
-    def set_param_values(self, vals):
-        for param, val in zip(self.params, vals):
-            param.set_value(val)
+class ClassifNN(NN):
 
-    def __str__(self, *args, **kwargs):
-        out = ''
-        for l_num, layer in enumerate(self.layers):
-            out += str(l_num) + ': '
-            out += ', '.join(str(li) for li in layer)
-            out += "\n"
-        return out
+    def __init__(self, layers, input_shapes, input_types=(T.fvector,), normgrad=False):
+        """Build the neural network.
+
+        @param layers: The layers of the network, to be connected
+        @param input_shapes: Shapes of the input, minus the 1st dimension that will be used \
+            for (variable-sized) batches
+        @param input_types: Theano tensor types for the input (including the batch dimension)
+        @param normgrad: Use normalized gradients?
+        """
+        super(ClassifNN, self).__init__(layers, input_shapes, input_types, normgrad)
+
+        # create variables
+        x = [input_types[i]('x' + str(i)) for i in xrange(len(layers[0]))]
+        y = x
+        shapes = input_shapes
+
+        # connect all layers
+        for layer in layers:
+            y, shapes = self.connect_layer(layer, y, shapes)
+
+        # prediction function (different compilation mode for debugging and running)
+        if DEBUG_MODE:
+            from tgen.debug import inspect_input_dims, inspect_output_dims
+            mode = theano.compile.MonitorMode(pre_func=inspect_input_dims,
+                                              post_func=inspect_output_dims)  # .excluding('local_elemwise_fusion', 'inplace')
+        else:
+            mode = theano.compile.mode.FAST_COMPILE
+        self.classif = theano.function(x, y[0], allow_input_downcast=True,
+                                       on_unused_input='warn', name='classif', mode=mode)
+        # print the prediction function when debugging
+        if DEBUG_MODE:
+            theano.printing.debugprint(self.classif)
+
+        y_gold = T.fmatrix(name='y_gold')
+        # cross-entropy cost function
+        # (=negative log likelihood)
+        cost = -T.mean(T.sum(y_gold * T.log(y[0]) + (1 - y_gold) * T.log(1 - y[0]), axis=1))
+        self.cost = theano.function(x + [y_gold], cost, allow_input_downcast=True, name='cost')  # x is a list
+
+        grad_cost = T.grad(cost, wrt=self.params)
+        # normalized gradient, if applicable (TODO fix!)
+        if self.normgrad:
+            grad_cost = map(lambda x: x / x.norm(2), grad_cost)
+
+        self.grad_cost = theano.function(x + [y_gold], grad_cost, allow_input_downcast=True, name='grad_cost')
+
+        # training function
+        updates = []
+        rate = T.fscalar('rate')
+        rate.tag.test_value = float32(0.1)
+        for param, grad_param in zip(self.params, grad_cost):
+            updates.append((param, param - rate * grad_param))
+        self.update = theano.function(x + [y_gold, rate], [cost] + grad_cost, updates=updates, allow_input_downcast=True, name='update')
