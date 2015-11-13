@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Generating candidate subtrees to enhance the current candidate tree.
+Classifying trees to determine which DAIs are represented.
 """
 
 from __future__ import unicode_literals
@@ -24,7 +24,8 @@ from tgen.nn import ClassifNN, FeedForward
 
 
 class TreeClassifier(object):
-    """TODO"""
+    """A classifier for trees that decides which DAIs are currently represented
+    (to be used in limiting candidate generator and/or re-scoring the trees)."""
 
     def __init__(self, cfg):
         self.language = cfg.get('language', 'en')
@@ -58,7 +59,10 @@ class TreeClassifier(object):
             self._training_pass(iter_no)
 
     def _init_training(self, das_file, ttree_file, data_portion):
-        """TODO"""
+        """Initialize training.
+
+        Store input data, initialize 1-hot feature representations for input and output and
+        transform training data accordingly, initialize the classification neural network."""
         # read input
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
@@ -90,6 +94,8 @@ class TreeClassifier(object):
         self._init_neural_network()
 
     def _init_neural_network(self):
+        """Create the neural network for classification, according to the self.nn_shape
+        parameter (as set in configuration)."""
         if self.nn_shape.startswith('ff'):
             num_ff_layers = 2
             if self.nn_shape[-1] in ['0', '1', '3', '4']:
@@ -105,13 +111,14 @@ class TreeClassifier(object):
         return ret
 
     def _training_pass(self, pass_no):
-        """TODO."""
+        """Perform one training pass through the whole training data, print statistics."""
 
         pass_start_time = time.time()
 
         log_debug('\n***\nTR %05d:' % pass_no)
 
-        cost = 0
+        pass_cost = 0
+        pass_diff = 0
 
         for tree_no in self.train_order:
 
@@ -123,15 +130,17 @@ class TreeClassifier(object):
 
             result = self.classif.classif([self.X[tree_no]])
             cost_gcost = self.classif.update([self.X[tree_no]], [self.y[tree_no]], 0.1)
+            bin_result = np.array([1. if r > 0.5 else 0. for r in result[0]])
 
-            log_debug('R: ' + str(np.array([1 if r > 0.5 else 0 for r in result[0]], dtype=np.float64)))
+            log_debug('R: ' + str(bin_result))
             log_debug('COST: %f' % cost_gcost[0])
 
-            cost += cost_gcost[0]
+            pass_cost += cost_gcost[0]
+            pass_diff += np.sum(np.abs(self.y[tree_no] - bin_result))
 
         # print and return statistics
-        self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.time() - pass_start_time)), cost)
+        self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.time() - pass_start_time)),
+                               pass_cost, pass_diff)
 
-    def _print_pass_stats(self, pass_no, time, cost):
-        log_info('PASS %03d: duration %s, cost %f' % (pass_no, str(time), cost))
-
+    def _print_pass_stats(self, pass_no, time, cost, diff):
+        log_info('PASS %03d: duration %s, cost %f, diff %d' % (pass_no, str(time), cost, diff))
