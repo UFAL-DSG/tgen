@@ -17,6 +17,7 @@ from tgen.rank import BasePerceptronRanker, FeaturesPerceptronRanker
 from tgen.logf import log_debug, log_info
 from tgen.features import Features
 from tgen.ml import DictVectorizer
+from tgen.embeddings import TreeEmbeddingExtract, DAEmbeddingExtract
 
 
 class NNRanker(BasePerceptronRanker):
@@ -125,34 +126,23 @@ class SimpleNNRanker(FeaturesPerceptronRanker, NNRanker):
 class EmbNNRanker(NNRanker):
     """A ranker using MR and tree embeddings in a NN."""
 
-    UNK_SLOT = 0
-    UNK_VALUE = 1
-    UNK_T_LEMMA = 2
-    UNK_FORMEME = 3
-    MIN_VALID = 4
-
     def __init__(self, cfg):
         super(EmbNNRanker, self).__init__(cfg)
         self.emb_size = cfg.get('emb_size', 20)
         self.nn_shape = cfg.get('nn_shape', 'ff')
         self.normgrad = cfg.get('normgrad', False)
 
-        # 'emb' = embeddings for both, 'emb_trees' = embeddings for tree only, 1-hot DA
-        self.da_emb = cfg.get('nn', 'emb') == 'emb'
-        # 'emb_prev' = embeddings for tree only incl. prev node at each step + 1-hot DA
-        self.prev_node_emb = cfg.get('nn', 'emb') == 'emb_prev'
-
-        self.dict_t_lemma = {'UNK_T_LEMMA': self.UNK_T_LEMMA}
-        self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
-        self.max_tree_len = cfg.get('max_tree_len', 20)
-
         self.cnn_num_filters = cfg.get('cnn_num_filters', 3)
         self.cnn_filter_length = cfg.get('cnn_filter_length', 3)
 
-        if self.da_emb:
-            self.dict_slot = {'UNK_SLOT': self.UNK_SLOT}
-            self.dict_value = {'UNK_VALUE': self.UNK_VALUE}
-            self.max_da_len = cfg.get('max_da_len', 10)
+        # 'emb' = embeddings for both, 'emb_trees' = embeddings for tree only, 1-hot DA
+        # 'emb_tree', 'emb_prev' = tree-only embeddings
+        self.da_embs = cfg.get('nn', 'emb') == 'emb'
+
+        self.tree_embs = TreeEmbeddingExtract(cfg)
+
+        if self.da_embs:
+            self.da_embs = DAEmbeddingExtract(cfg)
         else:
             self.da_feats = Features(['dat: dat_presence', 'svp: svp_presence'])
             self.vectorizer = None
@@ -172,18 +162,14 @@ class EmbNNRanker(NNRanker):
         """Initialize word -> integer dictionaries, starting from a minimum
         valid value, always adding a new integer to unknown values to prevent
         clashes among different types of inputs."""
-        dict_ord = self.MIN_VALID
+
+        # avoid dictionary clashes between DAs and tree embeddings
+        # – remember current highest index number
+        dict_ord = None
 
         # DA embeddings
-        if self.da_emb:
-            for da in self.train_das:
-                for dai in da:
-                    if dai.name not in self.dict_slot:
-                        self.dict_slot[dai.name] = dict_ord
-                        dict_ord += 1
-                    if dai.value not in self.dict_value:
-                        self.dict_value[dai.value] = dict_ord
-                        dict_ord += 1
+        if self.da_embs:
+            dict_ord = self.da_embs.init_dict(self.train_das)
 
         # DA one-hot representation
         else:
@@ -194,64 +180,31 @@ class EmbNNRanker(NNRanker):
             self.vectorizer = DictVectorizer(sparse=False, binarize_numeric=True)
             self.vectorizer.fit(X)
 
-        # Tree embeddings
-        for tree in self.train_trees:
-            for t_lemma, formeme in tree.nodes:
-                if t_lemma not in self.dict_t_lemma:
-                    self.dict_t_lemma[t_lemma] = dict_ord
-                    dict_ord += 1
-                if formeme not in self.dict_formeme:
-                    self.dict_formeme[formeme] = dict_ord
-                    dict_ord += 1
-
-        self.dict_size = dict_ord
+        # tree embeddings
+        # remember last dictionary key to initialize embeddings with enough rows
+        self.dict_size = self.tree_embs.init_dict(self.train_trees, dict_ord)
 
     def _score(self, cand_embs):
         return self.nn.score([cand_embs[0]], [cand_embs[1]])[0]
 
     def _extract_feats(self, tree, da):
         """Extract DA and tree embeddings (return as a pair)."""
-        if self.da_emb:
-            # DA embeddings (slot - value; size == 2x self.max_da_len)
-            da_repr = []
-            for dai in da[:self.max_da_len]:
-                da_repr.append([self.dict_slot.get(dai.name, self.UNK_SLOT),
-                                self.dict_value.get(dai.value, self.UNK_VALUE)])
-            # pad with "unknown"
-            for _ in xrange(len(da_repr), self.max_da_len):
-                da_repr.append([self.UNK_SLOT, self.UNK_VALUE])
+        if self.da_embs:
+            # DA embeddings
+            da_repr = self.da_embs.get_embeddings(da)
         else:
             # DA one-hot representation
             da_repr = self.vectorizer.transform([self.da_feats.get_features(tree, {'da': da})])[0]
 
-        # tree embeddings (parent_lemma - formeme - lemma), for emb_prev + prev_lemma
-        tree_emb_idxs = []
-        for pos in xrange(1, min(self.max_tree_len + 1, len(tree))):
-            t_lemma, formeme = tree.nodes[pos]
-            parent_ord = tree.parents[pos]
-            node_emb_idxs = [self.dict_t_lemma.get(tree.nodes[parent_ord].t_lemma, self.UNK_T_LEMMA),
-                             self.dict_formeme.get(formeme, self.UNK_FORMEME),
-                             self.dict_t_lemma.get(t_lemma, self.UNK_T_LEMMA)]
-            if self.prev_node_emb:
-                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[pos - 1].t_lemma,
-                                                           self.UNK_T_LEMMA))
-            tree_emb_idxs.append(node_emb_idxs)
-
-        # pad with unknown values (except for last lemma in case of emb_prev)
-        for pos in xrange(len(tree) - 1, self.max_tree_len):
-            node_emb_idxs = [self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA]
-            if self.prev_node_emb:
-                node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[-1].t_lemma, self.UNK_T_LEMMA)
-                                     if pos == len(tree) - 1
-                                     else self.UNK_T_LEMMA)
-            tree_emb_idxs.append(node_emb_idxs)
+        # tree embeddings
+        tree_emb_idxs = self.tree_embs.get_embeddings(tree)
 
         return (da_repr, tree_emb_idxs)
 
     def _init_neural_network(self):
         # initial layer – tree embeddings & DA 1-hot or embeddings
         # input shapes don't contain the batch dimension, but the input Theano types do!
-        if self.da_emb:
+        if self.da_embs:
             input_shapes = ([self.max_da_len, 2],
                             [self.max_tree_len, 4 if self.prev_node_emb else 3])
             input_types = (T.itensor3, T.itensor3)
@@ -283,7 +236,7 @@ class EmbNNRanker(NNRanker):
             elif 'avgpool' in self.nn_shape:
                 pooling = T.mean
 
-            if self.da_emb:
+            if self.da_embs:
                 da_layers = self._conv_layers('conv_da', num_conv_layers, pooling=pooling)
             else:
                 da_layers = self._id_layers('id_da',
@@ -297,7 +250,7 @@ class EmbNNRanker(NNRanker):
 
         # max-pooling without convolution
         elif 'maxpool-ff' in self.nn_shape:
-            layers += [[Pool1D('mp_da') if self.da_emb else Identity('id_da'),
+            layers += [[Pool1D('mp_da') if self.da_embs else Identity('id_da'),
                         Pool1D('mp_trees')]
                        [Concat('concat')], [Flatten('flat')]]
             layers += self._ff_layers('ff', 2, perc_layer=True),
@@ -308,9 +261,9 @@ class EmbNNRanker(NNRanker):
             if 'maxpool' in self.nn_shape or 'avgpool' in self.nn_shape:
                 pooling = T.mean if 'avgpool' in self.nn_shape else T.max
                 layers += [[Pool1D('mp_da', pooling_func=pooling)
-                            if self.da_emb else Identity('id_da'),
+                            if self.da_embs else Identity('id_da'),
                             Pool1D('mp_tree', pooling_func=pooling)]]
-            layers += [[Flatten('flat_da') if self.da_emb else Identity('id_da'),
+            layers += [[Flatten('flat_da') if self.da_embs else Identity('id_da'),
                         Flatten('flat_tree')]]
 
             num_ff_layers = int(self.nn_shape[-1]) if self.nn_shape[-1] in ['2', '3', '4'] else 1

@@ -20,7 +20,8 @@ from tgen.logf import log_debug, log_info, log_warn
 from tgen.futil import read_das, read_ttrees, trees_from_doc
 from tgen.features import Features
 from tgen.ml import DictVectorizer
-from tgen.nn import ClassifNN, FeedForward
+from tgen.nn import ClassifNN, FeedForward, Flatten, Conv1D, Pool1D, Embedding
+from tgen.embeddings import TreeEmbeddingExtract
 
 
 class TreeClassifier(object):
@@ -30,9 +31,17 @@ class TreeClassifier(object):
     def __init__(self, cfg):
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
+        self.tree_embs = cfg.get('nn', '').startswith('emb')
+        if self.tree_embs:
+            self.tree_embs = TreeEmbeddingExtract(cfg)
+            self.emb_size = cfg.get('emb_size', 20)
+
         self.nn_shape = cfg.get('nn_shape', 'ff')
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
+        self.cnn_num_filters = cfg.get('cnn_num_filters', 3)
+        self.cnn_filter_length = cfg.get('cnn_filter_length', 3)
         self.init = cfg.get('initialization', 'uniform_glorot10')
+
         self.passes = cfg.get('passes', 200)
         self.alpha = cfg.get('alpha', 0.1)
         self.randomize = cfg.get('randomize', True)
@@ -79,18 +88,25 @@ class TreeClassifier(object):
         self.train_order = range(len(self.train_trees))
         log_info('Using %d training instances.' % train_size)
 
-        # initialize feature sources
-        self.tree_feats = Features(['node: presence t_lemma formeme'])
+        # initialize input features/embeddings
+        if self.tree_embs:
+            self.dict_size = self.tree_embs.init_dict(self.train_trees)
+            self.X = np.array([self.tree_embs.get_embeddings(tree) for tree in self.train_trees])
+        else:
+            self.tree_feats = Features(['node: presence t_lemma formeme'])
+            self.tree_vect = DictVectorizer(sparse=False, binarize_numeric=True)
+            self.X = [self.tree_feats.get_features(tree, {}) for tree in self.train_trees]
+            self.X = self.tree_vect.fit_transform(self.X)
+
+        # initialize output features
         self.da_feats = Features(['dat: dat_presence', 'svp: svp_presence'])
-        self.X = [self.tree_feats.get_features(tree, {}) for tree in self.train_trees]
-        self.y = [self.da_feats.get_features(None, {'da': da}) for da in self.train_das]
-        self.tree_vect = DictVectorizer(sparse=False, binarize_numeric=True)
-        self.X = self.tree_vect.fit_transform(self.X)
         self.da_vect = DictVectorizer(sparse=False, binarize_numeric=True)
+        self.y = [self.da_feats.get_features(None, {'da': da}) for da in self.train_das]
         self.y = self.da_vect.fit_transform(self.y)
 
+        # initialize I/O shapes
+        self.input_shape = [list(self.X[0].shape)]
         self.num_outputs = len(self.da_vect.get_feature_names())
-        self.num_inputs = len(self.tree_vect.get_feature_names())
 
         # initialize NN classifier
         self._init_neural_network()
@@ -98,18 +114,59 @@ class TreeClassifier(object):
     def _init_neural_network(self):
         """Create the neural network for classification, according to the self.nn_shape
         parameter (as set in configuration)."""
+        layers = []
+        if self.tree_embs:
+            layers.append([Embedding('emb', self.dict_size, self.emb_size, 'uniform_005')])
+
+        # feedforward networks
         if self.nn_shape.startswith('ff'):
+            if self.tree_embs:
+                layers.append([Flatten('flat')])
             num_ff_layers = 2
             if self.nn_shape[-1] in ['0', '1', '3', '4']:
                 num_ff_layers = int(self.nn_shape[-1])
-            layers = self._ff_layers('ff', num_ff_layers)
-        self.classif = ClassifNN(layers, [[self.num_inputs]], (T.fmatrix,), normgrad=False)
+            layers += self._ff_layers('ff', num_ff_layers)
+
+        # convolutional networks
+        elif 'conv' in self.nn_shape or 'pool' in self.nn_shape:
+            assert self.tree_embs  # convolution makes no sense without embeddings
+            num_conv = 0
+            if 'conv' in self.nn_shape:
+                num_conv = 1
+            if 'conv2' in self.nn_shape:
+                num_conv = 2
+            pooling = None
+            if 'maxpool' in self.nn_shape:
+                pooling = T.max
+            elif 'avgpool' in self.nn_shape:
+                pooling = T.mean
+            layers += self._conv_layers('conv', num_conv, pooling)
+            layers.append([Flatten('flat')])
+            layers += self._ff_layers('ff', 1)
+
+        # input types: integer 3D for tree embeddings (batch + 2D embeddings),
+        #              float 2D (matrix) for binary input (batch + features)
+        input_types = (T.itensor3,) if self.tree_embs else (T.fmatrix,)
+
+        # create the network, connect layers
+        self.classif = ClassifNN(layers, self.input_shape, input_types, normgrad=False)
 
     def _ff_layers(self, name, num_layers):
         ret = []
         for i in xrange(num_layers):
             ret.append([FeedForward(name + str(i + 1), self.num_hidden_units, T.tanh, self.init)])
         ret.append([FeedForward('output', self.num_outputs, T.nnet.sigmoid, self.init)])
+        return ret
+
+    def _conv_layers(self, name, num_layers=1, pooling=None):
+        ret = []
+        for i in xrange(num_layers):
+            ret.append([Conv1D(name + str(i + 1),
+                               filter_length=self.cnn_filter_length,
+                               num_filters=self.cnn_num_filters,
+                               init=self.init, activation=T.tanh)])
+        if pooling is not None:
+            ret.append([Pool1D(name + str(i + 1) + 'pool', pooling_func=pooling)])
         return ret
 
     def batches(self):

@@ -451,6 +451,7 @@ class RankNN(NN):
 
 
 class ClassifNN(NN):
+    """A Theano neural network for classification with cross-entropy cost function."""
 
     def __init__(self, layers, input_shapes, input_types=(T.fvector,), normgrad=False):
         """Build the neural network.
