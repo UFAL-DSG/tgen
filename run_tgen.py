@@ -19,9 +19,6 @@ percrank_train -- train perceptron global ranker
                  [-r rand_seed] [-e experiment_id] ranker-config train-das train-ttrees output-model
                  * r = random seed is used as a string; no seed change if empty string is passed
 
-sample_gen -- generate using the given candidate generator
-    - arguments: [-n trees-per-da] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
-
 asearch_gen -- generate using the A*search sentence planner
     - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
 """
@@ -42,7 +39,7 @@ from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
-from tgen.planner import SamplingPlanner, ASearchPlanner
+from tgen.planner import ASearchPlanner
 from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearchListsAnalyzer, \
     EvalTypes, Evaluator
 from tgen.tree import TreeData
@@ -50,23 +47,27 @@ from tgen.parallel_percrank_train import ParallelRanker
 from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
 from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
-from tgen.classif import TreeClassifier
 
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
 
 
 def candgen_train(args):
-    opts, files = getopt(args, 'p:lnc:s')
+    opts, files = getopt(args, 'p:lnc:sd:')
+
     prune_threshold = 1
     parent_lemmas = False
     node_limits = False
     comp_type = None
     comp_limit = None
     comp_slots = False
+    tree_classif = False
+
     for opt, arg in opts:
         if opt == '-p':
             prune_threshold = int(arg)
+        elif opt == '-d':
+            set_debug_stream(file_stream(arg, mode='w'))
         elif opt == '-l':
             parent_lemmas = True
         elif opt == '-n':
@@ -76,11 +77,13 @@ def candgen_train(args):
             if ':' in comp_type:
                 comp_type, comp_limit = comp_type.split(':', 1)
                 comp_limit = int(comp_limit)
+        elif opt == '-t':
+            tree_classif = Config(arg)
         elif opt == '-s':
             comp_slots = True
 
     if len(files) != 3:
-        sys.exit(__doc__)
+        sys.exit("Invalid arguments.\n" + __doc__)
     fname_da_train, fname_ttrees_train, fname_cand_model = files
 
     log_info('Training candidate generator...')
@@ -89,25 +92,10 @@ def candgen_train(args):
                                         'node_limits': node_limits,
                                         'compatible_dais_type': comp_type,
                                         'compatible_dais_limit': comp_limit,
-                                        'compatible_slots': comp_slots})
+                                        'compatible_slots': comp_slots,
+                                        'tree_classif': tree_classif})
     candgen.train(fname_da_train, fname_ttrees_train)
     candgen.save_to_file(fname_cand_model)
-
-
-def classif_train(args):
-    opts, files = getopt(args, 'd:')
-    for opt, arg in opts:
-        if opt == '-d':
-            set_debug_stream(file_stream(arg, mode='w'))
-
-    if len(files) != 4:
-        sys.exit("Invalid arguments.\n" + __doc__)
-    fname_classif_config, fname_da_train, fname_ttrees_train, fname_classif_model = files
-
-    log_info('Training tree classifier...')
-    classif = TreeClassifier(Config(fname_classif_config))
-    classif.train(fname_da_train, fname_ttrees_train)
-    classif.save_to_file(fname_classif_model)
 
 
 def percrank_train(args):
@@ -168,64 +156,6 @@ def percrank_train(args):
     # avoid the "maximum recursion depth exceeded" error
     sys.setrecursionlimit(100000)
     ranker.save_to_file(fname_rank_model)
-
-
-def sample_gen(args):
-    opts, files = getopt(args, 'r:n:o:w:')
-    num_to_generate = 1
-    oracle_eval_file = None
-    fname_ttrees_out = None
-
-    for opt, arg in opts:
-        if opt == '-n':
-            num_to_generate = int(arg)
-        elif opt == '-o':
-            oracle_eval_file = arg
-        elif opt == '-w':
-            fname_ttrees_out = arg
-
-    if len(files) != 2:
-        sys.exit(__doc__)
-    fname_cand_model, fname_da_test = files
-
-    # load model
-    log_info('Initializing...')
-    candgen = RandomCandidateGenerator.load_from_file(fname_cand_model)
-
-    ranker = candgen
-
-    tgen = SamplingPlanner({'candgen': candgen, 'ranker': ranker})
-    # generate
-    log_info('Generating...')
-    gen_doc = Document()
-    das = read_das(fname_da_test)
-    for da in das:
-        for _ in xrange(num_to_generate):  # repeat generation n times
-            tgen.generate_tree(da, gen_doc)
-
-    # evaluate if needed
-    if oracle_eval_file is not None:
-        log_info('Evaluating oracle F1...')
-        log_info('Loading gold data from ' + oracle_eval_file)
-        gold_trees = ttrees_from_doc(read_ttrees(oracle_eval_file), tgen.language, tgen.selector)
-        gen_trees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
-        log_info('Gold data loaded.')
-        correct, predicted, gold = 0, 0, 0
-        for gold_tree, gen_trees in zip(gold_trees, chunk_list(gen_trees, num_to_generate)):
-            # find best of predicted trees (in terms of F1)
-            _, tc, tp, tg = max([(f1_from_counts(c, p, g), c, p, g) for c, p, g
-                                 in map(lambda gen_tree: corr_pred_gold(gold_tree, gen_tree),
-                                        gen_trees)],
-                                key=lambda x: x[0])
-            correct += tc
-            predicted += tp
-            gold += tg
-        # evaluate oracle F1
-        log_info("Oracle Precision: %.6f, Recall: %.6f, F1: %.6f" % p_r_f1_from_counts(correct, predicted, gold))
-    # write output
-    if fname_ttrees_out is not None:
-        log_info('Writing output...')
-        write_ttrees(gen_doc, fname_ttrees_out)
 
 
 def asearch_gen(args):
@@ -336,12 +266,8 @@ if __name__ == '__main__':
         candgen_train(args)
     elif action == 'percrank_train':
         percrank_train(args)
-    elif action == 'random_gen':
-        sample_gen(args)
     elif action == 'asearch_gen':
         asearch_gen(args)
-    elif action == 'classif_train':
-        classif_train(args)
     else:
         # Unknown action
         sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)

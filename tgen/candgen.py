@@ -18,6 +18,7 @@ from tgen.logf import log_warn
 from tgen.tree import TreeData
 from tgen.planner import CandidateList
 from tgen.rnd import rnd
+from tgen.classif import TreeClassifier
 
 
 class RandomCandidateGenerator(object):
@@ -48,6 +49,8 @@ class RandomCandidateGenerator(object):
         self.compatible_dais = None
         # do the same also for DA slots?
         self.compatible_slots = cfg.get('compatible_slots', False)
+        # tree classifier
+        self.classif = TreeClassifier(cfg['tree_classif']) if cfg.get('tree_classif') else None
 
         # cache fields for generating successors:
         self.cur_da = None
@@ -79,6 +82,8 @@ class RandomCandidateGenerator(object):
                 candgen.compatible_dais_limit = 1000
             if not hasattr(candgen, 'compatible_slots'):
                 candgen.compatible_slots = False
+            if not hasattr(candgen, 'classif'):
+                candgen.classif = None
             return candgen
 
     def save_to_file(self, fname):
@@ -221,6 +226,8 @@ class RandomCandidateGenerator(object):
         self.cur_da = da
         self.cur_cdfs = self._get_merged_child_type_cdfs(da)
         self.cur_limits = self.get_merged_limits(da)
+        if self.classif:
+            self.classif.init_run(da)
 
     def _get_merged_child_type_cdfs(self, da):
         """Get merged child CDFs (i.e. lists of possible children, given parent IDs) for the
@@ -387,6 +394,12 @@ class RandomCandidateGenerator(object):
                     succ_tree.create_child(node_num, subtree_bound + (1 if right else 0),
                                            NodeData(t_lemma, formeme))
                     res.append(succ_tree)
+
+        # if we have the tree classifier available, discard all successors that talk about something
+        # not present in the current DA
+        if self.classif:
+            is_subset = self.classif.is_subset_of_cur_da(res)
+            res = [tree for tree, is_sub in zip(res, is_subset) if is_sub]
 
         # return all created successors
         return res

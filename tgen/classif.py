@@ -47,6 +47,9 @@ class TreeClassifier(object):
         self.randomize = cfg.get('randomize', True)
         self.batch_size = cfg.get('batch_size', 1)
 
+        self.cur_da = None
+        self.cur_da_bin = None
+
     @staticmethod
     def load_from_file(fname):
         log_info('Loading model from ' + fname)
@@ -98,6 +101,18 @@ class TreeClassifier(object):
         # classify the trees
         covered = self.classify(trees)
         # decide whether 1's in their 1-hot vectors are subsets of True's in da_bin
+        return [((c != 0) | da_bin == da_bin).all() for c in covered]
+
+    def init_run(self, da):
+        """Remember the current DA for subsequent runs of `is_subset_of_cur_da`."""
+        self.cur_da = da
+        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
+        self.cur_da_bin = da_bin != 0
+
+    def is_subset_of_cur_da(self, trees):
+        """Same as `is_subset_of_da`, but using `self.cur_da` set via `init_run`."""
+        da_bin = self.cur_da_bin
+        covered = self.classify(trees)
         return [((c != 0) | da_bin == da_bin).all() for c in covered]
 
     def _init_training(self, das_file, ttree_file, data_portion):
