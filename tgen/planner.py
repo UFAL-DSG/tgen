@@ -180,51 +180,6 @@ class SentencePlanner(object):
         return zone
 
 
-class SamplingPlanner(SentencePlanner):
-    """Random t-tree generator given DAs.
-
-    TODO: This is obsolete, it will not work after the introduction of TreeData.
-    Fix it or remove it (there's probably no point in having it now).
-    """
-
-    MAX_TREE_SIZE = 50
-
-    def __init__(self, cfg):
-        super(SamplingPlanner, self).__init__(cfg)
-        # ranker (selecting the best candidate)
-        self.ranker = None
-        if 'ranker' in cfg:
-            self.ranker = cfg['ranker']
-
-    def generate_tree(self, da, gen_doc=None):
-        root = TreeNode(TreeData())
-        cdfs = self.candgen.get_merged_child_type_cdfs(da)
-        nodes = deque([self.generate_child(root, da, cdfs[root.formeme])])
-        treesize = 1
-        while nodes and treesize < self.MAX_TREE_SIZE:
-            node = nodes.popleft()
-            if node.formeme not in cdfs:  # skip weirdness
-                continue
-            for _ in xrange(self.candgen.get_number_of_children(node.formeme)):
-                child = self.generate_child(node, da, cdfs[node.formeme])
-                nodes.append(child)
-                treesize += 1
-        if gen_doc:
-            zone = self.get_target_zone(gen_doc)
-            zone.ttree = root.create_ttree()
-            return
-        return root.tree
-
-    def generate_child(self, parent, da, cdf):
-        """Generate one t-node, given its parent and the CDF for the possible children."""
-        if self.ranker:
-            formeme, t_lemma, right = self.ranker.get_best_child(parent, da, cdf)
-        else:
-            formeme, t_lemma, right = self.candgen.sample(cdf)
-        child = parent.create_child(right, NodeData(t_lemma, formeme))
-        return child
-
-
 class ASearchPlanner(SentencePlanner):
     """Sentence planner using A*-search."""
 
@@ -269,8 +224,6 @@ class ASearchPlanner(SentencePlanner):
         self.defic_iter = 0
         self.num_iter = -1
         self.input_da = None
-        self.cdfs = None
-        self.node_limits = None
 
     def init_run(self, input_da, max_iter=None, max_defic_iter=None, beam_size=None):
         """Init the A*-search generation for the given input DA, with the given parameters
@@ -294,8 +247,7 @@ class ASearchPlanner(SentencePlanner):
         self.input_da = input_da
         self.defic_iter = 0
         self.num_iter = 0
-        self.cdfs = self.candgen.get_merged_child_type_cdfs(input_da)
-        self.node_limits = self.candgen.get_merged_limits(input_da)
+        self.candgen.init_run(input_da)
 
         if max_iter is not None:
             self.max_iter = max_iter
@@ -331,8 +283,7 @@ class ASearchPlanner(SentencePlanner):
         self.close_list.push(cand, score[1])  # only use score without future promise
         log_debug("-- IT %4d: O %5d S %12.5f -- %s" %
                   (self.num_iter, len(self.open_list), -score[1], unicode(cand)))
-        successors = [succ for succ
-                      in self.candgen.get_all_successors(cand, self.cdfs, self.node_limits)
+        successors = [succ for succ in self.candgen.get_all_successors(cand)
                       if succ not in self.close_list]
 
         if successors:
