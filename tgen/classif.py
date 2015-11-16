@@ -69,11 +69,43 @@ class TreeClassifier(object):
             log_info("Train order: " + str(self.train_order))
             self._training_pass(iter_no)
 
+    def classify(self, trees):
+        """Classify the tree -- get DA slot-value pairs and DA type to which the tree
+        corresponds (as 1/0 array).
+
+        This does not have a lot of practical use here, see is_subset_of_da.
+        """
+        if self.tree_embs:
+            X = np.array([self.tree_embs.get_embeddings(tree) for tree in trees])
+        else:
+            X = self.tree_vect.transform([self.tree_feats.get_features(tree, {}) for tree in trees])
+        # binarize the result
+        return np.array([[1. if r > 0.5 else 0. for r in result]
+                         for result in self.classif.classif(X)])
+
+    def is_subset_of_da(self, da, trees):
+        """Given a DA and an array of trees, this gives a boolean array indicating which
+        trees currently cover/describe a subset of the DA.
+
+        @param da: the input DA against which the trees should be tested
+        @param trees: the trees to test against the DA
+        @return: boolean array, with True where the tree covers/describes a subset of the DA
+        """
+        # get 1-hot representation of the DA
+        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
+        # convert it to array of booleans
+        da_bin = da_bin != 0
+        # classify the trees
+        covered = self.classify(trees)
+        # decide whether 1's in their 1-hot vectors are subsets of True's in da_bin
+        return [((c != 0) | da_bin == da_bin).all() for c in covered]
+
     def _init_training(self, das_file, ttree_file, data_portion):
         """Initialize training.
 
         Store input data, initialize 1-hot feature representations for input and output and
-        transform training data accordingly, initialize the classification neural network."""
+        transform training data accordingly, initialize the classification neural network.
+        """
         # read input
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
@@ -207,3 +239,4 @@ class TreeClassifier(object):
 
     def _print_pass_stats(self, pass_no, time, cost, diff):
         log_info('PASS %03d: duration %s, cost %f, diff %d' % (pass_no, str(time), cost, diff))
+
