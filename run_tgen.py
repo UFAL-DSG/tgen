@@ -53,7 +53,7 @@ sys.excepthook = exc_info_hook
 
 
 def candgen_train(args):
-    opts, files = getopt(args, 'p:lnc:sd:')
+    opts, files = getopt(args, 'p:lnc:sd:t:')
 
     prune_threshold = 1
     parent_lemmas = False

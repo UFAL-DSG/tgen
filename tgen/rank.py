@@ -18,7 +18,7 @@ from ml import DictVectorizer, StandardScaler
 from logf import log_info, log_debug
 from features import Features
 from futil import read_das, read_ttrees, trees_from_doc, sentences_from_doc
-from planner import SamplingPlanner, ASearchPlanner
+from planner import ASearchPlanner
 from candgen import RandomCandidateGenerator
 from eval import Evaluator, EvalTypes
 from tree import TreeNode
@@ -124,9 +124,9 @@ class BasePerceptronRanker(Ranker):
         # initialize candidate generator
         if self.candgen_model is not None:
             self.candgen = RandomCandidateGenerator.load_from_file(self.candgen_model)
-            self.sampling_planner = SamplingPlanner({'language': self.language,
-                                                     'selector': self.selector,
-                                                     'candgen': self.candgen})
+#             self.sampling_planner = SamplingPlanner({'language': self.language,
+#                                                      'selector': self.selector,
+#                                                      'candgen': self.candgen})
 
         # check if A*search planner is needed (i.e., any rival generation strategy requires it)
         # and initialize it
@@ -309,15 +309,15 @@ class BasePerceptronRanker(Ranker):
             rival_feats.extend([self._extract_feats(self.train_trees[tree_no], da)
                                 for da in other_inst_das])
 
-        # candidates generated using the random planner (use the current DA)
-        if strategy == 'random':
-            random_trees = []
-            while len(random_trees) < self.rival_number:
-                tree = self.sampling_planner.generate_tree(da)
-                if (tree != train_trees[tree_no]):  # don't generate trees identical to the gold one
-                    random_trees.append(tree)
-            rival_trees.extend(random_trees)
-            rival_feats.extend([self._extract_feats(tree, da) for tree in random_trees])
+#         # candidates generated using the random planner (use the current DA)
+#         if strategy == 'random':
+#             random_trees = []
+#             while len(random_trees) < self.rival_number:
+#                 tree = self.sampling_planner.generate_tree(da)
+#                 if (tree != train_trees[tree_no]):  # don't generate trees identical to the gold one
+#                     random_trees.append(tree)
+#             rival_trees.extend(random_trees)
+#             rival_feats.extend([self._extract_feats(tree, da) for tree in random_trees])
 
         # score them along with the right one
         rival_scores = [self._score(r) for r in rival_feats]

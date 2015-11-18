@@ -91,17 +91,17 @@ class RandomCandidateGenerator(object):
         with file_stream(fname, mode='wb', encoding=None) as fh:
             pickle.dump(self, fh, pickle.HIGHEST_PROTOCOL)
 
-    def train(self, da_file, t_file):
+    def train(self, das_file, ttree_file):
         """``Training'' the generator (collect counts of DAIs and corresponding t-nodes).
 
         @param da_file: file with training DAs
         @param t_file: file with training t-trees (YAML or pickle)
         """
         # read training data
-        log_info('Reading ' + t_file)
-        ttrees = ttrees_from_doc(read_ttrees(t_file), self.language, self.selector)
-        log_info('Reading ' + da_file)
-        das = read_das(da_file)
+        log_info('Reading ' + ttree_file)
+        ttrees = ttrees_from_doc(read_ttrees(ttree_file), self.language, self.selector)
+        log_info('Reading ' + das_file)
+        das = read_das(das_file)
 
         # collect counts
         log_info('Collecting counts')
@@ -167,6 +167,9 @@ class RandomCandidateGenerator(object):
         if self.compatible_slots:
             self.compatible_slots = self._compatibility_table(das, ttrees,
                                                               lambda da: [dai.name for dai in da.dais])
+
+        if self.classif:
+            self.classif.train(das_file, ttree_file)
 
     def _compatibility_table(self, das, ttrees, da_transform):
         """Compute a table of nodes/lemmas with DAIs/slots (or any information from a DA).
