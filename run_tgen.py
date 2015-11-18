@@ -19,6 +19,9 @@ percrank_train -- train perceptron global ranker
                  [-r rand_seed] [-e experiment_id] ranker-config train-das train-ttrees output-model
                  * r = random seed is used as a string; no seed change if empty string is passed
 
+sample_gen -- sampling generation (oracle experiment; rather obsolete)
+    - arguments: [-n trees-per-da] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
+
 asearch_gen -- generate using the A*search sentence planner
     - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
 """
@@ -39,7 +42,7 @@ from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
-from tgen.planner import ASearchPlanner
+from tgen.planner import ASearchPlanner, SamplingPlanner
 from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearchListsAnalyzer, \
     EvalTypes, Evaluator
 from tgen.tree import TreeData
@@ -158,6 +161,64 @@ def percrank_train(args):
     ranker.save_to_file(fname_rank_model)
 
 
+def sample_gen(args):
+    opts, files = getopt(args, 'r:n:o:w:')
+    num_to_generate = 1
+    oracle_eval_file = None
+    fname_ttrees_out = None
+
+    for opt, arg in opts:
+        if opt == '-n':
+            num_to_generate = int(arg)
+        elif opt == '-o':
+            oracle_eval_file = arg
+        elif opt == '-w':
+            fname_ttrees_out = arg
+
+    if len(files) != 2:
+        sys.exit(__doc__)
+    fname_cand_model, fname_da_test = files
+
+    # load model
+    log_info('Initializing...')
+    candgen = RandomCandidateGenerator.load_from_file(fname_cand_model)
+
+    ranker = candgen
+
+    tgen = SamplingPlanner({'candgen': candgen, 'ranker': ranker})
+    # generate
+    log_info('Generating...')
+    gen_doc = Document()
+    das = read_das(fname_da_test)
+    for da in das:
+        for _ in xrange(num_to_generate):  # repeat generation n times
+            tgen.generate_tree(da, gen_doc)
+
+    # evaluate if needed
+    if oracle_eval_file is not None:
+        log_info('Evaluating oracle F1...')
+        log_info('Loading gold data from ' + oracle_eval_file)
+        gold_trees = ttrees_from_doc(read_ttrees(oracle_eval_file), tgen.language, tgen.selector)
+        gen_trees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
+        log_info('Gold data loaded.')
+        correct, predicted, gold = 0, 0, 0
+        for gold_tree, gen_trees in zip(gold_trees, chunk_list(gen_trees, num_to_generate)):
+            # find best of predicted trees (in terms of F1)
+            _, tc, tp, tg = max([(f1_from_counts(c, p, g), c, p, g) for c, p, g
+                                 in map(lambda gen_tree: corr_pred_gold(gold_tree, gen_tree),
+                                        gen_trees)],
+                                key=lambda x: x[0])
+            correct += tc
+            predicted += tp
+            gold += tg
+        # evaluate oracle F1
+        log_info("Oracle Precision: %.6f, Recall: %.6f, F1: %.6f" % p_r_f1_from_counts(correct, predicted, gold))
+    # write output
+    if fname_ttrees_out is not None:
+        log_info('Writing output...')
+        write_ttrees(gen_doc, fname_ttrees_out)
+
+
 def asearch_gen(args):
     """A*search generation"""
 
@@ -266,6 +327,8 @@ if __name__ == '__main__':
         candgen_train(args)
     elif action == 'percrank_train':
         percrank_train(args)
+    elif action == 'sample_gen':
+        sample_gen(args)
     elif action == 'asearch_gen':
         asearch_gen(args)
     else:

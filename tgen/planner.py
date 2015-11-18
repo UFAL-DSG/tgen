@@ -180,6 +180,44 @@ class SentencePlanner(object):
         return zone
 
 
+class SamplingPlanner(SentencePlanner):
+    """Random t-tree generator given DAs (sampling from conditional distribution of children
+    given parent and current DAIs).
+
+    TODO: This does not heed tree size limits.
+    """
+
+    MAX_TREE_SIZE = 50
+
+    def __init__(self, cfg):
+        super(SamplingPlanner, self).__init__(cfg)
+
+    def generate_tree(self, da, gen_doc=None):
+        root = TreeNode(TreeData())
+        self.candgen.init_run(da)
+        nodes = deque([self.generate_child(root)])
+        treesize = 1
+        while nodes and treesize < self.MAX_TREE_SIZE:
+            node = nodes.popleft()
+            for _ in xrange(self.candgen.get_number_of_children(node.formeme)):
+                child = self.generate_child(node)
+                if child:
+                    nodes.append(child)
+                    treesize += 1
+        if gen_doc:
+            zone = self.get_target_zone(gen_doc)
+            zone.ttree = root.create_ttree()
+            return
+        return root.tree
+
+    def generate_child(self, parent):
+        """Generate one node, given its parent (plus the candidate generator must be
+        initialized for the current DA)."""
+        formeme, t_lemma, right = self.candgen.sample_child(parent)
+        child = parent.create_child(right, NodeData(t_lemma, formeme))
+        return child
+
+
 class ASearchPlanner(SentencePlanner):
     """Sentence planner using A*-search."""
 

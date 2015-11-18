@@ -350,6 +350,28 @@ class RandomCandidateGenerator(object):
             exps[key] = sum(1 - cdf_val for cdf_val in cdf_arr)
         return exps
 
+    def sample_child(self, parent_node):
+        """Draw a random sample from the current distribution of children, given a
+        parent node (the generator must be initialized for an input DA using `init_run`)."""
+        parent_id = self._parent_node_id(parent_node)
+        if parent_id not in self.cur_cdfs:
+            return None
+        return self._sample(self.cur_cdfs[parent_id])
+
+    def _sample(self, cdf):
+        """Return a sample from the distribution, given a CDF (as a list)."""
+        total = cdf[-1][1]
+        rand = rnd.random() * total  # get a random number in [0,total)
+        for key, ubound in cdf:
+            if ubound > rand:
+                return key
+        raise Exception('Unable to generate from CDF!')
+
+    def sample_number_of_children(self, parent_id):
+        if parent_id not in self.child_num_cdfs:
+            return 0
+        return self._sample(self.child_num_cdfs[parent_id])
+
     def get_all_successors(self, cand_tree):
         """Get all possible successors of a candidate tree, given CDFS and node number limits.
 
