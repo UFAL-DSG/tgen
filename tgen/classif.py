@@ -69,7 +69,6 @@ class TreeClassifier(object):
             self.train_order = range(len(self.train_trees))
             if self.randomize:
                 rnd.shuffle(self.train_order)
-            log_info("Train order: " + str(self.train_order))
             self._training_pass(iter_no)
 
     def classify(self, trees):
@@ -226,6 +225,7 @@ class TreeClassifier(object):
         pass_start_time = time.time()
 
         log_debug('\n***\nTR %05d:' % pass_no)
+        log_debug("Train order: " + str(self.train_order))
 
         pass_cost = 0
         pass_diff = 0
