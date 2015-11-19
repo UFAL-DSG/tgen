@@ -22,6 +22,8 @@ from tgen.features import Features
 from tgen.ml import DictVectorizer
 from tgen.nn import ClassifNN, FeedForward, Flatten, Conv1D, Pool1D, Embedding
 from tgen.embeddings import TreeEmbeddingExtract
+from tgen.tree import TreeData
+from alex.components.slu.da import DialogueAct
 
 
 class TreeClassifier(object):
@@ -131,6 +133,15 @@ class TreeClassifier(object):
         train_size = int(round(data_portion * len(trees)))
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
+
+        # add empty tree + empty DA to training data
+        # (i.e. forbid the network to keep any of its outputs "always-on")
+        train_size += 1
+        self.train_trees.append(TreeData())
+        empty_da = DialogueAct()
+        empty_da.parse('inform()')
+        self.train_das.append(empty_da)
+
         self.train_order = range(len(self.train_trees))
         log_info('Using %d training instances.' % train_size)
 
