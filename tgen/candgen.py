@@ -14,7 +14,7 @@ from alex.components.nlg.tectotpl.core.util import file_stream
 
 from futil import read_das, read_ttrees, ttrees_from_doc
 from tree import TreeNode, NodeData
-from tgen.logf import log_warn
+from tgen.logf import log_warn, log_debug
 from tgen.tree import TreeData
 from tgen.planner import CandidateList
 from tgen.rnd import rnd
@@ -422,10 +422,13 @@ class RandomCandidateGenerator(object):
 
         # if we have the tree classifier available, discard all successors that talk about something
         # not present in the current DA
-        if self.classif:
+        if self.classif and res:
+            orig_len = len(res)
             is_subset = self.classif.is_subset_of_cur_da(res)
             res = [tree for tree, is_sub in zip(res, is_subset) if is_sub]
-
+            final_len = len(res)
+            if orig_len > final_len:
+                log_debug('Tree classification reduced successors %d -> %d' % (orig_len, final_len))
         # return all created successors
         return res
 
