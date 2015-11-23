@@ -2,11 +2,12 @@
 #
 # Converting BAGEL data set to our DA format.
 #
-# Usage: ./convert.pl [-a slot1,slot2] [-s] input output-das output-text output-abstraction
+# Usage: ./convert.pl [-a slot1,slot2] [-s] [-j] input output-das output-text output-abstraction
 #
 # -a = list of slots to be abstracted (replaced with "X-slot")
 # -s = skip values that are not abstracted in the ABSTRACT_DA lines in the actual BAGEL data.
-#
+# -j = join repeated values for the same slot (e.g. area=X&area=Y -> area="X and Y", works
+#          only for abstracted values.
 
 use strict;
 use warnings;
@@ -24,10 +25,12 @@ use Treex::Core::Log;
 
 my $abstr_slots_str   = '';
 my $skip_unabstracted = 0;
+my $join_repeats      = 0;
 
 if (not GetOptions(
-        "abstract|abstr|a=s"          => \$abstr_slots_str,
-        "skip-unabstracted|skip|skip" => \$skip_unabstracted,
+        "abstract|abstr|a=s"       => \$abstr_slots_str,
+        "skip-unabstracted|skip|s" => \$skip_unabstracted,
+        "join-repeats|join|j"      => \$join_repeats,
     )
     or @ARGV != 5
     )
@@ -138,10 +141,10 @@ sub process_instance {
     my $abstract_vals = get_abstract_vals($abstract_da);
 
     # Convert DA text; abstract needed values
-    my ( $da_line, $full_vals ) = convert_da( $full_da, $abstract_vals );
+    my ( $da_line, $full_vals, $slot_joins ) = convert_da( $full_da, $abstract_vals );
 
     # Produce tokenized sentence and abstraction instructions according to abstraction settings
-    my ( $sent, $abstr ) = convert_text( $text, $full_vals );
+    my ( $sent, $abstr ) = convert_text( $text, $full_vals, $slot_joins );
 
     # produce de-abstracted sentence where X's are replaced by the actual values
     my $conc_sent = deabstract( $sent, $abstr );
@@ -159,7 +162,7 @@ sub process_instance {
 }
 
 sub print_instance {
-    my ( $instance ) = @_;
+    my ($instance) = @_;
 
     print {$out_das} $instance->{da},    "\n";
     print {$out_text} $instance->{text}, "\n";
@@ -195,6 +198,7 @@ sub convert_da {
     my ( $full_da_in, $abstract_vals ) = @_;
     my $full_da_out = '';
     my %slot_vals   = ();
+    my %slot_joins  = ();
 
     # basic data format conversion
     $full_da_in =~ s/FULL_DA = //;
@@ -210,7 +214,18 @@ sub convert_da {
         }
         push @{ $slot_vals{$slot} }, $val;
         if ( defined( $abstr_slots{$slot} ) and ( !$skip_unabstracted or $abstract_val =~ /^"?X[0-9]+"?$/ ) ) {
-            $full_da_out .= "inform($slot=X-$slot)&";
+
+            # join repeated values using "and" if join_repeats is in force
+            # keep track of joined slots for text conversion
+            if ( $join_repeats and @{ $slot_vals{$slot} } > 1 ) {
+                my $join_val = join( ' and ', @{ $slot_vals{$slot} } );
+                $join_val =~ s/" and "/ and /g;
+                $slot_vals{$slot} = [$join_val];
+                $slot_joins{$slot} = ( $slot_joins{$slot} // 0 ) + 1;
+            }
+            else {
+                $full_da_out .= "inform($slot=X-$slot)&";
+            }
         }
         else {
             $full_da_out .= "inform($slot=$val)&";
@@ -218,14 +233,15 @@ sub convert_da {
     }
     $full_da_out =~ s/&*$//;
 
-    return ( $full_da_out, \%slot_vals );
+    return ( $full_da_out, \%slot_vals, \%slot_joins );
 }
 
-# Convert one text line (sentence), using abstraction according to global settings (+values from DA conversion)
+# Convert one text line (sentence), using abstraction according to global settings 
+# (+values from DA conversion and list of joined repeated values)
 # Output abstract sentence + de-abstraction instructions
 sub convert_text {
 
-    my ( $sent, $da_vals ) = @_;
+    my ( $sent, $da_vals, $slot_joins ) = @_;
 
     $sent =~ s/-> "//;
     $sent =~ s/";//;
@@ -245,27 +261,51 @@ sub convert_text {
     my $abstr    = '';
     my $in_abstr = 0;
     my $i        = 0;
+    my $slot     = '';
 
     # produce output tokenized sentences along with abstraction instructions
     foreach my $token (@tokens) {
 
-        if ( $token =~ /^\[(.*)\+.*\]/ ) {    # [slot+val] – need to abstract this
+        # [slot+val] – starting abstraction
+        if ( $token =~ /^\[(.*)\+.*\]/ ) {
 
-            my $slot = $1;
-            my $val  = shift_push $da_vals->{$slot};    # cycle the values (in case they repeat)
+            # joining repeated slots: just count the values, do not start new abstraction
+            if ( $in_abstr and $slot_joins->{$slot} and $1 eq $slot ) {
+                $slot_joins->{$slot}--;
+                next;
+            }
+
+            $slot = $1;
+            my $val = shift_push $da_vals->{$slot};    # cycle the values (in case they repeat)
             if ($in_abstr) {
                 $abstr .= $i . "\t";
             }
             $abstr .= "$slot=$val:$i-";
             $in_abstr = 1;
         }
-        elsif ( $token =~ /^\[/ ) {                     # [slot] or [] – just end previous abstraction
+
+        # [slot] or [] – end previous abstraction
+        elsif ( $token =~ /^\[(.*)\]/ ) {
+
+            # joining repeated slots: continue abstraction if slot does not change
+            if ( $in_abstr and $slot_joins->{$slot} ) {
+                $slot = $1 // $slot;
+                next;
+            }
+            $slot = $1 // $slot;
             if ($in_abstr) {
                 $abstr .= $i . "\t";
                 $in_abstr = 0;
             }
         }
-        else {                                          # plain words
+
+        # plain words – print them to output
+        else {
+
+            # skip 'and X' if joining repeated slots
+            if ( $in_abstr and $slot_joins->{$slot} ) {
+                next;
+            }
             $sent .= $token . ' ';
             $i++;
         }
