@@ -52,7 +52,7 @@ $training_data .= ' + dlimit cg' if ( $training_set =~ /dlimit$/ );
 $training_data .= ' + llimit cg' if ( $training_set =~ /llimit$/ );
 $training_data .= ' + delex cg'  if ( $training_set =~ /delex$/ );
 $training_data .= ' + lex cg'    if ( $training_set =~ /[12]$/ );
-if ( $training_set =~ /-(s?comp[_a-z0-9]*)$/ ) {
+if ( $training_set =~ /-(.*)$/ ) {
     $training_data .= ' + ' . $1 . ' cg';
 }
 
