@@ -219,7 +219,9 @@ sub convert_da {
             # keep track of joined slots for text conversion
             if ( $join_repeats and @{ $slot_vals{$slot} } > 1 ) {
                 my $join_val = join( ' and ', @{ $slot_vals{$slot} } );
-                $join_val =~ s/" and "/ and /g;
+                $join_val =~ s/"? and "?/ and /g;
+                $join_val =~ s/^(?!")/"/g;
+                $join_val =~ s/(?<!")$/"/g;
                 $slot_vals{$slot} = [$join_val];
                 $slot_joins{$slot} = ( $slot_joins{$slot} // 0 ) + 1;
             }
@@ -242,7 +244,7 @@ sub convert_da {
 sub convert_text {
 
     my ( $sent, $da_vals, $slot_joins ) = @_;
-
+    
     $sent =~ s/-> "//;
     $sent =~ s/";//;
 
@@ -262,17 +264,27 @@ sub convert_text {
     my $in_abstr = 0;
     my $i        = 0;
     my $slot     = '';
+    my @slots = ();
+
+    # print STDERR "\n\n";
+    # print STDERR join(" ", @tokens) . "\n\n";
 
     # produce output tokenized sentences along with abstraction instructions
     foreach my $token (@tokens) {
-
+        
         # [slot+val] – starting abstraction
         if ( $token =~ /^\[(.*)\+.*\]/ ) {
 
             # joining repeated slots: just count the values, do not start new abstraction
-            if ( $in_abstr and $slot_joins->{$slot} and $1 eq $slot ) {
+            if ( $in_abstr and $slot_joins->{$slot} and ( $1 eq $slot ) ) {
+                # print STDERR $i, "\t", $token, "\t", $slot, " J" . ($slot_joins->{$slot} // '-'), "\t", ( $in_abstr ? 'ABSTR' : '' ), "\t", $sent, "/skip dec\n";
                 $slot_joins->{$slot}--;
                 next;
+            }
+            # discontinuous repeated slots: just remember that this slot occurred already
+            if ( $in_abstr and $slot_joins->{$slot} and ( $1 ne $slot ) ) {
+                $slot_joins->{$slot}--;
+                $abstr =~ s/\t[^\t]*$/\t/;
             }
 
             $slot = $1;
@@ -288,11 +300,20 @@ sub convert_text {
         elsif ( $token =~ /^\[(.*)\]/ ) {
 
             # joining repeated slots: continue abstraction if slot does not change
-            if ( $in_abstr and $slot_joins->{$slot} ) {
-                $slot = $1 // $slot;
+            if ( $in_abstr and ( ( $1 || $slot ) eq $slot ) and $slot_joins->{$slot} ) {
+                $slot = $1 || $slot;
+                # print STDERR $i, "\t", $token, "\t", $slot, " J" . ($slot_joins->{$slot} // '-'), "\t", ( $in_abstr ? 'ABSTR' : '' ), "\t", $sent, "/skip join\n";
                 next;
             }
-            $slot = $1 // $slot;
+            # discontinuous repeated slots: just remember that this slot occurred already
+            if ( $in_abstr and ( ( $1 || $slot ) ne $slot ) and $slot_joins->{$slot} ) {
+                $slot_joins->{$slot}--;
+                $slot = $1 || $slot;
+                $abstr =~ s/\t[^\t]*$/\t/;
+                $in_abstr = 0;
+                next;
+            }
+            $slot = $1 || $slot;
             if ($in_abstr) {
                 $abstr .= $i . "\t";
                 $in_abstr = 0;
@@ -304,11 +325,22 @@ sub convert_text {
 
             # skip 'and X' if joining repeated slots
             if ( $in_abstr and $slot_joins->{$slot} ) {
+                # print STDERR $i, "\t", $token, "\t", $slot, " J" . ($slot_joins->{$slot} // '-'), "\t", ( $in_abstr ? 'ABSTR' : '' ), "\t", $sent, "/skip plain\n";
                 next;
+            }
+            if ( $token ne '.' and $in_abstr and defined( $abstr_slots{$slot} ) and not $skip_unabstracted ){
+                if ( $in_abstr > 1 ){
+                    next;
+                }
+                $in_abstr = 2;
+                $token = 'X';
             }
             $sent .= $token . ' ';
             $i++;
         }
+
+        # print STDERR $i, "\t", $token, "\t", $slot, " J" . ($slot_joins->{$slot} // '-'), "\t", ( $in_abstr ? 'ABSTR' : '' ), "\t", $sent, "\n";
+
     }
     if ($in_abstr) {
         $abstr .= $i;
@@ -317,6 +349,8 @@ sub convert_text {
 
     $sent =~ s/\s*$//;
     $abstr =~ s/\s*$//;
+
+    # print STDERR $sent, "\n";
 
     return ( $sent, $abstr );
 }
