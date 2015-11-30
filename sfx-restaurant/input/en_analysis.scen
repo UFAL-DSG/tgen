@@ -1,1 +1,56 @@
-../../bagel-data/input/en_analysis.scen
+Util::SetGlobal language=en
+W2A::ResegmentSentences # !! Splitting two-sentence utterances
+W2A::TokenizeOnWhitespace # Assuming pretokenized text
+W2A::EN::NormalizeForms
+W2A::EN::FixTokenization
+W2A::EN::TagMorce
+W2A::EN::FixTags
+W2A::EN::Lemmatize
+A2N::EN::NameTag
+A2N::EN::DistinguishPersonalNames
+W2A::MarkChunks
+W2A::EN::ParseMST model=conll_mcd_order2_0.01.model
+W2A::EN::SetIsMemberFromDeprel
+W2A::EN::RehangConllToPdtStyle
+W2A::EN::FixNominalGroups
+W2A::EN::FixIsMember
+W2A::EN::FixAtree
+W2A::EN::FixMultiwordPrepAndConj
+W2A::EN::FixDicendiVerbs
+W2A::EN::SetAfunAuxCPCoord
+W2A::EN::SetAfun
+W2A::FixQuotes
+A2A::ConvertTags input_driver=en::penn
+A2A::EN::EnhanceInterset
+A2T::EN::MarkEdgesToCollapse
+A2T::EN::MarkEdgesToCollapseNeg
+A2T::BuildTtree
+A2T::SetIsMember
+A2T::EN::MoveAuxFromCoordToMembers
+A2T::EN::FixTlemmas
+A2T::EN::SetCoapFunctors
+A2T::EN::FixEitherOr
+A2T::EN::FixHowPlusAdjective
+A2T::FixIsMember
+A2T::EN::MarkClauseHeads
+A2T::EN::SetFunctors
+A2T::EN::MarkInfin
+A2T::EN::MarkRelClauseHeads
+A2T::EN::MarkRelClauseCoref
+A2T::EN::MarkDspRoot
+A2T::MarkParentheses
+A2T::SetNodetype
+A2T::EN::SetFormemeInterset
+A2T::EN::SetTense
+A2T::EN::SetGrammatemes
+A2T::SetGrammatemesFromAux # this adds definiteness information
+A2T::EN::SetSentmod
+A2T::EN::RehangSharedAttr
+A2T::EN::SetVoice
+A2T::EN::FixImperatives
+A2T::EN::SetIsNameOfPerson
+A2T::EN::SetGenderOfPerson
+A2T::EN::AddCorAct
+T2T::SetClauseNumber
+A2T::EN::FixRelClauseNoRelPron
+Misc::JoinBundles  # !! Joining two-sentence utterances
