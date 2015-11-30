@@ -337,14 +337,19 @@ norm_log:
 	fi; \
 	cat $(LOGFILE) | head -n $(LOG_CUTOFF) | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > $(LOGFILE).norm ; \
 
+candgen_train: TRY_DIR := model/$(TRAINING_SET)
 candgen_train:
-	for D in training1$(CANDGEN_ID) training2$(CANDGEN_ID); do \
-	    if [[ ! -d data/$$D ]]; then \
-		continue; \
-	    fi; \
-	    mkdir -p model/$$D; \
-	    ../run_tgen.py candgen_train $(CANDGEN_PARAMS) data/$$D/train-das.txt data/$$D/train-text.pickle.gz model/$$D/candgen.pickle.gz; \
-	done
+	mkdir -p $(TRY_DIR)
+	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
+	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
+	echo -e "Training set: $(TRAINING_SET)\nParams: $(CANDGEN_PARAMS)" > $(TRY_DIR)/PARAMS
+	PARAMS="$(CANDGEN_PARAMS)" ; \
+        if [[ -n `echo $$PARAMS | grep -- '-t'` ]]; then \
+                CL_CONFIG=`echo "$$PARAMS" | sed 's/.*-t //'`; \
+                PARAMS=`echo "$$PARAMS" | sed 's/-t .*/-t /'`"$$CL_CONFIG" ; \
+                cp $$CL_CONFIG $(TRY_DIR)/classif_config.py; \
+        fi; \
+        ../run_tgen.py candgen_train $$PARAMS $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz $(TRY_DIR)/candgen.pickle.gz 2>&1 | tee $(TRY_DIR)/training.log
 
 compare_output:
 	cat $(TRY_DIR)/test-conc.sgm | sed 's/<\/doc>/***/;s/<[^>]*>//g;s/ \././g;/^$$/d;4,24s/^/* /;28,$$s/^/+ /;' | awk '{print tolower($$0)}' > $(TRY_DIR)/test-conc.txt
