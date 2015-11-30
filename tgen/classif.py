@@ -207,7 +207,7 @@ class TreeClassifier(object):
 
         # create the network, connect layers
         self.classif = ClassifNN(layers, self.input_shape, input_types, normgrad=False)
-        log_info("Network shape:\n\n" + str(self.nn))
+        log_info("Network shape:\n\n" + str(self.classif))
 
     def _ff_layers(self, name, num_layers):
         ret = []
