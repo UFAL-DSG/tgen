@@ -116,6 +116,17 @@ class TreeClassifier(object):
         covered = self.classify(trees)
         return [((c != 0) | da_bin == da_bin).all() for c in covered]
 
+    def corresponds_to_cur_da(self, trees):
+        """Given an array of trees, this gives a boolean array indicating which
+        trees currently cover exactly the current DA (set via `init_run`).
+
+        @param trees: the trees to test against the current DA
+        @return: boolean array, with True where the tree covers/describes a subset of the current DA
+        """
+        da_bin = self.cur_da_bin
+        covered = self.classify(trees)
+        return [((c != 0) == da_bin).all() for c in covered]
+
     def _init_training(self, das_file, ttree_file, data_portion):
         """Initialize training.
 

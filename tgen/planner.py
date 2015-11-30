@@ -235,7 +235,9 @@ class ASearchPlanner(SentencePlanner):
         self.num_iter = -1
         self.cdfs = None
         self.node_limits = None
-        self.beam_size = None
+        self.beam_size = cfg.get('beam_size', 1)
+        self.prune_size = None
+        self.classif_termination = cfg.get('classif_termination')
 
     def generate_tree(self, da, gen_doc=None):
         """Generate a tree for the given DA.
@@ -263,7 +265,7 @@ class ASearchPlanner(SentencePlanner):
         self.num_iter = -1
         self.input_da = None
 
-    def init_run(self, input_da, max_iter=None, max_defic_iter=None, beam_size=None):
+    def init_run(self, input_da, max_iter=None, max_defic_iter=None, prune_size=None, beam_size=None):
         """Init the A*-search generation for the given input DA, with the given parameters
         (the parameters override any previously set parameters, such as those loaded from
         configuration upon class creation).
@@ -271,7 +273,8 @@ class ASearchPlanner(SentencePlanner):
         @param input_da: The input DA for which a tree is to be generated
         @param max_iter: Maximum number of iteration (hard termination)
         @param max_defic_iter: Maximum number of deficit iteration (soft termination)
-        @param beam_size: Beam size if pruning is to be used
+        @param prune_size: Beam size for open list pruning
+        @param beam_size: Beam size for candidate expansion (expand more at a time if > 1)
         """
         log_debug('GEN TREE for DA: %s' % unicode(input_da))
 
@@ -291,37 +294,47 @@ class ASearchPlanner(SentencePlanner):
             self.max_iter = max_iter
         if max_defic_iter is not None:
             self.max_defic_iter = max_defic_iter
+        if prune_size is not None:
+            self.prune_size = prune_size
         if beam_size is not None:
             self.beam_size = beam_size
 
-    def run(self, input_da, max_iter=None, max_defic_iter=None, beam_size=None):
+    def run(self, input_da, max_iter=None, max_defic_iter=None, prune_size=None, beam_size=None):
         """Run the A*-search generation. The open and close lists of this object
         will contain the results (the best tree is the best one on the close list).
 
         @param input_da: the input dialogue act
         @param max_iter: maximum number of iterations for generation
-        @param gold_ttree: a gold t-tree to check if it matches the current candidate
+        @param max_defic_iter: Maximum number of deficit iteration (soft termination)
+        @param prune_size: Beam size for open list pruning
+        @param beam_size: Beam size for candidate expansion (expand more at a time if > 1)
         @return: None
         """
-        self.init_run(input_da, max_iter, max_defic_iter, beam_size)
+        self.init_run(input_da, max_iter, max_defic_iter, prune_size, beam_size)
         # main search loop
         while not self.check_finalize():
             self.run_iter()
 
     def run_iter(self):
-        """Run one iteration of the A*-search generation algorithm. Move the best candidate
-        from open list to close list and try to expand it in all ways possible, then put the results
-        on the open list. Keep track of the number of iteration and deficit iteration so that
-        the termination condition evaluates properly.
+        """Run one iteration of the A*-search generation algorithm. Move the best candidate(s)
+        from open list to close list and try to expand them in all ways possible, then put them
+        results on the open list. Keep track of the number of iteration and deficit iteration
+        so that the termination condition evaluates properly.
         """
 
-        # log_debug("   OPEN : %s" % str(open_list))
-        # log_debug("   CLOSE: %s" % str(close_list))
-        cand, score = self.open_list.pop()
-        self.close_list.push(cand, score[1])  # only use score without future promise
-        log_debug("-- IT %4d: O %5d S %12.5f -- %s" %
-                  (self.num_iter, len(self.open_list), -score[1], unicode(cand)))
-        successors = [succ for succ in self.candgen.get_all_successors(cand)
+        cands = []
+        while len(cands) < self.beam_size and self.open_list:
+            cand, score = self.open_list.pop()
+            self.close_list.push(cand, score[1])  # only use score without future promise
+            cands.append(cand)
+
+            if len(cands) == 0:
+                log_debug("-- IT %4d: O %5d S %12.5f -- %s" %
+                          (self.num_iter, len(self.open_list), -score[1], unicode(cand)))
+
+        successors = [succ
+                      for succ in self.candgen.get_all_successors(cand)
+                      for cand in cands
                       if succ not in self.close_list]
 
         if successors:
@@ -332,8 +345,8 @@ class ASearchPlanner(SentencePlanner):
                                      for succ, score, futpr in zip(successors, scores, futprs)])
             # pruning (if supposed to do it)
             # TODO do not even add them on the open list when pruning
-            if self.beam_size is not None:
-                pruned = self.open_list.prune(self.beam_size)
+            if self.prune_size is not None:
+                pruned = self.open_list.prune(self.prune_size)
                 self.close_list.push_all(pruned)
         self.num_iter += 1
 
@@ -353,20 +366,28 @@ class ASearchPlanner(SentencePlanner):
             log_debug('DEFICIT ITERATION LIMIT REACHED')
 
     def check_finalize(self):
-        """Check if the termination criterion is met. If it is met, push everything from
+        """Check if termination criterion(s) are met. If so, push everything from
         open list to close list, getting rid of future cost, and return True. Otherwise
-        just return false.
+        just return False.
         """
+        terminate = False
 
-        # check termination criterion, return false if it is not met
-        if (self.open_list and self.num_iter < self.max_iter and
+        # a) terminate as soon as we have full DA coverage on top of close list
+        if self.classif_termination and self.close_list:
+            cand, _ = self.close_list.peek()
+            if self.candgen.classif.corresponds_to_cur_da([cand]):
+                terminate = True
+
+        # b) terminate if there are too many iterations or too many deficit iterations
+        if not (self.open_list and self.num_iter < self.max_iter and
                 (self.max_defic_iter is None or self.defic_iter <= self.max_defic_iter)):
-            return False
+            terminate = True
 
         # if we should terminate,
         # push everything from open list to close list, getting rid of future cost
-        while self.open_list:
-            cand, score = self.open_list.pop()
-            self.close_list.push(cand, score[1])
+        if terminate:
+            while self.open_list:
+                cand, score = self.open_list.pop()
+                self.close_list.push(cand, score[1])
 
-        return True
+        return terminate

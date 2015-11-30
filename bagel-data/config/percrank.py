@@ -84,14 +84,14 @@ config = {
           'passes': 200,
           'rival_gen_max_iter': 200,
           'rival_gen_max_defic_iter': 3,
-          # 'rival_gen_beam_size': 20, # actually slows it down
+          # 'rival_gen_beam_size': 1,
           'future_promise_weight': 0,
           'future_promise_type': 'norm_exp_children',  # default: exp_children
-          'nn': 'emb_prev',
+          'nn': False,  # 'emb_prev',
           'initialization': 'norm_sqrt',
           'num_hidden_units': 128,
           'emb_size': 50,
-          'alpha': 0.001,
+          'alpha': 0.1,
           'nn_shape': 'conv2-ff',
           'cnn_filter_length': 3,
           'cnn_num_filters': 32,

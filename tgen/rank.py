@@ -70,6 +70,7 @@ class BasePerceptronRanker(Ranker):
         self.rival_gen_max_iter = cfg.get('rival_gen_max_iter', 50)
         self.rival_gen_max_defic_iter = cfg.get('rival_gen_max_defic_iter', 3)
         self.rival_gen_beam_size = cfg.get('rival_gen_beam_size')
+        self.rival_gen_prune_size = cfg.get('rival_gen_prune_size')
         self.candgen_model = cfg.get('candgen_model')
         self.diffing_trees = cfg.get('diffing_trees', False)
 
@@ -157,6 +158,7 @@ class BasePerceptronRanker(Ranker):
         rgen_max_iter = self._get_num_iters(pass_no, self.rival_gen_max_iter)
         rgen_max_defic_iter = self._get_num_iters(pass_no, self.rival_gen_max_defic_iter)
         rgen_beam_size = self.rival_gen_beam_size
+        rgen_prune_size = self.rival_gen_prune_size
         rgen_strategy = self._get_rival_gen_strategy(pass_no)
 
         for tree_no in self.train_order:
@@ -174,11 +176,13 @@ class BasePerceptronRanker(Ranker):
 
                 # generate using current weights
                 if strategy == 'gen_cur_weights':
-                    gen = self._gen_cur_weights(gold, rgen_max_iter, rgen_max_defic_iter, rgen_beam_size)
+                    gen = self._gen_cur_weights(gold, rgen_max_iter, rgen_max_defic_iter,
+                                                rgen_prune_size, rgen_beam_size)
 
                 # generate while trying to update weights
                 elif strategy == 'gen_update':
-                    gen = self._gen_update(gold, rgen_max_iter, rgen_max_defic_iter, rgen_beam_size)
+                    gen = self._gen_update(gold, rgen_max_iter, rgen_max_defic_iter,
+                                           rgen_prune_size, rgen_beam_size)
 
                 # check against other possible candidates/combinations
                 else:
@@ -336,7 +340,7 @@ class BasePerceptronRanker(Ranker):
 
         return gen
 
-    def _gen_cur_weights(self, gold, max_iter, max_defic_iter, beam_size):
+    def _gen_cur_weights(self, gold, max_iter, max_defic_iter, prune_size, beam_size):
         """
         Get the best candidate generated using the A*search planner, which uses this ranker with current
         weights to guide the search, and the current DA as the input.
@@ -344,13 +348,14 @@ class BasePerceptronRanker(Ranker):
         @param gold: the gold-standard Inst holding the input DA for generation and the reference tree
         @param max_iter: maximum number of A*-search iterations to run
         @param max_defic_iter: maximum number of deficit A*-search iterations (stopping criterion)
-        @param beam_size: beam size for pruning
+        @param prune_size: beam size for open list pruning
+        @param beam_size: beam size for candidate expansion (expand more per iteration if > 1)
         @return: The best generated tree that is different from the gold-standard tree
         @rtype: Inst
         """
         log_debug('GEN-CUR-WEIGHTS')
         # TODO make asearch_planner remember features (for last iteration, maybe)
-        self.asearch_planner.run(gold.da, max_iter, max_defic_iter, beam_size)
+        self.asearch_planner.run(gold.da, max_iter, max_defic_iter, prune_size, beam_size)
         return self.get_best_generated(gold)
 
     def get_best_generated(self, gold):
@@ -377,7 +382,7 @@ class BasePerceptronRanker(Ranker):
         log_debug("GEN :\t", "%12.5f" % gen.score, "\t", gen.tree)
         return gen
 
-    def _gen_update(self, gold, max_iter, max_defic_iter, beam_size):
+    def _gen_update(self, gold, max_iter, max_defic_iter, prune_size, beam_size):
         """Try generating using the current weights, but update the weights after each
         iteration if the result is not going in the right direction (not a subtree of the
         gold-standard tree).
@@ -385,13 +390,14 @@ class BasePerceptronRanker(Ranker):
         @param gold: the gold-standard Inst holding the input DA for generation and the reference tree
         @param max_iter: maximum number of A*-search iterations to run
         @param max_defic_iter: maximum number of deficit A*-search iterations (stopping criterion)
-        @param beam_size: beam size for pruning
+        @param prune_size: beam size for open list pruning
+        @param beam_size: beam size for candidate expansion (expand more per iteration if > 1)
         @return: The best generated tree that is different from the gold-standard tree
         @rtype: Inst
         """
 
         log_debug('GEN-UPDATE')
-        self.asearch_planner.init_run(gold.da, max_iter, max_defic_iter, beam_size)
+        self.asearch_planner.init_run(gold.da, max_iter, max_defic_iter, prune_size, beam_size)
 
         while not self.asearch_planner.check_finalize():
             # run one A*search iteration
