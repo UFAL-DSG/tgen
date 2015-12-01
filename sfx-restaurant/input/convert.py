@@ -101,6 +101,11 @@ def postprocess_sent(sent):
     sent = re.sub(r'\s+', ' ', sent)
     return sent
 
+def fix_capitalization(sent):
+    sent = re.sub(r' [.?!] [a-z]', lambda m: m.string[m.start():m.end()].upper(), sent)
+    sent = sent[0].upper() + sent[1:]
+    return sent
+
 
 def find_substr(needle, haystack):
     """Find a sub-list in a list of tokens.
@@ -231,6 +236,9 @@ def convert(args):
                 da = parse_da(turn['S']['dact'])
                 conc = postprocess_sent(turn['S']['ref'])
                 text, da, abst = abstract_sent(da, conc, slots_to_abstract)
+
+                text = fix_capitalization(text)
+                conc = fix_capitalization(conc)
 
                 das.append(da)
                 concs.append(conc)
