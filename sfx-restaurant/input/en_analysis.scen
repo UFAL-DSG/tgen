@@ -53,4 +53,5 @@ A2T::EN::SetGenderOfPerson
 A2T::EN::AddCorAct
 T2T::SetClauseNumber
 A2T::EN::FixRelClauseNoRelPron
+Util::Eval tnode='if ($.t_lemma eq "#PersPron" and $.get_lex_anode()){ $.set_t_lemma($.get_lex_anode()->form)}' # set #PersPron lemma back to the original form
 Misc::JoinBundles  # !! Joining two-sentence utterances
