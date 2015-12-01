@@ -51,8 +51,8 @@ train-%.txt: all-%.txt
 test-%.txt: all-%.txt
 	tail -n 42 $< > $@
 
-grammatemes.tsv: train-text.treex.gz
-	treex -Len Read::Treex from=$< Print::GrammatemesForTgen to=$@
+grammatemes.tsv: train-text.treex.gz train-das.txt
+	treex -Len Read::Treex from=$< Print::GrammatemesForTgen to=$@ da_file=train-das.txt
 
 %-conc.sgm: %-conc.txt
 	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset | sed 's/docid="[^"]*"/docid="test"/' > $@
