@@ -24,6 +24,10 @@ class EmbeddingExtract(object):
         """Get the embeddings of a data instance."""
         raise NotImplementedError()
 
+    def get_embeddings_shape(self):
+        """Return the shape of the embedding matrix (for one object, disregarding batches)."""
+        raise NotImplementedError
+
 
 class DAEmbeddingExtract(EmbeddingExtract):
     """Extracting embeddings for dialogue acts (currently, just slot-value list)."""
@@ -73,6 +77,9 @@ class DAEmbeddingExtract(EmbeddingExtract):
             da_emb_idxs.append([self.UNK_SLOT, self.UNK_VALUE])
 
         return da_emb_idxs
+
+    def get_embeddings_shape(self):
+        return [self.max_da_len, 2]
 
 
 class TreeEmbeddingExtract(EmbeddingExtract):
@@ -139,3 +146,6 @@ class TreeEmbeddingExtract(EmbeddingExtract):
             tree_emb_idxs.append(node_emb_idxs)
 
         return tree_emb_idxs
+
+    def get_embeddings_shape(self):
+        return [self.max_tree_len, 4 if self.prev_node_emb else 3]

@@ -361,7 +361,10 @@ class NN(object):
     def connect_layer(self, layer, y, shapes=None):
 
         if len(layer) == len(y):
-            y = [l_i.connect(y_i, shape) for l_i, y_i, shape in zip(layer, y, shapes)]
+            if shapes is not None:
+                y = [l_i.connect(y_i, shape) for l_i, y_i, shape in zip(layer, y, shapes)]
+            else:
+                y = [l_i.connect(y_i) for l_i, y_i in zip(layer, y)]
         elif len(layer) == 1:
             y = [layer[0].connect(y, shapes)]
         else:

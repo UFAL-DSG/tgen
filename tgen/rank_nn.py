@@ -205,14 +205,14 @@ class EmbNNRanker(NNRanker):
         # initial layer – tree embeddings & DA 1-hot or embeddings
         # input shapes don't contain the batch dimension, but the input Theano types do!
         if self.da_embs:
-            input_shapes = ([self.max_da_len, 2],
-                            [self.max_tree_len, 4 if self.prev_node_emb else 3])
+            input_shapes = (self.da_embs.get_embeddings_shape(),
+                            self.tree_embs.get_embeddings_shape())
             input_types = (T.itensor3, T.itensor3)
             layers = [[Embedding('emb_da', self.dict_size, self.emb_size, 'uniform_005'),
                        Embedding('emb_tree', self.dict_size, self.emb_size, 'uniform_005')]]
         else:
             input_shapes = ([len(self.vectorizer.get_feature_names())],
-                            [self.max_tree_len, 4 if self.prev_node_emb else 3])
+                            self.tree_embs.get_embeddings_shape())
             input_types = (T.fmatrix, T.itensor3)
             layers = [[Identity('id_da'),
                        Embedding('emb_tree', self.dict_size, self.emb_size, 'uniform_005')]]
