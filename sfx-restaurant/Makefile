@@ -212,7 +212,7 @@ cv_score-%:
 	make cv_score TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
 
 cv_score:
-	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+	$(AVERAGE_SCORES) $(TRY_DIR)/*/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
 
 score-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
