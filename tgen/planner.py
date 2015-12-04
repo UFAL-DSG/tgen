@@ -375,7 +375,7 @@ class ASearchPlanner(SentencePlanner):
         # a) terminate as soon as we have full DA coverage on top of close list
         if self.classif_termination and self.close_list:
             cand, _ = self.close_list.peek()
-            if self.candgen.classif.corresponds_to_cur_da([cand]):
+            if all(self.candgen.classif.corresponds_to_cur_da([cand])):
                 terminate = True
 
         # b) terminate if there are too many iterations or too many deficit iterations
