@@ -20,10 +20,7 @@ import socket
 import cPickle as pickle
 import time
 import datetime
-import numpy as np
-import msgpack
-import msgpack_numpy
-msgpack_numpy.patch()
+import os
 
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
@@ -42,49 +39,19 @@ class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
     pass
 
 
-def make_serializable(obj):
-    if isinstance(obj, (int, float, long, complex, bool, basestring, np.ndarray)):
-        return obj
-#         elif isinstance(val, np.ndarray):
-#             attribs[key] =
-    elif isinstance(obj, list):
-        return [make_serializable(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: make_serializable(item) for key, item in obj.iteritems()}
-    else:
-        return pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
+def dump_ranker(ranker, work_dir):
 
+    fname = os.path.abspath(os.path.join(work_dir, 'rdump.pickle'))
 
-def deserialize(obj):
-    if isinstance(obj, str):
-        try:
-            return pickle.loads(obj)
-        except:
-            return obj
-    elif isinstance(obj, list):
-        return [deserialize(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: deserialize(item) for key, item in obj.iteritems()}
-    else:
-        return obj
-
-
-def dump_ranker(ranker):
-
-    attribs = {'__class__': pickle.dumps(ranker.__class__)}
-    for key, val in ranker.__dict__.iteritems():
-        attribs[key] = make_serializable(val)
-    return msgpack.dumps(attribs)
+    with open(fname, 'wb') as fh:
+        pickle.dump(ranker, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    return fname
 
 
 def load_ranker(dump):
 
-    dump = msgpack.loads(dump)
-    ranker_class = pickle.loads(dump['__class__'])
-    del dump['__class__']
-    ranker = ranker_class({})
-    for key, value in dump.iteritems():
-        setattr(ranker, key, deserialize(value))
+    with open(dump, 'rb') as fh:
+        ranker = pickle.load(fh)
     return ranker
 
 
@@ -95,7 +62,7 @@ def get_worker_registrar_for(head):
     # ranker_dump = pickle.dumps(head.loc_ranker, protocol=pickle.HIGHEST_PROTOCOL)
     log_info('Saving ranker init state...')
     tstart = time.time()
-    ranker_dump = dump_ranker(head.loc_ranker)
+    ranker_dump = dump_ranker(head.loc_ranker, head.work_dir)
     log_info('Ranker init state saved in %f secs.' % (time.time() - tstart))
 
     class WorkerRegistrarService(Service):
@@ -286,7 +253,7 @@ class RankerTrainingService(Service):
         """(Worker) Just deep-copy all necessary attributes from the head instance."""
         tstart = time.time()
         log_info('Initializing training...')
-        self.ranker_inst = load_ranker(head_ranker)
+        self.ranker_inst = head_ranker
         log_info('Training initialized. Time taken: %f secs.' % (time.time() - tstart))
 
     def exposed_training_pass(self, w, pass_no, rnd_seed, data_offset, data_len):
@@ -300,8 +267,14 @@ class RankerTrainingService(Service):
         """
         log_info('Training pass %d with data portion %d + %d' %
                  (pass_no, data_offset, data_len))
-        # import current feature weights
+        # use the local ranker instance (unpickle on first use)
         ranker = self.ranker_inst
+        if isinstance(ranker, basestring):
+            tstart = time.time()
+            ranker = load_ranker(ranker)
+            log_info('Unpickling: %f secs.' % (time.time() - tstart))
+            self.ranker_inst = ranker
+        # import current feature weights
         tstart = time.time()
         ranker.set_weights(pickle.loads(w))
         log_info('Weights loading: %f secs.' % (time.time() - tstart))
