@@ -568,7 +568,7 @@ class FeaturesPerceptronRanker(BasePerceptronRanker):
 
 
 class PerceptronRanker(FeaturesPerceptronRanker):
-    """Peceptron ranker based on linear Perceptron by Collins & Duffy (2002)."""
+    """Perceptron ranker based on linear Perceptron by Collins & Duffy (2002)."""
 
     def __init__(self, cfg):
         super(PerceptronRanker, self).__init__(cfg)
