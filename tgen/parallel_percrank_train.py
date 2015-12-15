@@ -20,6 +20,10 @@ import socket
 import cPickle as pickle
 import time
 import datetime
+import numpy as np
+import msgpack
+import msgpack_numpy
+msgpack_numpy.patch()
 
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
@@ -38,11 +42,61 @@ class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
     pass
 
 
+def make_serializable(obj):
+    if isinstance(obj, (int, float, long, complex, bool, basestring, np.ndarray)):
+        return obj
+#         elif isinstance(val, np.ndarray):
+#             attribs[key] =
+    elif isinstance(obj, list):
+        return [make_serializable(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: make_serializable(item) for key, item in obj.iteritems()}
+    else:
+        return pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def deserialize(obj):
+    if isinstance(obj, str):
+        try:
+            return pickle.loads(obj)
+        except:
+            return obj
+    elif isinstance(obj, list):
+        return [deserialize(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: deserialize(item) for key, item in obj.iteritems()}
+    else:
+        return obj
+
+
+def dump_ranker(ranker):
+
+    attribs = {'__class__': pickle.dumps(ranker.__class__)}
+    for key, val in ranker.__dict__.iteritems():
+        attribs[key] = make_serializable(val)
+    return msgpack.dumps(attribs)
+
+
+def load_ranker(dump):
+
+    dump = msgpack.loads(dump)
+    ranker_class = pickle.loads(dump['__class__'])
+    del dump['__class__']
+    ranker = ranker_class({})
+    for key, value in dump.iteritems():
+        setattr(ranker, key, deserialize(value))
+    return ranker
+
+
 def get_worker_registrar_for(head):
     """Return a class that will handle worker registration for the given head."""
 
     # create a dump of the head to be passed to workers
-    ranker_dump = pickle.dumps(head.loc_ranker, protocol=pickle.HIGHEST_PROTOCOL)
+    # ranker_dump = pickle.dumps(head.loc_ranker, protocol=pickle.HIGHEST_PROTOCOL)
+    log_info('Saving ranker init state...')
+    tstart = time.time()
+    ranker_dump = dump_ranker(head.loc_ranker)
+    log_info('Ranker init state saved in %f secs.' % (time.time() - tstart))
 
     class WorkerRegistrarService(Service):
 
@@ -230,9 +284,10 @@ class RankerTrainingService(Service):
 
     def exposed_init_training(self, head_ranker):
         """(Worker) Just deep-copy all necessary attributes from the head instance."""
+        tstart = time.time()
         log_info('Initializing training...')
-        self.ranker_inst = pickle.loads(head_ranker)
-        log_info('Training initialized.')
+        self.ranker_inst = load_ranker(head_ranker)
+        log_info('Training initialized. Time taken: %f secs.' % (time.time() - tstart))
 
     def exposed_training_pass(self, w, pass_no, rnd_seed, data_offset, data_len):
         """(Worker) Run one pass over a part of the training data.
@@ -247,7 +302,9 @@ class RankerTrainingService(Service):
                  (pass_no, data_offset, data_len))
         # import current feature weights
         ranker = self.ranker_inst
+        tstart = time.time()
         ranker.set_weights(pickle.loads(w))
+        log_info('Weights loading: %f secs.' % (time.time() - tstart))
         # save rest of the training data to temporary variables, set just the
         # required portion for computation
         all_train_das = ranker.train_das
@@ -273,7 +330,10 @@ class RankerTrainingService(Service):
         ranker.train_order = all_train_order
         # return the result of the computation
         log_info('Training pass %d / %d / %d done.' % (pass_no, data_offset, data_len))
-        return pickle.dumps((ranker.get_weights(), ranker.get_diagnostics()), pickle.HIGHEST_PROTOCOL)
+        tstart = time.time()
+        dump = pickle.dumps((ranker.get_weights(), ranker.get_diagnostics()), pickle.HIGHEST_PROTOCOL)
+        log_info('Weights saving: %f secs.' % (time.time() - tstart))
+        return dump
 
 
 def run_worker(head_host, head_port, debug_out=None):
