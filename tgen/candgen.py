@@ -437,7 +437,9 @@ class RandomCandidateGenerator(object):
         expectations for the individual node types)."""
         promise = 0.0
         for node_idx in xrange(len(cand_tree)):
-            exp_child_num = self.exp_child_num[self._parent_node_id(cand_tree.nodes[node_idx])]
+            # if the key does not exist, it means that this node type is always a leaf in training data,
+            # hence expected number of children is 0 in that case.
+            exp_child_num = self.exp_child_num.get(self._parent_node_id(cand_tree.nodes[node_idx]), 0)
             promise += max(cand_tree.children_num(node_idx) - exp_child_num, 0)
         return promise
 
