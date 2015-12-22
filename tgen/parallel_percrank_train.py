@@ -21,6 +21,7 @@ import cPickle as pickle
 import time
 import datetime
 import os
+import tempfile
 
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
@@ -34,10 +35,6 @@ from tgen.rnd import rnd
 from tgen.rank import Ranker, PerceptronRanker
 
 
-# initial ranker state is temporarily stored here (in the working directory) to be picked up by the jobs
-RANKER_DUMP_PATH = 'rdump.pickle'
-
-
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
     """This stores a connection along with its address."""
     pass
@@ -45,11 +42,10 @@ class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
 
 def dump_ranker(ranker, work_dir):
 
-    fname = os.path.abspath(os.path.join(work_dir, RANKER_DUMP_PATH))
-
-    with open(fname, 'wb') as fh:
-        pickle.dump(ranker, fh, protocol=pickle.HIGHEST_PROTOCOL)
-    return fname
+    fh = tempfile.NamedTemporaryFile(suffix='.pickle', prefix='rdump-', dir=work_dir, delete=False)
+    pickle.dump(ranker, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    fh.close()
+    return fh.name
 
 
 def load_ranker(dump):
@@ -66,7 +62,8 @@ def get_worker_registrar_for(head):
     log_info('Saving ranker init state...')
     tstart = time.time()
     ranker_dump_path = dump_ranker(head.loc_ranker, head.work_dir)
-    log_info('Ranker init state saved in %f secs.' % (time.time() - tstart))
+    log_info('Ranker init state saved in %s, it took %f secs.' % (ranker_dump_path,
+                                                                  time.time() - tstart))
 
     class WorkerRegistrarService(Service):
 
@@ -176,7 +173,7 @@ class ParallelRanker(Ranker):
 
                 # delete the temporary ranker dump when the 1st iteration is complete
                 if self.ranker_dump_path:
-                    log_info('Removing temporary ranker dump.')
+                    log_info('Removing temporary ranker dump at %s.' % self.ranker_dump_path)
                     os.remove(self.ranker_dump_path)
                     self.ranker_dump_path = None
 
