@@ -22,6 +22,7 @@ import time
 import datetime
 import os
 import tempfile
+import numpy as np
 
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
@@ -43,7 +44,13 @@ class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
 def dump_ranker(ranker, work_dir):
 
     fh = tempfile.NamedTemporaryFile(suffix='.pickle', prefix='rdump-', dir=work_dir, delete=False)
+    # we are storing training features separately in NumPy format since including them in
+    # the pickle may lead to a crash for very large feature matrices
+    # (see https://github.com/numpy/numpy/issues/2396).
+    train_feats = ranker.train_feats
+    ranker.train_feats = None
     pickle.dump(ranker, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    np.save(fh, train_feats)
     fh.close()
     return fh.name
 
@@ -52,6 +59,8 @@ def load_ranker(dump):
 
     with open(dump, 'rb') as fh:
         ranker = pickle.load(fh)
+        train_feats = np.load(fh)
+        ranker.train_feats = train_feats
     return ranker
 
 
