@@ -176,6 +176,7 @@ class ParallelRanker(Ranker):
 
                 # delete the temporary ranker dump when the 1st iteration is complete
                 if self.ranker_dump_path:
+                    log_info('Removing temporary ranker dump.')
                     os.remove(self.ranker_dump_path)
                     self.ranker_dump_path = None
 
@@ -224,7 +225,7 @@ class ParallelRanker(Ranker):
                 if req.error:
                     log_info('Error loading on %s:%d' % (sc.host, sc.port))
                 else:
-                    log_info('Service %s:%d finished loading.' % (sc.host, sc.port))
+                    log_info('Worker %s:%d finished loading.' % (sc.host, sc.port))
             # data processing request -- retrieve the value
             else:
                 log_debug('Ready %d' % req_portion)
