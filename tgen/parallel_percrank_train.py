@@ -20,6 +20,7 @@ import socket
 import cPickle as pickle
 import time
 import datetime
+import os
 
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
@@ -33,16 +34,39 @@ from tgen.rnd import rnd
 from tgen.rank import Ranker, PerceptronRanker
 
 
+# initial ranker state is temporarily stored here (in the working directory) to be picked up by the jobs
+RANKER_DUMP_PATH = 'rdump.pickle'
+
+
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
     """This stores a connection along with its address."""
     pass
+
+
+def dump_ranker(ranker, work_dir):
+
+    fname = os.path.abspath(os.path.join(work_dir, RANKER_DUMP_PATH))
+
+    with open(fname, 'wb') as fh:
+        pickle.dump(ranker, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    return fname
+
+
+def load_ranker(dump):
+
+    with open(dump, 'rb') as fh:
+        ranker = pickle.load(fh)
+    return ranker
 
 
 def get_worker_registrar_for(head):
     """Return a class that will handle worker registration for the given head."""
 
     # create a dump of the head to be passed to workers
-    ranker_dump = pickle.dumps(head.loc_ranker, protocol=pickle.HIGHEST_PROTOCOL)
+    log_info('Saving ranker init state...')
+    tstart = time.time()
+    ranker_dump_path = dump_ranker(head.loc_ranker, head.work_dir)
+    log_info('Ranker init state saved in %f secs.' % (time.time() - tstart))
 
     class WorkerRegistrarService(Service):
 
@@ -52,15 +76,15 @@ def get_worker_registrar_for(head):
             log_info('Worker %s:%d connected, initializing training.' % (host, port))
             conn = connect(host, port, config={'allow_pickle': True})
             # initialize the remote server (with training data etc.)
-            log_info('Ranker dump size: %d' % sys.getsizeof(ranker_dump))
-            conn.root.init_training(ranker_dump)
+            init_func = async(conn.root.init_training)
+            req = init_func(ranker_dump_path)
             # add it to the list of running services
             sc = ServiceConn(host, port, conn)
             head.services.add(sc)
-            head.free_services.append(sc)
+            head.pending_requests.add((sc, None, req))
             log_info('Worker %s:%d initialized.' % (host, port))
 
-    return WorkerRegistrarService
+    return WorkerRegistrarService, ranker_dump_path
 
 
 class ParallelRanker(Ranker):
@@ -127,19 +151,13 @@ class ParallelRanker(Ranker):
                 # wait for free services / assign computation
                 while cur_portion < self.data_portions or self.pending_requests:
                     log_debug('Starting loop over services.')
+
                     # check if some of the pending computations have finished
                     for sc, req_portion, req in list(self.pending_requests):
-                        log_debug('Checking %d' % req_portion)
-                        if req.ready:
-                            log_debug('Ready %d' % req_portion)
-                            log_info('Retrieved finished request %d / %d' % (iter_no, req_portion))
-                            if req.error:
-                                log_info('Error found on request: IT %d PORTION %d, WORKER %s:%d' %
-                                         (iter_no, req_portion, sc.host, sc.port))
-                            results[req_portion] = pickle.loads(req.value)
-                            self.pending_requests.remove((sc, req_portion, req))
-                            self.free_services.append(sc)
-                        log_debug('Done with %d' % req_portion)
+                        res = self._check_pending_request(iter_no, sc, req_portion, req)
+                        if res:
+                            results[req_portion] = res
+
                     # check for free services and assign new computation
                     while cur_portion < self.data_portions and self.free_services:
                         log_debug('Assigning request %d' % cur_portion)
@@ -155,6 +173,12 @@ class ParallelRanker(Ranker):
                     # sleep for a while
                     log_debug('Sleeping.')
                     time.sleep(self.poll_interval)
+
+                # delete the temporary ranker dump when the 1st iteration is complete
+                if self.ranker_dump_path:
+                    log_info('Removing temporary ranker dump.')
+                    os.remove(self.ranker_dump_path)
+                    self.ranker_dump_path = None
 
                 # gather/average the diagnostic statistics
                 self.loc_ranker.set_diagnostics_average([d for _, d in results])
@@ -175,9 +199,53 @@ class ParallelRanker(Ranker):
             for job in self.jobs:
                 job.delete()
 
+    def _check_pending_request(self, iter_no, sc, req_portion, req):
+        """Check whether the given request has finished (i.e., job is loaded or job has
+        processed the given data portion.
+
+        If the request is finished, the worker that processed it is moved to the pool
+        of free services.
+
+        @param iter_no: current iteration number (for logging)
+        @param sc: a ServiceConn object that stores the worker connection parameters
+        @param req_portion: current data portion number (is None for jobs loading)
+        @param req: the request itself
+
+        @return: the value returned by the finished data processing request, or None \
+            (for loading requests or unfinished requests)
+        """
+        result = None
+        if req_portion is not None:
+            log_debug('Checking %d' % req_portion)
+
+        # checking if the request has finished
+        if req.ready:
+            # loading requests -- do nothing (just logging)
+            if req_portion is None:
+                if req.error:
+                    log_info('Error loading on %s:%d' % (sc.host, sc.port))
+                else:
+                    log_info('Worker %s:%d finished loading.' % (sc.host, sc.port))
+            # data processing request -- retrieve the value
+            else:
+                log_debug('Ready %d' % req_portion)
+                log_info('Retrieved finished request %d / %d' % (iter_no, req_portion))
+                if req.error:
+                    log_info('Error found on request: IT %d PORTION %d, WORKER %s:%d' %
+                             (iter_no, req_portion, sc.host, sc.port))
+                result = pickle.loads(req.value)
+
+            # add the worker to the pool of free services (both loading and data processing requests)
+            self.pending_requests.remove((sc, req_portion, req))
+            self.free_services.append(sc)
+
+        if req_portion is not None:
+            log_debug('Done with %d' % req_portion)
+        return result
+
     def _init_server(self):
         """Initializes a server that registers new workers."""
-        registrar_class = get_worker_registrar_for(self)
+        registrar_class, ranker_dump_path = get_worker_registrar_for(self)
         n_tries = 0
         self.server = None
         last_error = None
@@ -200,6 +268,7 @@ class ParallelRanker(Ranker):
         self.server_thread = Thread(target=self.server.start)
         self.server_thread.setDaemon(True)
         self.server_thread.start()
+        self.ranker_dump_path = ranker_dump_path
 
     def _get_portion_bounds(self, portion_no):
         """(Head) return the offset and size of the specified portion of the training
@@ -228,11 +297,12 @@ class RankerTrainingService(Service):
         super(RankerTrainingService, self).__init__(conn_ref)
         self.ranker_inst = None
 
-    def exposed_init_training(self, head_ranker):
+    def exposed_init_training(self, head_ranker_path):
         """(Worker) Just deep-copy all necessary attributes from the head instance."""
+        tstart = time.time()
         log_info('Initializing training...')
-        self.ranker_inst = pickle.loads(head_ranker)
-        log_info('Training initialized.')
+        self.ranker_inst = load_ranker(head_ranker_path)
+        log_info('Training initialized. Time taken: %f secs.' % (time.time() - tstart))
 
     def exposed_training_pass(self, w, pass_no, rnd_seed, data_offset, data_len):
         """(Worker) Run one pass over a part of the training data.
@@ -245,9 +315,12 @@ class RankerTrainingService(Service):
         """
         log_info('Training pass %d with data portion %d + %d' %
                  (pass_no, data_offset, data_len))
-        # import current feature weights
+        # use the local ranker instance
         ranker = self.ranker_inst
+        # import current feature weights
+        tstart = time.time()
         ranker.set_weights(pickle.loads(w))
+        log_info('Weights loading: %f secs.' % (time.time() - tstart))
         # save rest of the training data to temporary variables, set just the
         # required portion for computation
         all_train_das = ranker.train_das
@@ -273,7 +346,10 @@ class RankerTrainingService(Service):
         ranker.train_order = all_train_order
         # return the result of the computation
         log_info('Training pass %d / %d / %d done.' % (pass_no, data_offset, data_len))
-        return pickle.dumps((ranker.get_weights(), ranker.get_diagnostics()), pickle.HIGHEST_PROTOCOL)
+        tstart = time.time()
+        dump = pickle.dumps((ranker.get_weights(), ranker.get_diagnostics()), pickle.HIGHEST_PROTOCOL)
+        log_info('Weights saving: %f secs.' % (time.time() - tstart))
+        return dump
 
 
 def run_worker(head_host, head_port, debug_out=None):
