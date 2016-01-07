@@ -158,6 +158,7 @@ class Seq2SeqGen(SentencePlanner):
         # TODO fix configuration
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
+        self.passes = cfg.get('passes', 5)
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -206,8 +207,9 @@ class Seq2SeqGen(SentencePlanner):
         for i in xrange(self.max_tree_len):
             self.dec_inputs.append(tf.placeholder(tf.int32, [None], name=('dec_inp-%d' % i)))
 
-        # targets are just decoder inputs shifted by one
+        # targets are just decoder inputs shifted by one (+pad with one empty spot)
         self.targets = [self.dec_inputs[i + 1] for i in xrange(len(self.dec_inputs) - 1)]
+        self.targets.append(tf.placeholder(tf.int32, [None], name=('target-pad')))
 
         # prepare building blocks
         # TODO change dimension when BasicLSTMCell is replaced
@@ -222,8 +224,10 @@ class Seq2SeqGen(SentencePlanner):
             self.enc_inputs, self.dec_inputs, self.cell,
             self.da_dict_size, self.tree_dict_size)
 
-        # weights
-        self.cost_weights = tf.ones_like(self.targets, tf.float32, name='cost_weights')
+        # target weights
+        # TODO change to actual weights, zero after the end of tree
+        self.cost_weights = [tf.ones_like(trg, tf.float32, name='cost_weights')
+                             for trg in self.targets]
 
         # cost
         self.cost = sequence_loss(self.outputs, self.targets, self.cost_weights, self.tree_dict_size)
@@ -238,17 +242,34 @@ class Seq2SeqGen(SentencePlanner):
 
     def _training_pass(self, iter_no):
 
+        it_cost = 0.0
+
         for batch_no in self.train_order:
 
+            # feed data into the TF session:
+
+            # initial state
             initial_state = np.zeros([self.batch_size, self.emb_size])
+            feed_dict = {self.initial_state: initial_state}
 
-            feed_dict = {self.enc_inputs: self.train_enc[batch_no],
-                         self.dec_inputs: self.train_dec[batch_no],
-                         self.initial_state: initial_state}
+            # encoder inputs
+            for i in xrange(len(self.train_enc[batch_no])):
+                feed_dict[self.enc_inputs[i]] = self.train_enc[batch_no][i]
 
+            # decoder inputs
+            for i in xrange(len(self.train_dec[batch_no])):
+                feed_dict[self.dec_inputs[i]] = self.train_dec[batch_no][i]
+
+            # the last target output (pad to have the same number of steps as there are decoder
+            # inputs) is always 'VOID'
+            feed_dict[self.targets[-1]] = len(self.train_dec[batch_no][0]) * [self.tree_embs.VOID]
+
+            # run the TF session (one optimizer step == train_func) and get the cost
             _, cost = self.session.run([self.train_func, self.cost], feed_dict=feed_dict)
 
-            log_info('It %d Batch %d -- cost: %8.5f' % (iter_no, batch_no, cost))
+            it_cost += cost
+
+        log_info('IT %d total cost: %8.5f' % (iter_no, cost))
 
     def train(self, das_file, ttree_file, data_portion=1.0):
 
