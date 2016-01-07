@@ -154,11 +154,9 @@ class SentencePlanner(object):
     """Common ancestor of sentence planners."""
 
     def __init__(self, cfg):
-        """Initialize, setting language, selector, and successor generator"""
+        """Initialize, setting language and selector."""
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
-        # candidate generator
-        self.candgen = cfg['candgen']
 
     def generate_tree(self, da, gen_doc=None):
         """Generate a tree given input DA.
@@ -191,6 +189,8 @@ class SamplingPlanner(SentencePlanner):
 
     def __init__(self, cfg):
         super(SamplingPlanner, self).__init__(cfg)
+        # candidate generator
+        self.candgen = cfg['candgen']
 
     def generate_tree(self, da, gen_doc=None):
         root = TreeNode(TreeData())
@@ -225,6 +225,7 @@ class ASearchPlanner(SentencePlanner):
 
     def __init__(self, cfg):
         super(ASearchPlanner, self).__init__(cfg)
+        self.candgen = cfg['candgen']
         self.ranker = cfg['ranker']
         self.max_iter = cfg.get('max_iter', self.MAX_ITER)
         self.max_defic_iter = cfg.get('max_defic_iter')

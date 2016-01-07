@@ -50,6 +50,7 @@ from tgen.parallel_percrank_train import ParallelRanker
 from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
 from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
+from tgen.seq2seq import Seq2SeqGen
 
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
@@ -159,6 +160,29 @@ def percrank_train(args):
     # avoid the "maximum recursion depth exceeded" error
     sys.setrecursionlimit(100000)
     ranker.save_to_file(fname_rank_model)
+
+
+def seq2seq_train(args):
+
+    train_size = 1.0
+
+    opts, files = getopt(args, 's:')
+
+    for opt, arg in opts:
+        if opt == '-s':
+            train_size = float(arg)
+
+    if len(files) != 4:
+        sys.exit(__doc__)
+
+    fname_gen_config, fname_train_das, fname_train_ttrees, fname_gen_model = files
+    log_info('Training sequence-to-sequence generator...')
+
+    config = Config(fname_gen_config)
+    generator = Seq2SeqGen(config)
+
+    generator.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
+    generator.save_to_file(fname_gen_model)
 
 
 def sample_gen(args):
@@ -331,6 +355,8 @@ if __name__ == '__main__':
         sample_gen(args)
     elif action == 'asearch_gen':
         asearch_gen(args)
+    elif action == 'seq2seq_train':
+        seq2seq_train(args)
     else:
         # Unknown action
         sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)
