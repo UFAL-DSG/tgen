@@ -182,6 +182,7 @@ def seq2seq_train(args):
     generator = Seq2SeqGen(config)
 
     generator.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
+    sys.setrecursionlimit(100000)
     generator.save_to_file(fname_gen_model)
 
 

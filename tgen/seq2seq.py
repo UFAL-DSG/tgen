@@ -2,12 +2,19 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+
+import re
 import numpy as np
 import tensorflow as tf
+import cPickle as pickle
+import copy
 from itertools import izip_longest
-from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, sequence_loss
 
+from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, sequence_loss
 from tensorflow.models.rnn import rnn_cell
+
+from alex.components.nlg.tectotpl.core.util import file_stream
+
 from tgen.logf import log_info
 from tgen.futil import read_das, read_ttrees, trees_from_doc
 from tgen.embeddings import EmbeddingExtract
@@ -194,8 +201,11 @@ class Seq2SeqGen(SentencePlanner):
                                             for tree in self.train_trees],
                                            self.batch_size, None)]
 
-        # initialize the NN
+        # build the NN
         self._init_neural_network()
+
+        # initialize the NN variables
+        self.session.run(tf.initialize_all_variables())
 
     def _init_neural_network(self):
 
@@ -238,7 +248,9 @@ class Seq2SeqGen(SentencePlanner):
 
         # initialize session
         self.session = tf.Session()
-        self.session.run(tf.initialize_all_variables())
+
+        # this helps us load/save the model
+        self.saver = tf.train.Saver(tf.all_variables())
 
     def _training_pass(self, iter_no):
 
@@ -287,8 +299,37 @@ class Seq2SeqGen(SentencePlanner):
 
             self._training_pass(iter_no)
 
-    def save_to_file(self, fname):
-        raise NotImplementedError()
+    def save_to_file(self, model_fname):
+        log_info("Saving generator to %s..." % model_fname)
+        with file_stream(model_fname, 'wb', encoding=None) as fh:
+            data = {'emb_size': self.emb_size,
+                    'batch_size': self.batch_size,
+                    'randomize': self.randomize,
+                    'passes': self.passes,
+                    'da_embs': self.da_embs,
+                    'tree_embs': self.tree_embs,
+                    'da_dict_size': self.da_dict_size,
+                    'tree_dict_size': self.tree_dict_size,
+                    'max_da_len': self.max_da_len,
+                    'max_tree_len': self.max_tree_len}
+            pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        self.saver.save(self.session, tf_session_fname)
+
+    @staticmethod
+    def load_from_file(model_fname):
+        log_info("Loading generator from %s..." % model_fname)
+        ret = Seq2SeqGen(cfg={})
+        with file_stream(model_fname, 'rb', encoding=None) as fh:
+            data = pickle.load(fh)
+            ret.__dict__.update(data)
+
+        # re-build TF graph and restore the TF session
+        tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        ret._init_neural_network()
+        ret.saver.restore(ret.session, tf_session_fname)
+
+        return ret
 
     def generate_tree(self, inputs):
         raise NotImplementedError()
