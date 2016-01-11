@@ -20,6 +20,7 @@ from tgen.futil import read_das, read_ttrees, trees_from_doc
 from tgen.embeddings import EmbeddingExtract
 from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
+from tgen.tree import TreeData
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -107,6 +108,13 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
         self.dict_t_lemma = {'UNK_T_LEMMA': self.UNK_T_LEMMA}
         self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
         self.max_tree_len = cfg.get('max_da_len', 25)
+        self.id_to_string = {self.UNK_T_LEMMA: '<UNK_T_LEMMA>',
+                             self.UNK_FORMEME: '<UNK_FORMEME>',
+                             self.BR_OPEN: '<(>',
+                             self.BR_CLOSE: '<)>',
+                             self.GO: '<GO>',
+                             self.STOP: '<STOP>',
+                             self.VOID: '<>'}
 
     def init_dict(self, train_trees, dict_ord=None):
         """"""
@@ -117,9 +125,11 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
             for t_lemma, formeme in tree.nodes:
                 if t_lemma not in self.dict_t_lemma:
                     self.dict_t_lemma[t_lemma] = dict_ord
+                    self.id_to_string[dict_ord] = t_lemma
                     dict_ord += 1
                 if formeme not in self.dict_formeme:
                     self.dict_formeme[formeme] = dict_ord
+                    self.id_to_string[dict_ord] = formeme
                     dict_ord += 1
 
         return dict_ord
@@ -151,6 +161,17 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
         return tree_emb_idxs + padding
 
+    def ids_to_strings(self, emb):
+
+        # skip VOIDs at the end
+        i = len(emb) - 1
+        while i > 0 and emb[i] == self.VOID:
+            i -= 1
+
+        # convert all IDs to their tokens
+        ret = [unicode(self.id_to_string.get(tok_id, '<???>')) for tok_id in emb[:i]]
+        return ret
+
     def get_embeddings_shape(self):
         """Return the shape of the embedding matrix (for one object, disregarding batches)."""
         return [4 * self.max_tree_len + 2]
@@ -166,6 +187,7 @@ class Seq2SeqGen(SentencePlanner):
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
         self.passes = cfg.get('passes', 5)
+        self.alpha = cfg.get('alpha', 1e-3)
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -201,6 +223,11 @@ class Seq2SeqGen(SentencePlanner):
                                             for tree in self.train_trees],
                                            self.batch_size, None)]
 
+        for batch_no, batch in enumerate(self.train_dec):
+            log_info(('Batch %d\n' % batch_no) +
+                     "\n".join([' '.join(self.tree_embs.ids_to_strings(ids))
+                                for ids in cut_batch_into_steps(batch)]))
+
         # build the NN
         self._init_neural_network()
 
@@ -226,13 +253,22 @@ class Seq2SeqGen(SentencePlanner):
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
 
-        # build the actual LSTM Seq2Seq network
+        # build the actual LSTM Seq2Seq network (for training and decoding)
+        with tf.variable_scope("seq2seq_gen") as scope:
 
-        # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps
-        # states = cell states at each steps
-        self.outputs, self.states = embedding_rnn_seq2seq(
-            self.enc_inputs, self.dec_inputs, self.cell,
-            self.da_dict_size, self.tree_dict_size)
+            # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps
+            # states = cell states at each steps
+            self.outputs, self.states = embedding_rnn_seq2seq(
+                self.enc_inputs, self.dec_inputs, self.cell,
+                self.da_dict_size, self.tree_dict_size,
+                scope=scope)
+
+            scope.reuse_variables()
+
+            self.dec_outputs, self.dec_states = embedding_rnn_seq2seq(
+                self.enc_inputs, self.dec_inputs, self.cell,
+                self.da_dict_size, self.tree_dict_size,
+                feed_previous=True, scope=scope)
 
         # target weights
         # TODO change to actual weights, zero after the end of tree
@@ -243,7 +279,7 @@ class Seq2SeqGen(SentencePlanner):
         self.cost = sequence_loss(self.outputs, self.targets, self.cost_weights, self.tree_dict_size)
 
         # optimizer
-        self.optimizer = tf.train.AdamOptimizer(1e-4)
+        self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.train_func = self.optimizer.minimize(self.cost)
 
         # initialize session
@@ -272,16 +308,44 @@ class Seq2SeqGen(SentencePlanner):
             for i in xrange(len(self.train_dec[batch_no])):
                 feed_dict[self.dec_inputs[i]] = self.train_dec[batch_no][i]
 
-            # the last target output (pad to have the same number of steps as there are decoder
-            # inputs) is always 'VOID'
+            # the last target output (padding, to have the same number of step as there are decoder
+            # inputs) is always 'VOID' for all instances of the batch
             feed_dict[self.targets[-1]] = len(self.train_dec[batch_no][0]) * [self.tree_embs.VOID]
 
             # run the TF session (one optimizer step == train_func) and get the cost
+            # (1st value returned is None, throw it away)
             _, cost = self.session.run([self.train_func, self.cost], feed_dict=feed_dict)
 
             it_cost += cost
 
         log_info('IT %d total cost: %8.5f' % (iter_no, cost))
+
+    def process_batch(self, das):
+
+        # initial state
+        initial_state = np.zeros([self.batch_size, self.emb_size])
+        feed_dict = {self.initial_state: initial_state}
+
+        # encoder inputs
+        enc_inputs = cut_batch_into_steps([self.da_embs.get_embeddings(da)
+                                           for da in das])
+        for i in xrange(len(enc_inputs)):
+            feed_dict[self.enc_inputs[i]] = enc_inputs[i]
+
+        # (fake) decoder inputs
+        empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
+        dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in das])
+        for i in xrange(len(dec_inputs)):
+            feed_dict[self.dec_inputs[i]] = dec_inputs[i]
+
+        feed_dict[self.targets[-1]] = len(das) * [self.tree_embs.VOID]
+
+        # run the decoding
+        dec_outputs = self.session.run(self.dec_outputs, feed_dict=feed_dict)
+
+        # convert the output back into a tree
+        dec_output_ids = np.argmax(dec_outputs, axis=2)
+        return [self.tree_embs.ids_to_strings(ids) for ids in dec_output_ids.transpose()]
 
     def train(self, das_file, ttree_file, data_portion=1.0):
 
@@ -298,6 +362,10 @@ class Seq2SeqGen(SentencePlanner):
                 rnd.shuffle(self.train_order)
 
             self._training_pass(iter_no)
+
+            if iter_no % 10 == 0:
+                cur_out = self.process_batch(self.train_das[0:2])
+                log_info("Current output:\n" + "\n".join([' '.join(sent) for sent in cur_out]))
 
     def save_to_file(self, model_fname):
         log_info("Saving generator to %s..." % model_fname)
