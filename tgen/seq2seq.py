@@ -92,6 +92,7 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
 
 class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
+    # TODO try relative parents (good for non-projective, may be bad for non-local) ???
 
     UNK_T_LEMMA = 0
     UNK_FORMEME = 1
@@ -151,6 +152,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
         return embs
 
     def get_embeddings(self, tree):
+        """Return (list of) embedding (integer) IDs for a tree."""
 
         # get tree embeddings recursively
         tree_emb_idxs = [self.GO] + self._get_subtree_embeddings(tree, 0) + [self.STOP]
@@ -162,6 +164,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
         return tree_emb_idxs + padding
 
     def ids_to_strings(self, emb):
+        """Given embedding IDs, return list of strings where all VOIDs at the end are truncated."""
 
         # skip VOIDs at the end
         i = len(emb) - 1
@@ -169,7 +172,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
             i -= 1
 
         # convert all IDs to their tokens
-        ret = [unicode(self.id_to_string.get(tok_id, '<???>')) for tok_id in emb[:i]]
+        ret = [unicode(self.id_to_string.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
         return ret
 
     def get_embeddings_shape(self):
@@ -256,6 +259,7 @@ class Seq2SeqGen(SentencePlanner):
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope("seq2seq_gen") as scope:
 
+            # for training: feed_previous == False
             # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps
             # states = cell states at each steps
             self.outputs, self.states = embedding_rnn_seq2seq(
@@ -265,13 +269,16 @@ class Seq2SeqGen(SentencePlanner):
 
             scope.reuse_variables()
 
+            # for decoding: feed_previous == True
             self.dec_outputs, self.dec_states = embedding_rnn_seq2seq(
                 self.enc_inputs, self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
                 feed_previous=True, scope=scope)
 
+        # TODO use output projection ???
+
         # target weights
-        # TODO change to actual weights, zero after the end of tree
+        # TODO change to actual weights, zero after the end of tree ???
         self.cost_weights = [tf.ones_like(trg, tf.float32, name='cost_weights')
                              for trg in self.targets]
 
@@ -363,6 +370,7 @@ class Seq2SeqGen(SentencePlanner):
 
             self._training_pass(iter_no)
 
+            # print a little bit of training data every couple iterations
             if iter_no % 10 == 0:
                 cur_out = self.process_batch(self.train_das[0:2])
                 log_info("Current output:\n" + "\n".join([' '.join(sent) for sent in cur_out]))
