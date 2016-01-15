@@ -54,6 +54,7 @@ endif
 CANDGEN_MODEL = model/$(TRAINING_SET)/$(CV_NUM)/candgen.pickle.gz
 #PERCRANK_MODEL = model/percrank.pickle.gz
 PERCRANK_CONFIG = config/percrank.py
+SEQ2SEQ_CONFIG = config/seq2seq.py
 ASEARCH_CONFIG = config/asearch.py
 CLASSIF_CONFIG = config/classif.py
 TRAIN_PORTION = 1.0
@@ -241,6 +242,19 @@ percrank_train:
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
+seq2seq_train: RUN_NAME := seq2seq_train
+seq2seq_train: prepare_dir
+seq2seq_train:
+	# copy needed files (to ensure replication)
+	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
+	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
+	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
+	# run the experiment
+	$(QSUBMIT) '$(ACTIVATE); \
+		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
+		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" \
+		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
+		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
 asearch_gen: RUN_NAME := asearch_gen
 asearch_gen: prepare_dir

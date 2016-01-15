@@ -166,11 +166,16 @@ def seq2seq_train(args):
 
     train_size = 1.0
 
-    opts, files = getopt(args, 's:')
+    opts, files = getopt(args, 'd:s:r:')
 
     for opt, arg in opts:
+        if opt == '-d':
+            set_debug_stream(file_stream(arg, mode='w'))
         if opt == '-s':
             train_size = float(arg)
+        # TODO does random seed work with TF ??
+        elif opt == '-r' and arg:
+            rnd.seed(arg)
 
     if len(files) != 4:
         sys.exit(__doc__)
