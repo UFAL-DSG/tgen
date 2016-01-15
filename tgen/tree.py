@@ -8,6 +8,7 @@ Trees for generating.
 from __future__ import unicode_literals
 from collections import namedtuple, deque
 from alex.components.nlg.tectotpl.core.node import T
+from tgen.logf import log_info
 
 
 __author__ = "Ondřej Dušek"
@@ -86,6 +87,7 @@ class TreeData(object):
         @param parent_idx: index of the parent node
         @param child_idx: index of the newly created child node (or boolean: left/right of the current parent?)
         @param child_data: the child node itself as a `NodeData` instance
+        @return: the new child index
         """
         if isinstance(child_idx, bool):
             child_idx = parent_idx + 1 if child_idx else parent_idx
@@ -93,6 +95,35 @@ class TreeData(object):
         self.parents.insert(child_idx, parent_idx)
         self.parents = [idx + 1 if idx >= child_idx else idx for idx in self.parents]
         return child_idx
+
+    def move_node(self, node_idx, target_pos):
+        """Move the node on the given position to another position, shifting nodes in between
+        and updating parent indexes along the way.
+
+        @param node_idx: the index of the node to be moved
+        @param target_pos: the desired target position (index after the moving)
+        @return: None
+        """
+        if node_idx > target_pos:
+            self.nodes = (self.nodes[:target_pos] + [self.nodes[node_idx]] +
+                          self.nodes[target_pos:node_idx] + self.nodes[node_idx + 1:])
+            self.parents = (self.parents[:target_pos] + [self.parents[node_idx]] +
+                            self.parents[target_pos:node_idx] + self.parents[node_idx + 1:])
+            for pos in xrange(len(self)):
+                if self.parents[pos] == node_idx:
+                    self.parents[pos] = target_pos
+                elif self.parents[pos] >= target_pos and self.parents[pos] < node_idx:
+                    self.parents[pos] += 1
+        elif node_idx < target_pos:
+            self.nodes = (self.nodes[:node_idx] + self.nodes[node_idx + 1:target_pos + 1] +
+                          [self.nodes[node_idx]] + self.nodes[target_pos + 1:])
+            self.parents = (self.parents[:node_idx] + self.parents[node_idx + 1:target_pos + 1] +
+                            [self.parents[node_idx]] + self.parents[target_pos + 1:])
+            for pos in xrange(len(self)):
+                if self.parents[pos] == node_idx:
+                    self.parents[pos] = target_pos
+                elif self.parents[pos] > node_idx and self.parents[pos] <= target_pos:
+                    self.parents[pos] -= 1
 
     def subtree_bound(self, parent_idx, right):
         """Return the subtree bound of the given node (furthermost index belonging to the subtree),
