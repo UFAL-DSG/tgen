@@ -20,7 +20,7 @@ from tgen.futil import read_das, read_ttrees, trees_from_doc
 from tgen.embeddings import EmbeddingExtract
 from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
-from tgen.tree import TreeData
+from tgen.tree import TreeData, NodeData
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -35,8 +35,8 @@ def cut_batch_into_steps(batch):
     it along the other dimension – return a list of steps/words, each containing a numpy array of
     items for the given step for all examples from the batch.
     """
-    return np.squeeze(np.split(np.array([ex for ex in batch if ex is not None]),
-                               len(batch[0]), axis=1))
+    return np.squeeze(np.array(np.split(np.array([ex for ex in batch if ex is not None]),
+                                        len(batch[0]), axis=1)), axis=2)
 
 
 class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
@@ -175,6 +175,63 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
         ret = [unicode(self.id_to_string.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
         return ret
 
+    def ids_to_tree(self, emb):
+
+        tree = TreeData()
+        tree.nodes = []  # override the technical root -- the tree will be created including the technical root
+        tree.parents = []
+
+        # build the tree recursively (start at position 2 to skip the <GO> symbol and 1st opening bracket)
+        self._create_subtree(tree, -1, emb, 2)
+        return tree
+
+    def _create_subtree(self, tree, parent_idx, emb, pos):
+
+        node_idx = tree.create_child(parent_idx, len(tree), NodeData(None, None))
+        t_lemma = None
+        formeme = None
+
+        while pos < len(emb) and emb[pos] not in [self.BR_CLOSE, self.STOP, self.VOID]:
+
+            if emb[pos] == self.BR_OPEN:
+                # recurse into subtree
+                pos = self._create_subtree(tree, node_idx, emb, pos + 1)
+
+            elif emb[pos] == self.UNK_T_LEMMA:
+                if t_lemma is None:
+                    t_lemma = self.id_to_string[self.UNK_T_LEMMA]
+                pos += 1
+
+            elif emb[pos] == self.UNK_FORMEME:
+                if formeme is None:
+                    formeme = self.id_to_string[self.UNK_FORMEME]
+                pos += 1
+
+            elif emb[pos] >= self.MIN_VALID:
+                # remember the t-lemma and formeme for normal nodes
+                token = self.id_to_string.get(emb[pos])
+                if t_lemma is None:
+                    t_lemma = token
+                elif formeme is None:
+                    formeme = token
+
+                # move the node to its correct position
+                # (which we now know it's at the current end of the tree)
+                if node_idx != len(tree) - 1:
+                    tree.move_node(node_idx, len(tree) - 1)
+                    node_idx = len(tree) - 1
+                pos += 1
+
+        if emb[pos] == self.BR_CLOSE:
+            # skip this closing bracket so that we don't process it next time
+            pos += 1
+
+        # fill in the t-lemma and formeme that we've found
+        if t_lemma is not None or formeme is not None:
+            tree.nodes[node_idx] = NodeData(t_lemma, formeme)
+
+        return pos
+
     def get_embeddings_shape(self):
         """Return the shape of the embedding matrix (for one object, disregarding batches)."""
         return [4 * self.max_tree_len + 2]
@@ -191,6 +248,8 @@ class Seq2SeqGen(SentencePlanner):
         self.batch_size = cfg.get('batch_size', 10)
         self.passes = cfg.get('passes', 5)
         self.alpha = cfg.get('alpha', 1e-3)
+        self.validation_size = cfg.get('validation_size', 0)
+        self.validation_freq = cfg.get('validation_freq', 10)
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -205,7 +264,16 @@ class Seq2SeqGen(SentencePlanner):
         train_size = int(round(data_portion * len(trees)))
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
-        log_info('Using %d training instances.' % train_size)
+
+        # save part of the training data for validation:
+        if self.validation_size > 0:
+            self.valid_trees = self.train_trees[-self.validation_size:]
+            self.valid_das = self.train_das[-self.validation_size:]
+            self.train_trees = self.train_trees[:-self.validation_size]
+            self.train_das = self.train_das[:-self.validation_size]
+            train_size -= self.validation_size
+
+        log_info('Using %d training, %d validation instances.' % (train_size, self.validation_size))
 
         # initialize embeddings
         self.da_embs = DAEmbeddingSeq2SeqExtract()
@@ -225,11 +293,6 @@ class Seq2SeqGen(SentencePlanner):
                           for b in grouper([self.tree_embs.get_embeddings(tree)
                                             for tree in self.train_trees],
                                            self.batch_size, None)]
-
-        for batch_no, batch in enumerate(self.train_dec):
-            log_info(('Batch %d\n' % batch_no) +
-                     "\n".join([' '.join(self.tree_embs.ids_to_strings(ids))
-                                for ids in cut_batch_into_steps(batch)]))
 
         # build the NN
         self._init_neural_network()
@@ -327,10 +390,10 @@ class Seq2SeqGen(SentencePlanner):
 
         log_info('IT %d total cost: %8.5f' % (iter_no, cost))
 
-    def process_batch(self, das):
+    def process_das(self, das):
 
         # initial state
-        initial_state = np.zeros([self.batch_size, self.emb_size])
+        initial_state = np.zeros([len(das), self.emb_size])
         feed_dict = {self.initial_state: initial_state}
 
         # encoder inputs
@@ -370,10 +433,13 @@ class Seq2SeqGen(SentencePlanner):
 
             self._training_pass(iter_no)
 
-            # print a little bit of training data every couple iterations
-            if iter_no % 10 == 0:
-                cur_out = self.process_batch(self.train_das[0:2])
-                log_info("Current output:\n" + "\n".join([' '.join(sent) for sent in cur_out]))
+            # validate every couple iteration
+            if iter_no % self.validation_freq == 0:
+                cur_out = self.process_das(self.train_das[:self.batch_size])
+                log_info("Current train output:\n" + "\n".join([' '.join(sent) for sent in cur_out]))
+                if self.validation_size > 0:
+                    cur_out = self.process_das(self.valid_das)
+                    log_info("Current validation output:\n" + "\n".join([' '.join(sent) for sent in cur_out]))
 
     def save_to_file(self, model_fname):
         log_info("Saving generator to %s..." % model_fname)
