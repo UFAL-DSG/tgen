@@ -7,7 +7,6 @@ import re
 import numpy as np
 import tensorflow as tf
 import cPickle as pickle
-import copy
 from itertools import izip_longest
 
 from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, sequence_loss
@@ -436,10 +435,10 @@ class Seq2SeqGen(SentencePlanner):
             # validate every couple iteration
             if iter_no % self.validation_freq == 0:
                 cur_out = self.process_das(self.train_das[:self.batch_size])
-                log_info("Current train output:\n" + "\n".join([' '.join(sent) for sent in cur_out]))
+                log_info("Current train output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
                 if self.validation_size > 0:
                     cur_out = self.process_das(self.valid_das)
-                    log_info("Current validation output:\n" + "\n".join([' '.join(sent) for sent in cur_out]))
+                    log_info("Current validation output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
 
     def save_to_file(self, model_fname):
         log_info("Saving generator to %s..." % model_fname)
