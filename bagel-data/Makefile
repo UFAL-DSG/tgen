@@ -26,7 +26,7 @@ DESC_EXP = ../util/describe_experiment.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
-LOGFILES = $$file/T.* $$file/{asearch_gen.,gen.,}log.txt # logfile pattern to use for score printing
+LOGFILES = $$file/T.* $$file/{asearch_gen.,gen.,seq2seq_gen.,}log.txt # logfile pattern to use for score printing
 SCOREFILE = SCORE
 
 # Runs directories
@@ -337,7 +337,7 @@ gen_process:
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
 		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
-		2>&1 | tee $(TRY_DIR)/*gen.log.txt
+		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
 rerun-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
