@@ -270,6 +270,15 @@ class Seq2SeqGen(SentencePlanner):
             self.valid_das = self.train_das[-self.validation_size:]
             self.train_trees = self.train_trees[:-self.validation_size]
             self.train_das = self.train_das[:-self.validation_size]
+            # detecting two instances of each DA in training data -- remove also the 2nd copy
+            # so that validation data are also "unseen"
+            if self.train_das[train_size / 2 - 1] == self.valid_das[-1]:
+                log_info('Detected duplicate DAs in training data: removing both copies for validation')
+                self.train_trees = (self.train_trees[:train_size / 2 - self.validation_size] +
+                                    self.train_trees[train_size / 2:])
+                self.train_das = (self.train_das[:train_size / 2 - self.validation_size] +
+                                  self.train_das[train_size / 2:])
+                train_size -= self.validation_size
             train_size -= self.validation_size
 
         log_info('Using %d training, %d validation instances.' % (train_size, self.validation_size))
