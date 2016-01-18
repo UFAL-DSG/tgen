@@ -345,16 +345,19 @@ def asearch_gen(args):
 def seq2seq_gen(args):
     """Sequence-to-sequence generation"""
 
-    opts, files = getopt(args, 'e:d:w:s:')
+    opts, files = getopt(args, 'e:d:w:r:t:')
     eval_file = None
     fname_ttrees_out = None
-    eval_selector = ''
+    ref_selector = ''
+    target_selector = ''
 
     for opt, arg in opts:
         if opt == '-e':
             eval_file = arg
-        elif opt == '-s':
-            eval_selector = arg
+        elif opt == '-r':
+            ref_selector = arg
+        elif opt == '-t':
+            target_selector = arg
         elif opt == '-d':
             set_debug_stream(file_stream(arg, mode='w'))
         elif opt == '-w':
@@ -373,10 +376,12 @@ def seq2seq_gen(args):
         gen_doc = Document()
     else:
         eval_doc = read_ttrees(eval_file)
-        if eval_selector == tgen.selector:
+        if ref_selector == target_selector:
             gen_doc = Document()
         else:
             gen_doc = eval_doc
+
+    tgen.selector = target_selector
 
     # generate and evaluate
     if eval_file is not None:
@@ -385,8 +390,8 @@ def seq2seq_gen(args):
             tgen.generate_tree(da, gen_doc)
 
         # evaluate the generated trees against golden trees
-        eval_ttrees = ttrees_from_doc(eval_doc, tgen.language, eval_selector)
-        gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
+        eval_ttrees = ttrees_from_doc(eval_doc, tgen.language, ref_selector)
+        gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, target_selector)
 
         log_info('Evaluating...')
         evaler = Evaluator()
