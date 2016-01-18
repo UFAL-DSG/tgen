@@ -342,6 +342,80 @@ def asearch_gen(args):
         write_ttrees(gen_doc, fname_ttrees_out)
 
 
+def seq2seq_gen(args):
+    """Sequence-to-sequence generation"""
+
+    opts, files = getopt(args, 'e:d:w:s:')
+    eval_file = None
+    fname_ttrees_out = None
+    eval_selector = ''
+
+    for opt, arg in opts:
+        if opt == '-e':
+            eval_file = arg
+        elif opt == '-s':
+            eval_selector = arg
+        elif opt == '-d':
+            set_debug_stream(file_stream(arg, mode='w'))
+        elif opt == '-w':
+            fname_ttrees_out = arg
+
+    if len(files) != 2:
+        sys.exit('Invalid arguments.\n' + __doc__)
+    fname_seq2seq_model, fname_da_test = files
+
+    tgen = Seq2SeqGen.load_from_file(fname_seq2seq_model)
+
+    log_info('Generating...')
+    das = read_das(fname_da_test)
+
+    if eval_file is None:
+        gen_doc = Document()
+    else:
+        eval_doc = read_ttrees(eval_file)
+        if eval_selector == tgen.selector:
+            gen_doc = Document()
+        else:
+            gen_doc = eval_doc
+
+    # generate and evaluate
+    if eval_file is not None:
+        for num, da in enumerate(das, start=1):
+            log_debug("\n\nTREE No. %03d" % num)
+            tgen.generate_tree(da, gen_doc)
+
+        # evaluate the generated trees against golden trees
+        eval_ttrees = ttrees_from_doc(eval_doc, tgen.language, eval_selector)
+        gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, tgen.selector)
+
+        log_info('Evaluating...')
+        evaler = Evaluator()
+        for eval_bundle, eval_ttree, gen_ttree, da in zip(eval_doc.bundles, eval_ttrees, gen_ttrees, das):
+            # add some stats about the tree directly into the output file
+            add_bundle_text(eval_bundle, tgen.language, tgen.selector + 'Xscore',
+                            "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
+
+            # collect overall stats
+            # TODO maybe add cost ??
+            evaler.append(eval_ttree, gen_ttree)
+        # print overall stats
+        log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
+        log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
+        log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.tree_size_stats())
+        log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
+        log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
+                 evaler.common_subtree_stats())
+    # just generate
+    else:
+        for da in das:
+            tgen.generate_tree(da, gen_doc)
+
+    # write output
+    if fname_ttrees_out is not None:
+        log_info('Writing output...')
+        write_ttrees(gen_doc, fname_ttrees_out)
+
+
 if __name__ == '__main__':
 
     if len(sys.argv) < 3:
@@ -363,6 +437,8 @@ if __name__ == '__main__':
         asearch_gen(args)
     elif action == 'seq2seq_train':
         seq2seq_train(args)
+    elif action == 'seq2seq_gen':
+        seq2seq_gen(args)
     else:
         # Unknown action
         sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)

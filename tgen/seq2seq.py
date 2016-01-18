@@ -15,7 +15,7 @@ from tensorflow.models.rnn import rnn_cell
 
 from alex.components.nlg.tectotpl.core.util import file_stream
 
-from tgen.logf import log_info
+from tgen.logf import log_info, log_debug
 from tgen.futil import read_das, read_ttrees, trees_from_doc
 from tgen.embeddings import EmbeddingExtract
 from tgen.rnd import rnd
@@ -415,7 +415,7 @@ class Seq2SeqGen(SentencePlanner):
 
         # convert the output back into a tree
         dec_output_ids = np.argmax(dec_outputs, axis=2)
-        return [self.tree_embs.ids_to_strings(ids) for ids in dec_output_ids.transpose()]
+        return [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
 
     def train(self, das_file, ttree_file, data_portion=1.0):
 
@@ -473,5 +473,14 @@ class Seq2SeqGen(SentencePlanner):
 
         return ret
 
-    def generate_tree(self, inputs):
-        raise NotImplementedError()
+    def generate_tree(self, da, gen_doc=None):
+        # generate the tree
+        tree = self.process_das([da])[0]
+        log_debug("RESULT: %s" % unicode(tree))
+        # if requested, append the result to the document
+        if gen_doc:
+            zone = self.get_target_zone(gen_doc)
+            zone.ttree = tree.create_ttree()
+            zone.sentence = unicode(da)
+        # return the result
+        return tree
