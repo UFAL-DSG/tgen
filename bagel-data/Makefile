@@ -185,9 +185,14 @@ printgit:
 prepare_dir:
 	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
+	if [[ "$(RUN_TYPE)" == "seq2seq" ]]; then \
+		CONFIG=$(SEQ2SEQ_CONFIG) ; \
+	else \
+		CONFIG=$(PERCRANK_CONFIG) ; \
+	fi; \
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
-	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$DEBUG_SETTING $$RANDS_SETTING $(PERCRANK_CONFIG) > $(TRY_DIR)/ABOUT ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$DEBUG_SETTING $$RANDS_SETTING $$CONFIG > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
