@@ -194,6 +194,12 @@ prepare_dir:
 
 # Main targets
 
+asearch_cv_run: RUN_TYPE := asearch
+asearch_cv_run: cv_run
+
+seq2seq_cv_run: RUN_TYPE := seq2seq
+seq2seq_cv_run: cv_run
+
 cv_run: RUN_NAME := cv_run
 cv_run: prepare_dir
 cv_run:
@@ -204,9 +210,16 @@ cv_run:
 			SEEDS=(""); \
 		fi; \
 		for SEED in "$${SEEDS[@]}"; do \
-			make percrank_train TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+			if [[ "$(RUN_TYPE)" == "seq2seq" ]]; then \
+				TRAIN_RUN=seq2seq_train ; \
+				TEST_RUN=seq2seq_gen_cv ; \
+			else \
+				TRAIN_RUN=percrank_train ; \
+				TEST_RUN=asearch_gen_cv  ; \
+			fi; \
+			make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 			JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-			make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
+			make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
 		done; \
 	done
 
@@ -262,46 +275,53 @@ asearch_gen:
 	cp $(CANDGEN_MODEL) $(TRY_DIR)/candgen.pickle.gz
 	cp $(PERCRANK_MODEL) $(TRY_DIR)/percrank.pickle.gz
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
-	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
-	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 
-asearch_gen_cv: RUN_NAME := asearch_gen.$(CV_NUM)
+asearch_gen_cv:
 asearch_gen_cv:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
-	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
-	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 asearch_gen-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
 	$(eval TRY_NUM := $*)
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+
+seq2seq_gen_cv:
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
+	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+
+prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
 	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
 asearch_gen_process: RUN_NAME := asearch_gen
-asearch_gen_process:
+asearch_gen_process: GEN_MODEL := $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz
+asearch_gen_process: GEN_CONFIG := -c $(TRY_DIR)/asearch_config.py
+asearch_gen_process: gen_process
+
+
+seq2seq_gen_process: RUN_NAME := seq2seq_gen
+seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
+seq2seq_gen_process: GEN_CONFIG :=
+seq2seq_gen_process: gen_process
+
+gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
+		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
 		-s $(EVAL_SELECTOR) \
-		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
-		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
+		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
+		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
 			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv \
 			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
