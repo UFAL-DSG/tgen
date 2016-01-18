@@ -70,7 +70,7 @@ foreach my $pattern (@patterns){
         die("\e[1;31mThe scores are incomplete.\e[0m\n");
     }
 }
-if (!defined $data{'BEST'}){
+if ($ARGV[0] =~ /asearch/ and !defined $data{'BEST'}){
     die("\e[1;31mThe scores are incomplete.\e[0m\n");
 }
 
