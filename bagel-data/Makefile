@@ -26,7 +26,7 @@ DESC_EXP = ../util/describe_experiment.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
-LOGFILES = $$file/T.* $$file/{asearch_gen.,}log.txt # logfile pattern to use for score printing
+LOGFILES = $$file/T.* $$file/{asearch_gen.,gen.,}log.txt # logfile pattern to use for score printing
 SCOREFILE = SCORE
 
 # Runs directories
@@ -71,7 +71,8 @@ TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-conc.sgm
 SURFACE_SCEN = surface/en_synthesis.scen
 
 XS_INSTEAD = 0
-EVAL_SELECTOR = ""
+EVAL_SELECTOR =
+TARGET_SELECTOR = gen
 
 ifdef CV_NUM
     TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-text.sgm
@@ -234,7 +235,7 @@ cv_score-%:
 	make cv_score TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
 
 cv_score:
-	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.*_gen.o* | tee $(TRY_DIR)/gen.log.txt
 
 cv_train_stats-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
@@ -311,12 +312,14 @@ prepare_test_data:
 
 asearch_gen_process: RUN_NAME := asearch_gen
 asearch_gen_process: GEN_MODEL := $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz
+asearch_gen_process: SELECTOR_CONFIG := -s "$(EVAL_SELECTOR)"
 asearch_gen_process: GEN_CONFIG := -c $(TRY_DIR)/asearch_config.py
 asearch_gen_process: gen_process
 
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
+seq2seq_gen_process: SELECTOR_CONFIG := -r "$(EVAL_SELECTOR)" -t "$(TARGET_SELECTOR)"
 seq2seq_gen_process: GEN_CONFIG :=
 seq2seq_gen_process: gen_process
 
@@ -324,7 +327,7 @@ gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
-		-s $(EVAL_SELECTOR) \
+		$(SELECTOR_CONFIG) \
 		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
@@ -334,7 +337,7 @@ gen_process:
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
 		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
-		2>&1 | tee $(TRY_DIR)/asearch_gen.log.txt
+		2>&1 | tee $(TRY_DIR)/*gen.log.txt
 
 rerun-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
