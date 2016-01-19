@@ -176,6 +176,11 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
         return ret
 
     def ids_to_tree(self, emb):
+        """Rebuild a tree from the embeddings (token IDs).
+
+        @param emb: source embeddings (token IDs)
+        @return: the corresponding tree
+        """
 
         tree = TreeData()
         tree.nodes = []  # override the technical root -- the tree will be created including the technical root
@@ -186,6 +191,16 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
         return tree
 
     def _create_subtree(self, tree, parent_idx, emb, pos):
+        """Recursive subroutine used for `ids_to_tree()`, do not use otherwise.
+        Solves a subtree (starting just after the opening bracket, returning a position
+        just after the corresponding closing bracket).
+
+        @param tree: the tree to work on (will be enhanced by the subtree)
+        @param parent_idx: the ID of the parent for the current subtree
+        @param emb: the source embeddings
+        @param pos: starting position in the source embeddings
+        @return: the final position used in the current subtree
+        """
 
         if pos >= len(emb):  # avoid running out of the tree (for invalid trees)
             return pos
@@ -241,8 +256,10 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
 
 class Seq2SeqGen(SentencePlanner):
+    """A sequence-to-sequence generator (using encoder-decoder architecture from TensorFlow)."""
 
     def __init__(self, cfg):
+        """Initialize the generator, fill in the configuration."""
 
         super(Seq2SeqGen, self).__init__(cfg)
 
@@ -257,6 +274,12 @@ class Seq2SeqGen(SentencePlanner):
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
+        """Load training data, prepare batches, build the NN.
+
+        @param das_file: training DAs (file path)
+        @param ttree_file: training t-trees (file path)
+        @param data_portion: portion of the data to be actually used for training
+        """
         # read input
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
@@ -314,6 +337,7 @@ class Seq2SeqGen(SentencePlanner):
         self.session.run(tf.initialize_all_variables())
 
     def _init_neural_network(self):
+        """Initializing the NN (building a TensorFlow graph and initializing session)."""
 
         # set TensorFlow random seed
         tf.set_random_seed(rnd.randint(-sys.maxint, sys.maxint))
@@ -379,6 +403,9 @@ class Seq2SeqGen(SentencePlanner):
         self.saver = tf.train.Saver(tf.all_variables())
 
     def _training_pass(self, iter_no):
+        """Perform one pass through the training data (epoch).
+        @param iter_no: pass number (for logging)
+        """
 
         it_cost = 0.0
 
@@ -411,6 +438,13 @@ class Seq2SeqGen(SentencePlanner):
         log_info('IT %d total cost: %8.5f' % (iter_no, cost))
 
     def process_das(self, das):
+        """
+        Process a list of input DAs, return the corresponding trees (using the generator
+        network with current parameters).
+
+        @param das: input DAs
+        @return: generated trees as `TreeData` instances
+        """
 
         # initial state
         initial_state = np.zeros([len(das), self.emb_size])
@@ -438,6 +472,14 @@ class Seq2SeqGen(SentencePlanner):
         return [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
 
     def train(self, das_file, ttree_file, data_portion=1.0):
+        """
+        The main training process – initialize and perform a specified number of
+        training passes, validating every couple iterations.
+
+        @param das_file: training data file with DAs
+        @param ttree_file: training data file with t-trees
+        @param data_portion: portion of training data to be actually used, defaults to 1.0
+        """
 
         # load and prepare data and initialize the neural network
         self._init_training(das_file, ttree_file, data_portion)
@@ -462,6 +504,12 @@ class Seq2SeqGen(SentencePlanner):
                     log_info("Current validation output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
 
     def save_to_file(self, model_fname):
+        """Save the generator to a file (actually two files, one for configuration and one
+        for the TensorFlow graph, which must be stored separately).
+
+        @param model_fname: file name (for the configuration file); TF graph will be stored with a \
+            different extension
+        """
         log_info("Saving generator to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             data = {'emb_size': self.emb_size,
@@ -480,6 +528,12 @@ class Seq2SeqGen(SentencePlanner):
 
     @staticmethod
     def load_from_file(model_fname):
+        """Load the generator from a file (actually two files, one for configuration and one
+        for the TensorFlow graph, which must be stored separately).
+
+        @param model_fname: file name (for the configuration file); TF graph must be stored with a \
+            different extension
+        """
         log_info("Loading generator from %s..." % model_fname)
         ret = Seq2SeqGen(cfg={})
         with file_stream(model_fname, 'rb', encoding=None) as fh:
@@ -494,6 +548,11 @@ class Seq2SeqGen(SentencePlanner):
         return ret
 
     def generate_tree(self, da, gen_doc=None):
+        """Generate one tree, saving it into the document provided (if applicable).
+
+        @param da: the input DA
+        @param gen_doc: the document where the tree should be saved (defaults to None)
+        """
         # generate the tree
         tree = self.process_das([da])[0]
         log_debug("RESULT: %s" % unicode(tree))
