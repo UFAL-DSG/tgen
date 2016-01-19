@@ -32,8 +32,8 @@ from getopt import getopt
 import platform
 import os
 
-from alex.components.nlg.tectotpl.core.util import file_stream
-from alex.components.nlg.tectotpl.core.document import Document
+from pytreex.core.util import file_stream
+from pytreex.core.document import Document
 
 from flect.config import Config
 

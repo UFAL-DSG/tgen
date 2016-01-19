@@ -11,7 +11,7 @@ from enum import Enum
 from tgen.logf import log_debug
 from tgen.tree import TreeData, TreeNode
 import numpy as np
-from alex.components.nlg.tectotpl.core.node import T
+from pytreex.core.node import T
 
 
 EvalTypes = Enum(b'EvalTypes', b'NODE DEP')

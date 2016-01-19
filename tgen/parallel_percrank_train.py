@@ -28,7 +28,7 @@ from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
 
 from flect.cluster import Job
-from alex.components.nlg.tectotpl.core.util import file_stream
+from pytreex.core.util import file_stream
 
 from logf import log_info, set_debug_stream, log_debug
 from tgen.logf import log_warn, is_debug_stream

@@ -13,7 +13,7 @@ import sys
 from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, sequence_loss
 from tensorflow.models.rnn import rnn_cell
 
-from alex.components.nlg.tectotpl.core.util import file_stream
+from pytreex.core.util import file_stream
 
 from tgen.logf import log_info, log_debug
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc

@@ -11,7 +11,7 @@ from UserDict import DictMixin
 
 from logf import log_debug
 from tree import TreeData, TreeNode, NodeData
-from alex.components.nlg.tectotpl.core.util import first
+from pytreex.core.util import first
 
 
 class CandidateList(DictMixin):

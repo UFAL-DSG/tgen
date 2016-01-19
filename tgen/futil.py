@@ -8,10 +8,10 @@ Various utility functions.
 from __future__ import unicode_literals
 import cPickle as pickle
 
-from alex.components.nlg.tectotpl.core.util import file_stream
+from pytreex.core.util import file_stream
 from alex.components.slu.da import DialogueAct
-from alex.components.nlg.tectotpl.block.read.yaml import YAML as YAMLReader
-from alex.components.nlg.tectotpl.block.write.yaml import YAML as YAMLWriter
+from pytreex.block.read.yaml import YAML as YAMLReader
+from pytreex.block.write.yaml import YAML as YAMLWriter
 from tree import TreeData
 
 
@@ -78,8 +78,19 @@ def tokens_from_doc(ttree_doc, language, selector):
     """Given a Treex document, return a list of lists of tokens (word forms + tags) in the given
     language and selector."""
     atrees = map(lambda bundle: bundle.get_zone(language, selector).atree, ttree_doc.bundles)
-    return [[(node.form, node.tag) for node in atree.get_descendants(ordered=True)]
-            for atree in atrees]
+    sents = []
+    for atree in atrees:
+        anodes = atree.get_descendants(ordered=True)
+        sent = []
+        for anode in anodes:
+            form, tag = anode.form, anode.tag
+            if form == 'X':
+                tnodes = anode.get_referencing_nodes('a/lex.rf')
+                if tnodes:
+                    form = tnodes[0].t_lemma
+            sent.append((form, tag))
+        sents.append(sent)
+    return sents
 
 
 def add_bundle_text(bundle, language, selector, text):

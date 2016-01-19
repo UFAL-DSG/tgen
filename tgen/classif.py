@@ -13,7 +13,7 @@ import theano.tensor as T
 import numpy as np
 
 
-from alex.components.nlg.tectotpl.core.util import file_stream
+from pytreex.core.util import file_stream
 
 from tgen.rnd import rnd
 from tgen.logf import log_debug, log_info, log_warn

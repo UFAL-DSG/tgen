@@ -7,7 +7,7 @@ Trees for generating.
 
 from __future__ import unicode_literals
 from collections import namedtuple, deque
-from alex.components.nlg.tectotpl.core.node import T
+from pytreex.core.node import T
 from tgen.logf import log_info
 
 

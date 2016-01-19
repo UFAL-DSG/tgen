@@ -10,7 +10,7 @@ from collections import defaultdict, Counter
 import cPickle as pickle
 
 from logf import log_info
-from alex.components.nlg.tectotpl.core.util import file_stream
+from pytreex.core.util import file_stream
 
 from futil import read_das, read_ttrees, ttrees_from_doc
 from tree import TreeNode, NodeData
