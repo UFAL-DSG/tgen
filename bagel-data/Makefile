@@ -159,9 +159,7 @@ desc:
 			continue ; \
 		fi ; \
 		echo -ne $$file ":\t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/$(SCOREFILE);  \
-		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
-			$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
-		fi; \
+		$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
 		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
 		echo >> $$file/$(SCOREFILE); \
