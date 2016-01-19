@@ -18,7 +18,7 @@ Usage: ./cv_split.py [-f 10] [-c 2] [-d cv] all-xxx.txt all-yyy.txt
 
 from __future__ import unicode_literals
 
-from alex.components.nlg.tectotpl.core.util import file_stream
+from pytreex.core.util import file_stream
 from getopt import getopt
 import os
 from tgen.logf import log_warn
