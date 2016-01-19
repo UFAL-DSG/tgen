@@ -187,6 +187,9 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
     def _create_subtree(self, tree, parent_idx, emb, pos):
 
+        if pos >= len(emb):  # avoid running out of the tree (for invalid trees)
+            return pos
+
         node_idx = tree.create_child(parent_idx, len(tree), NodeData(None, None))
         t_lemma = None
         formeme = None
@@ -222,7 +225,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
                     node_idx = len(tree) - 1
                 pos += 1
 
-        if emb[pos] == self.BR_CLOSE:
+        if pos < len(emb) and emb[pos] == self.BR_CLOSE:
             # skip this closing bracket so that we don't process it next time
             pos += 1
 
