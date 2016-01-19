@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 import cPickle as pickle
 from itertools import izip_longest
+import sys
 
 from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, sequence_loss
 from tensorflow.models.rnn import rnn_cell
@@ -249,6 +250,7 @@ class Seq2SeqGen(SentencePlanner):
         self.alpha = cfg.get('alpha', 1e-3)
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
+        self.max_cores = cfg.get('max_cores')
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -310,6 +312,9 @@ class Seq2SeqGen(SentencePlanner):
 
     def _init_neural_network(self):
 
+        # set TensorFlow random seed
+        tf.set_random_seed(rnd.randint(-sys.maxint, sys.maxint))
+
         # create placeholders for input & output (always batch-size * 1, list of up to num. steps)
         self.enc_inputs = []
         for i in xrange(self.max_da_len):
@@ -361,7 +366,11 @@ class Seq2SeqGen(SentencePlanner):
         self.train_func = self.optimizer.minimize(self.cost)
 
         # initialize session
-        self.session = tf.Session()
+        session_config = None
+        if self.max_cores:
+            session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
+                                            intra_op_parallelism_threads=self.max_cores)
+        self.session = tf.Session(config=session_config)
 
         # this helps us load/save the model
         self.saver = tf.train.Saver(tf.all_variables())
