@@ -16,7 +16,7 @@ from tensorflow.models.rnn import rnn_cell
 from alex.components.nlg.tectotpl.core.util import file_stream
 
 from tgen.logf import log_info, log_debug
-from tgen.futil import read_das, read_ttrees, trees_from_doc
+from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
 from tgen.embeddings import EmbeddingExtract
 from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
@@ -108,7 +108,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
         self.dict_t_lemma = {'UNK_T_LEMMA': self.UNK_T_LEMMA}
         self.dict_formeme = {'UNK_FORMEME': self.UNK_FORMEME}
-        self.max_tree_len = cfg.get('max_da_len', 25)
+        self.max_tree_len = cfg.get('max_tree_len', 25)
         self.id_to_string = {self.UNK_T_LEMMA: '<UNK_T_LEMMA>',
                              self.UNK_FORMEME: '<UNK_FORMEME>',
                              self.BR_OPEN: '<(>',
@@ -255,6 +255,97 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
         return [4 * self.max_tree_len + 2]
 
 
+class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
+    """Abstract ancestor of embedding extraction classes."""
+
+    VOID = 0
+    GO = 1
+    STOP = 2
+    UNK = 3
+    PLURAL_S = 4
+    MIN_VALID = 5
+
+    def __init__(self, cfg={}):
+        self.max_sent_len = cfg.get('max_sent_len', 50)
+        self.dict = {'UNK': self.UNK}
+        self.rev_dict = {self.VOID: '<VOID>', self.GO: '<GO>',
+                         self.STOP: '<STOP>', self.UNK: '<UNK>',
+                         self.PLURAL_S: '<-s>'}
+
+    def init_dict(self, train_sents, dict_ord=None):
+        """Initialize embedding dictionary (word -> id)."""
+        if dict_ord is None:
+            dict_ord = self.MIN_VALID
+
+        for sent in train_sents:
+            for form, tag in sent:
+                if tag == 'NNS' and form.endswith('s'):
+                    form = form[:-1]  # TODO this is very stupid, but probably works with BAGEL
+                if form not in self.dict:
+                    self.dict[form] = dict_ord
+                    self.rev_dict[dict_ord] = form
+                    dict_ord += 1
+
+        return dict_ord
+
+    def get_embeddings(self, sent):
+        """Get the embeddings of a sentence (list of word form/tag pairs)."""
+        embs = [self.GO]
+        for form, tag in sent:
+            add_plural = False
+            if tag == 'NNS' and form.endswith('s'):
+                add_plural = True
+                form = form[-1]
+            embs.append(self.dict.get(form, self.UNK))
+            if add_plural:
+                embs.append(self.PLURAL_S)
+
+        embs += [self.STOP]
+        if len(embs) > self.max_sent_len + 2:
+            embs = embs[:self.max_sent_len + 2]
+        elif len(embs) < self.max_sent_len + 2:
+            embs += [self.VOID] * (self.max_sent_len + 2 - len(embs))
+
+        return embs
+
+    def get_embeddings_shape(self):
+        """Return the shape of the embedding matrix (for one object, disregarding batches)."""
+        return [self.max_sent_len + 2]
+
+    def ids_to_strings(self, emb):
+        """Given embedding IDs, return list of strings where all VOIDs at the end are truncated."""
+
+        # skip VOIDs at the end
+        i = len(emb) - 1
+        while i > 0 and emb[i] == self.VOID:
+            i -= 1
+
+        # convert all IDs to their tokens
+        ret = [unicode(self.rev_dict.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
+
+        return ret
+
+    def ids_to_tree(self, emb):
+        """Create a fake (flat) t-tree from token embeddings (IDs).
+
+        @param emb: source embeddings (token IDs)
+        @return: the corresponding tree
+        """
+
+        tree = TreeData()
+        tokens = self.ids_to_strings(emb)
+
+        for token in tokens:
+            if token in ['<GO>', '<STOP>', '<VOID>']:
+                continue
+            if token == '<-s>':
+                tree.nodes[-1] = NodeData(tree.nodes[-1].t_lemma + 's', 'x')
+            else:
+                tree.create_child(0, len(tree), NodeData(token, 'x'))
+
+        return tree
+
+
 class Seq2SeqGen(SentencePlanner):
     """A sequence-to-sequence generator (using encoder-decoder architecture from TensorFlow)."""
 
@@ -271,6 +362,7 @@ class Seq2SeqGen(SentencePlanner):
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
         self.max_cores = cfg.get('max_cores')
+        self.use_tokens = cfg.get('use_tokens', False)
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -285,7 +377,10 @@ class Seq2SeqGen(SentencePlanner):
         das = read_das(das_file)
         log_info('Reading t-trees from ' + ttree_file + '...')
         ttree_doc = read_ttrees(ttree_file)
-        trees = trees_from_doc(ttree_doc, self.language, self.selector)
+        if self.use_tokens:
+            trees = tokens_from_doc(ttree_doc, self.language, self.selector)
+        else:
+            trees = trees_from_doc(ttree_doc, self.language, self.selector)
 
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(trees)))
@@ -294,26 +389,23 @@ class Seq2SeqGen(SentencePlanner):
 
         # save part of the training data for validation:
         if self.validation_size > 0:
-            self.valid_trees = self.train_trees[-self.validation_size:]
-            self.valid_das = self.train_das[-self.validation_size:]
-            self.train_trees = self.train_trees[:-self.validation_size]
-            self.train_das = self.train_das[:-self.validation_size]
-            # detecting two instances of each DA in training data -- remove also the 2nd copy
-            # so that validation data are also "unseen"
-            if self.train_das[train_size / 2 - 1] == self.valid_das[-1]:
+            # check if there are 2 copies of input DAs in the training data. if so, remove both
+            # copies of validation DAs from training
+            cut_dbl = self.train_das[train_size / 2 - 1] == self.train_das[-1]
+            if cut_dbl:
                 log_info('Detected duplicate DAs in training data: removing both copies for validation')
-                self.train_trees = (self.train_trees[:train_size / 2 - self.validation_size] +
-                                    self.train_trees[train_size / 2:])
-                self.train_das = (self.train_das[:train_size / 2 - self.validation_size] +
-                                  self.train_das[train_size / 2:])
-                train_size -= self.validation_size
-            train_size -= self.validation_size
+            self.train_trees, self.valid_trees = self._cut_valid_data(self.train_trees, cut_dbl)
+            self.train_das, self.valid_das = self._cut_valid_data(self.train_das, cut_dbl)
 
-        log_info('Using %d training, %d validation instances.' % (train_size, self.validation_size))
+        log_info('Using %d training, %d validation instances.' %
+                 (len(self.train_das), self.validation_size))
 
         # initialize embeddings
         self.da_embs = DAEmbeddingSeq2SeqExtract()
-        self.tree_embs = TreeEmbeddingSeq2SeqExtract()
+        if self.use_tokens:
+            self.tree_embs = TokenEmbeddingSeq2SeqExtract()
+        else:
+            self.tree_embs = TreeEmbeddingSeq2SeqExtract()
         self.da_dict_size = self.da_embs.init_dict(self.train_das)
         self.tree_dict_size = self.tree_embs.init_dict(self.train_trees)
 
@@ -335,6 +427,21 @@ class Seq2SeqGen(SentencePlanner):
 
         # initialize the NN variables
         self.session.run(tf.initialize_all_variables())
+
+    def _cut_valid_data(self, insts, cut_double):
+        """Put aside part of the training set  for validation.
+
+        @param insts: original training set (DAs, tokens, or trees)
+        @param cut_double: remove two copies of the training instances (in case the training \
+            data contain two copies of all input DAs -- this holds for the BAGEL set)
+        @return: new training and validation sets
+        """
+        train_size = len(insts)
+        valid = insts[-self.validation_size:]
+        train = insts[:-self.validation_size]
+        if cut_double:
+            train = train[:train_size / 2 - self.validation_size] + train[train_size / 2:]
+        return train, valid
 
     def _init_neural_network(self):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""

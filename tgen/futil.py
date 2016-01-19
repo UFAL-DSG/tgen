@@ -70,8 +70,16 @@ def trees_from_doc(ttree_doc, language, selector):
 
 
 def sentences_from_doc(ttree_doc, language, selector):
-    return map(lambda bundle: bundle.get_zone(language, selector).sentence,
-               ttree_doc.bundles)
+    """Given a Treex document, return a list of sentences in the given language and selector."""
+    return map(lambda bundle: bundle.get_zone(language, selector).sentence, ttree_doc.bundles)
+
+
+def tokens_from_doc(ttree_doc, language, selector):
+    """Given a Treex document, return a list of lists of tokens (word forms + tags) in the given
+    language and selector."""
+    atrees = map(lambda bundle: bundle.get_zone(language, selector).atree, ttree_doc.bundles)
+    return [[(node.form, node.tag) for node in atree.get_descendants(ordered=True)]
+            for atree in atrees]
 
 
 def add_bundle_text(bundle, language, selector, text):
