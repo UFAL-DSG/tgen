@@ -10,7 +10,8 @@ import cPickle as pickle
 from itertools import izip_longest
 import sys
 
-from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, sequence_loss
+from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, embedding_attention_seq2seq, \
+    sequence_loss
 from tensorflow.models.rnn import rnn_cell
 
 from pytreex.core.util import file_stream
@@ -363,6 +364,7 @@ class Seq2SeqGen(SentencePlanner):
         self.validation_freq = cfg.get('validation_freq', 10)
         self.max_cores = cfg.get('max_cores')
         self.use_tokens = cfg.get('use_tokens', False)
+        self.nn_type = cfg.get('nn_type', 'seq2seq_emb')
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -469,10 +471,14 @@ class Seq2SeqGen(SentencePlanner):
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope("seq2seq_gen") as scope:
 
+            rnn_func = embedding_rnn_seq2seq
+            if self.nn_type == 'emb_attention_seq2seq':
+                rnn_func = embedding_attention_seq2seq
+
             # for training: feed_previous == False
             # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps
             # states = cell states at each steps
-            self.outputs, self.states = embedding_rnn_seq2seq(
+            self.outputs, self.states = rnn_func(
                 self.enc_inputs, self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
                 scope=scope)
@@ -480,7 +486,7 @@ class Seq2SeqGen(SentencePlanner):
             scope.reuse_variables()
 
             # for decoding: feed_previous == True
-            self.dec_outputs, self.dec_states = embedding_rnn_seq2seq(
+            self.dec_outputs, self.dec_states = rnn_func(
                 self.enc_inputs, self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
                 feed_previous=True, scope=scope)
