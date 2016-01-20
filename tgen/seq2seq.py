@@ -364,7 +364,7 @@ class Seq2SeqGen(SentencePlanner):
         self.validation_freq = cfg.get('validation_freq', 10)
         self.max_cores = cfg.get('max_cores')
         self.use_tokens = cfg.get('use_tokens', False)
-        self.nn_type = cfg.get('nn_type', 'seq2seq_emb')
+        self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
         self.randomize = True
 
     def _init_training(self, das_file, ttree_file, data_portion):
