@@ -282,7 +282,6 @@ asearch_gen:
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
 
-
 asearch_gen_cv:
 asearch_gen_cv:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
@@ -313,7 +312,6 @@ asearch_gen_process: GEN_MODEL := $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percra
 asearch_gen_process: SELECTOR_CONFIG := -s "$(EVAL_SELECTOR)"
 asearch_gen_process: GEN_CONFIG := -c $(TRY_DIR)/asearch_config.py
 asearch_gen_process: gen_process
-
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz

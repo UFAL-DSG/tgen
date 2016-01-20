@@ -26,7 +26,7 @@ DESC_EXP = ../util/describe_experiment.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
-LOGFILES = $$file/T.* $$file/{asearch_gen.,}log.txt # logfile pattern to use for score printing
+LOGFILES = $$file/T.* $$file/{asearch_gen.,gen.,seq2seq_gen.,}log.txt # logfile pattern to use for score printing
 SCOREFILE = SCORE
 
 # Runs directories
@@ -53,7 +53,9 @@ endif
 CANDGEN_MODEL = model/$(TRAINING_SET)/candgen.pickle.gz
 #PERCRANK_MODEL = model/percrank.pickle.gz
 PERCRANK_CONFIG = config/percrank.py
+SEQ2SEQ_CONFIG = config/seq2seq.py
 ASEARCH_CONFIG = config/asearch.py
+CLASSIF_CONFIG = config/classif.py
 TRAIN_PORTION = 1.0
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
@@ -156,9 +158,7 @@ desc:
 			continue ; \
 		fi ; \
 		echo -ne $$file ":\t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/$(SCOREFILE);  \
-		if echo $$file/*asearch* | grep 'asearch_gen' >/dev/null 2>&1; then \
-			$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
-		fi; \
+		$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
 		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
 		echo >> $$file/$(SCOREFILE); \
@@ -183,6 +183,11 @@ printgit:
 prepare_dir:
 	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
+	if [[ "$(RUN_TYPE)" == "seq2seq" ]]; then \
+		CONFIG=$(SEQ2SEQ_CONFIG) ; \
+	else \
+		CONFIG=$(PERCRANK_CONFIG) ; \
+	fi; \
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
 	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$DEBUG_SETTING $$RANDS_SETTING $(PERCRANK_CONFIG) > $(TRY_DIR)/ABOUT ; \
@@ -191,6 +196,12 @@ prepare_dir:
 	make printgit > $(TRY_DIR)/GIT_VERSION
 
 # Main targets
+
+asearch_cv_run: RUN_TYPE := asearch
+asearch_cv_run: cv_run
+
+seq2seq_cv_run: RUN_TYPE := seq2seq
+seq2seq_cv_run: cv_run
 
 cv_run: RUN_NAME := cv_run
 cv_run: prepare_dir
@@ -201,9 +212,16 @@ cv_run:
 		SEEDS=(""); \
 	fi; \
 	for SEED in "$${SEEDS[@]}"; do \
-		make percrank_train TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+		if [[ "$(RUN_TYPE)" == "seq2seq" ]]; then \
+			TRAIN_RUN=seq2seq_train ; \
+			TEST_RUN=seq2seq_gen_cv ; \
+		else \
+			TRAIN_RUN=percrank_train ; \
+			TEST_RUN=asearch_gen_cv  ; \
+		fi; \
+		make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-		make asearch_gen_cv TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="--hold $$JOB_NUM"; \
+		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="--hold $$JOB_NUM"; \
 	done
 
 cv_score-%:
@@ -212,7 +230,7 @@ cv_score-%:
 	make cv_score TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
 
 cv_score:
-	$(AVERAGE_SCORES) $(TRY_DIR)/*/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+	$(AVERAGE_SCORES) $(TRY_DIR)/*/T.*.*_gen.o* | tee $(TRY_DIR)/gen.log.txt
 
 score-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
@@ -220,7 +238,7 @@ score-%:
 	make score TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
 
 score:
-	$(AVERAGE_SCORES) $(TRY_DIR)/T.*.asearch_gen.o* | tee $(TRY_DIR)/asearch_gen.log.txt
+	$(AVERAGE_SCORES) $(TRY_DIR)/T.*.*_gen.o* | tee $(TRY_DIR)/gen.log.txt
 
 
 cv_train_stats-%:
@@ -229,7 +247,7 @@ cv_train_stats-%:
 	make cv_train_stats TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
 
 cv_train_stats:
-	$(AVERAGE_SCORES) $(TRY_DIR)/cv*/T.*.percrank_train.o* | tee $(TRY_DIR)/percrank_train.log.txt
+	$(AVERAGE_SCORES) $(TRY_DIR)/*/T.*.percrank_train.o* | tee $(TRY_DIR)/percrank_train.log.txt
 
 
 percrank_train: RUN_NAME := percrank_train
@@ -247,6 +265,19 @@ percrank_train:
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
+seq2seq_train: RUN_NAME := seq2seq_train
+seq2seq_train: prepare_dir
+seq2seq_train:
+	# copy needed files (to ensure replication)
+	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
+	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
+	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
+	# run the experiment
+	$(QSUBMIT) '$(ACTIVATE); \
+		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
+		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" \
+		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
+		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
 asearch_gen: RUN_NAME := asearch_gen
 asearch_gen: prepare_dir
@@ -254,54 +285,61 @@ asearch_gen:
 	cp $(CANDGEN_MODEL) $(TRY_DIR)/candgen.pickle.gz
 	cp $(PERCRANK_MODEL) $(TRY_DIR)/percrank.pickle.gz
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
-	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
-	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
-	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
 
-
-asearch_gen_cv: RUN_NAME := asearch_gen
+asearch_gen_cv:
 asearch_gen_cv:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
-	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
-	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
-	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
 	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
 
 asearch_gen-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
 	$(eval TRY_NUM := $*)
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
+
+seq2seq_gen_cv:
+	make prepare_test_data TRY_DIR=$(TRY_DIR)
+	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
+
+prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
 	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
 
 asearch_gen_process: RUN_NAME := asearch_gen
-asearch_gen_process:
+asearch_gen_process: GEN_MODEL := $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz
+asearch_gen_process: SELECTOR_CONFIG := -s "$(EVAL_SELECTOR)"
+asearch_gen_process: GEN_CONFIG := -c $(TRY_DIR)/asearch_config.py
+asearch_gen_process: gen_process
+
+seq2seq_gen_process: RUN_NAME := seq2seq_gen
+seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
+seq2seq_gen_process: SELECTOR_CONFIG := -r "$(EVAL_SELECTOR)" -t "$(TARGET_SELECTOR)"
+seq2seq_gen_process: GEN_CONFIG :=
+seq2seq_gen_process: gen_process
+
+gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) asearch_gen -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
-		-s $(EVAL_SELECTOR) \
-		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
-		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
+		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
+		$(SELECTOR_CONFIG) \
+		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
+		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
 			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv da_file=$(TRY_DIR)/test-das.txt \
-			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abst.txt xs_instead=$(XS_INSTEAD) \
+			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
 		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
-		2>&1 | tee $(TRY_DIR)/asearch_gen.log.txt
+		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
 rerun-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
