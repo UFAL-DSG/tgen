@@ -295,7 +295,7 @@ asearch_gen_process:
 		-w $(TRY_DIR)/out-trees.yaml.gz -c $(TRY_DIR)/asearch_config.py \
 		$(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
-			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv \
+			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv da_file=$(TRY_DIR)/test-das.txt \
 			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abst.txt xs_instead=$(XS_INSTEAD) \
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \

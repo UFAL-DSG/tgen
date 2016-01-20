@@ -4,8 +4,7 @@
 from __future__ import unicode_literals
 
 config = {
-          # NB: when introducing a new setting, don't forget that it needs to be passed to
-          #     worker instances through ParallelPerceptronRanker.get_plain_percrank()
+          'job_memory': 8,
           'averaging': True,
           'prune_feats': 1,  # pruning harms => do not use it
           'intermediate_features': ['rep-lemma', 'rep-slot', 'rep-lemma-formeme', 'not-rep-slot'],
@@ -91,7 +90,9 @@ config = {
           'initialization': 'norm_sqrt',
           'num_hidden_units': 128,
           'emb_size': 50,
-          'alpha': 0.1,
-          'nn_shape': 'ff',
+          'alpha': 0.01,
+          'nn_shape': 'conv2-ff',
+          'cnn_filter_length': 3,
+          'cnn_num_filters': 6,
           'normgrad': False,
           }
