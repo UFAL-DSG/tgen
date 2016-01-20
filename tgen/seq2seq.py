@@ -634,7 +634,12 @@ class Seq2SeqGen(SentencePlanner):
                     'da_dict_size': self.da_dict_size,
                     'tree_dict_size': self.tree_dict_size,
                     'max_da_len': self.max_da_len,
-                    'max_tree_len': self.max_tree_len}
+                    'max_tree_len': self.max_tree_len,
+                    'alpha': self.alpha,
+                    'max_cores': self.max_cores,
+                    'use_tokens': self.use_tokens,
+                    'nn_type': self.nn_type,
+                    }
             pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         self.saver.save(self.session, tf_session_fname)
