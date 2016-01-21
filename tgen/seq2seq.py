@@ -53,6 +53,7 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
         self.dict_slot = {'UNK_SLOT': self.UNK_SLOT}
         self.dict_value = {'UNK_VALUE': self.UNK_VALUE}
         self.max_da_len = cfg.get('max_da_len', 10)
+        self.sort = cfg.get('sort_da_emb', False)
 
     def init_dict(self, train_das, dict_ord=None):
         """"""
@@ -77,7 +78,11 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
         """"""
         # list the IDs of act types, slots, values
         da_emb_idxs = []
-        for dai in da[:self.max_da_len]:
+        sorted_da = da
+        if hasattr(self, 'sort') and self.sort:
+            sorted_da = sorted(da, cmp=lambda a, b:
+                               cmp(a.dat, b.dat) or cmp(a.name, b.name) or cmp(a.value, b.value))
+        for dai in sorted_da[:self.max_da_len]:
             da_emb_idxs.append(self.dict_slot.get(dai.dat, self.UNK_ACT))
             da_emb_idxs.append(self.dict_slot.get(dai.name, self.UNK_SLOT))
             da_emb_idxs.append(self.dict_value.get(dai.value, self.UNK_VALUE))
@@ -355,7 +360,10 @@ class Seq2SeqGen(SentencePlanner):
 
         super(Seq2SeqGen, self).__init__(cfg)
 
-        # TODO fix configuration
+        # save the whole configuration for later use (save/load, construction of embedding
+        # extractors)
+        self.cfg = cfg
+        # extract the individual elements out of it
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
         self.passes = cfg.get('passes', 5)
@@ -365,7 +373,7 @@ class Seq2SeqGen(SentencePlanner):
         self.max_cores = cfg.get('max_cores')
         self.use_tokens = cfg.get('use_tokens', False)
         self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
-        self.randomize = True
+        self.randomize = cfg.get('randomize', True)
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Load training data, prepare batches, build the NN.
@@ -403,14 +411,14 @@ class Seq2SeqGen(SentencePlanner):
                  (len(self.train_das), self.validation_size))
 
         # initialize embeddings
-        self.da_embs = DAEmbeddingSeq2SeqExtract()
+        self.da_embs = DAEmbeddingSeq2SeqExtract(cfg=self.cfg)
         if self.use_tokens:
-            self.tree_embs = TokenEmbeddingSeq2SeqExtract()
+            self.tree_embs = TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
         else:
-            self.tree_embs = TreeEmbeddingSeq2SeqExtract()
+            self.tree_embs = TreeEmbeddingSeq2SeqExtract(cfg=self.cfg)
+
         self.da_dict_size = self.da_embs.init_dict(self.train_das)
         self.tree_dict_size = self.tree_embs.init_dict(self.train_trees)
-
         self.max_tree_len = self.tree_embs.get_embeddings_shape()[0]
         self.max_da_len = self.da_embs.get_embeddings_shape()[0]
 
@@ -625,6 +633,7 @@ class Seq2SeqGen(SentencePlanner):
         """
         log_info("Saving generator to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
+            # TODO change this to using 'cfg' when no experiment is running
             data = {'emb_size': self.emb_size,
                     'batch_size': self.batch_size,
                     'randomize': self.randomize,
@@ -638,8 +647,7 @@ class Seq2SeqGen(SentencePlanner):
                     'alpha': self.alpha,
                     'max_cores': self.max_cores,
                     'use_tokens': self.use_tokens,
-                    'nn_type': self.nn_type,
-                    }
+                    'nn_type': self.nn_type, }
             pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         self.saver.save(self.session, tf_session_fname)
