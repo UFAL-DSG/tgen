@@ -77,7 +77,8 @@ endif
 SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
 
 XS_INSTEAD = 0
-EVAL_SELECTOR = ""
+EVAL_SELECTOR =
+TARGET_SELECTOR = gen
 
 # Help text
 
