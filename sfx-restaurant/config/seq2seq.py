@@ -15,4 +15,5 @@ config = {
           'max_cores': 4,
           'use_tokens': False,
           'nn_type': 'emb_seq2seq',
+          'sort_da_emb': False,
           }
