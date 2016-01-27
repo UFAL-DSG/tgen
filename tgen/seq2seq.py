@@ -374,6 +374,7 @@ class Seq2SeqGen(SentencePlanner):
         self.use_tokens = cfg.get('use_tokens', False)
         self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
         self.randomize = cfg.get('randomize', True)
+        self.cell_type = cfg.get('cell_type', 'lstm')
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Load training data, prepare batches, build the NN.
@@ -471,10 +472,15 @@ class Seq2SeqGen(SentencePlanner):
         self.targets = [self.dec_inputs[i + 1] for i in xrange(len(self.dec_inputs) - 1)]
         self.targets.append(tf.placeholder(tf.int32, [None], name=('target-pad')))
 
-        # prepare building blocks
-        # TODO change dimension when BasicLSTMCell is replaced
+        # prepare cells
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
-        self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
+        if self.cell_type.startswith('gru'):
+            self.cell = rnn_cell.GRUCell(self.emb_size)
+        else:
+            self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
+
+        if self.cell_type.endswith('/2'):
+            self.cell = rnn_cell.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope("seq2seq_gen") as scope:
@@ -637,6 +643,7 @@ class Seq2SeqGen(SentencePlanner):
             data = {'emb_size': self.emb_size,
                     'batch_size': self.batch_size,
                     'randomize': self.randomize,
+                    'cell_type': self.cell_type,
                     'passes': self.passes,
                     'da_embs': self.da_embs,
                     'tree_embs': self.tree_embs,

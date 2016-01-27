@@ -103,6 +103,7 @@ elsif ( $mode eq 'seq2seq' ){
 
     $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
+    $nn_shape .= ' ' . ( ( $config_data =~ /'cell_type'\s*:\s*'([^']*)'/ )[0] // 'lstm' );
 
     $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq'/ );
     $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
