@@ -252,6 +252,7 @@ cv_train_stats:
 
 
 percrank_train: RUN_NAME := percrank_train
+percrank_train: RUN_TYPE := asearch
 percrank_train: prepare_dir
 percrank_train:
 	# copy needed files (to ensure replication)
@@ -267,6 +268,7 @@ percrank_train:
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
 seq2seq_train: RUN_NAME := seq2seq_train
+seq2seq_train: RUN_TYPE := seq2seq
 seq2seq_train: prepare_dir
 seq2seq_train:
 	# copy needed files (to ensure replication)

@@ -14,6 +14,7 @@ config = {
           'validation_size': 10,
           'max_cores': 4,
           'use_tokens': False,
-          'nn_type': 'emb_seq2seq',
-          'sort_da_emb': False,
+          'nn_type': 'emb_attention_seq2seq',
+          'sort_da_emb': True,
+          'cell_type': 'lstm',
           }
