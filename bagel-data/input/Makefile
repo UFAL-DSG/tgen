@@ -34,8 +34,10 @@ all-text.txt: all-das.txt
 
 all-conc.txt: all-das.txt
 
+all-bagel.txt: all-das.txt
+
 all-das.txt: ACL10-inform-training.txt convert.pl
-	./convert.pl $(CONVERT_SETTINGS) $< all-{das,text,abstr,conc}.txt
+	./convert.pl $(CONVERT_SETTINGS) $< all-{das,text,abstr,bagel,conc}.txt
 
 %-conc.sgm: %-conc.txt
 	treex -Len Read::Sentences from=$< Util::Eval document='$$.set_path(""); $$.set_file_stem("$*");' Write::SgmMTEval to=$@ set_id=BAGEL sys_id=manual add_header=refset
@@ -53,16 +55,18 @@ grammatemes.tsv: train-text.treex.gz
 # ignoring train.1-* (only using 1/2 of training data)
 # (must do two passes over test data since otherwise Morce will segfault)
 cv: all-das.txt all-text.txt all-abstr.txt
-	./cv_split.py -f 10 -c 2 -d cv all-das.txt all-text.txt all-abstr.txt
+	./cv_split.py -f 10 -c 2 -d cv all-das.txt all-text.txt all-abstr.txt all-bagel.txt
 	for CV in cv0*; do \
 		if [ -z "$(FULL_TRAINING)" ]; then \
 			mv $$CV/train.0-das.txt $$CV/train-das.txt ; \
 			mv $$CV/train.0-abstr.txt $$CV/train-abstr.txt ; \
 			mv $$CV/train.0-text.txt $$CV/train-text.txt ; \
+			mv $$CV/train.0-bagel.txt > $$CV/train-bagel.txt ; \
 		else \
 			cat $$CV/train.*-das.txt > $$CV/train-das.txt ; \
 			cat $$CV/train.*-abstr.txt > $$CV/train-abstr.txt ; \
 			cat $$CV/train.*-text.txt > $$CV/train-text.txt ; \
+			cat $$CV/train.*-bagel.txt > $$CV/train-bagel.txt ; \
 		fi ; \
 		treex -Len Read::Sentences from=$$CV/train-text.txt en_analysis.scen \
 			Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$$CV/train-abstr.txt x_only=1 $(COORD_ADJUST) \
@@ -80,8 +84,8 @@ cv: all-das.txt all-text.txt all-abstr.txt
 		treex -Len Read::Treex from=$$CV/test-text.treex.gz Write::YAML to=$$CV/test-text.yaml.gz ; \
 		../../util/yaml2pickle.py $$CV/test-text.yaml.gz ; \
 		echo '<refset setid="BAGEL" srclang="any" trglang="en">' > $$CV/test-text.sgm ; \
-		treex -Len Read::Sentences from="$$CV/test.0-text.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_0 >> $$CV/test-text.sgm ; \
-		treex -Len Read::Sentences from="$$CV/test.1-text.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_1 >> $$CV/test-text.sgm ; \
+		treex -Len Read::Sentences from="$$CV/test.0-bagel.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_0 >> $$CV/test-text.sgm ; \
+		treex -Len Read::Sentences from="$$CV/test.1-bagel.txt" Write::SgmMTEval to=- set_id=BAGEL sys_id=manual_1 >> $$CV/test-text.sgm ; \
 		echo '</refset>' >> $$CV/test-text.sgm ; \
 		rm $$CV/train.1-das.txt $$CV/test.1-das.txt ; \
 		mv $$CV/test.0-das.txt $$CV/test-das.txt ; \

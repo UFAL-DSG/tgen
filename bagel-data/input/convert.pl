@@ -2,7 +2,8 @@
 #
 # Converting BAGEL data set to our DA format.
 #
-# Usage: ./convert.pl [-a slot1,slot2] [-s] [-j] input output-das output-text output-abstraction
+# Usage: ./convert.pl [-a slot1,slot2] [-s] [-j] input \
+#            output-das output-text output-abstraction output-bagel-abstracted output-concrete
 #
 # -a = list of slots to be abstracted (replaced with "X-slot")
 # -s = skip values that are not abstracted in the ABSTRACT_DA lines in the actual BAGEL data.
@@ -32,10 +33,11 @@ if (not GetOptions(
         "skip-unabstracted|skip|s" => \$skip_unabstracted,
         "join-repeats|join|j"      => \$join_repeats,
     )
-    or @ARGV != 5
+    or @ARGV != 6
     )
 {
-    die('Usage: ./convert.pl input output-das output-text output-abstraction');
+    die('Usage: ./convert.pl input output-das output-text output-abstraction' .
+            ' output-bagel-abstracted output-concrete');
 }
 
 my %abstr_slots = map { $_ => 1 } split( /[, ]+/, $abstr_slots_str );
@@ -44,7 +46,8 @@ open( my $in,       '<:utf8', $ARGV[0] );
 open( my $out_das,  '>:utf8', $ARGV[1] );
 open( my $out_text, '>:utf8', $ARGV[2] );
 open( my $out_abst, '>:utf8', $ARGV[3] );
-open( my $out_conc, '>:utf8', $ARGV[4] );
+open( my $out_bagel, '>:utf8', $ARGV[4] );
+open( my $out_conc, '>:utf8', $ARGV[5] );
 
 Treex::Core::Log::log_set_error_level('WARN');
 my $tokenizer = Treex::Core::Scenario->new(
@@ -100,7 +103,7 @@ sub tokenize {
 
 # produce de-abstracted sentence where X's are replaced by the actual values
 sub deabstract {
-    my ( $sent, $abstr ) = @_;
+    my ( $sent, $abstr, $bagel_level_only ) = @_;
 
     my $i         = 0;
     my $conc_sent = '';
@@ -109,8 +112,15 @@ sub deabstract {
         # X = to be deabstracted
         if ( $token eq 'X' ) {
             my ($val) = ( $abstr =~ /=([^:]*):$i-[0-9]+/ );
-            $val =~ s/^"//;
-            $val =~ s/"$//;
+            if ($bagel_level_only){
+                $val =~ s/"([^"]*)"#/$1/g;
+                $val =~ s/"([^"]*)"/X/g;
+            }
+            else {
+                $val =~ s/^"//;
+                $val =~ s/"#?$//;
+                $val =~ s/"#? and "/ and /g;
+            }
             $conc_sent .= $val . ' ';
         }
 
@@ -149,6 +159,14 @@ sub process_instance {
     # produce de-abstracted sentence where X's are replaced by the actual values
     my $conc_sent = deabstract( $sent, $abstr );
 
+    # produce a "BAGEL" canonical sentence
+    my $bagel_sent = $text;
+    $bagel_sent =~ s/";\s*\r?\n$//;
+    $bagel_sent =~ s/^-> "//;
+    $bagel_sent =~ s/\[[^\]]*\]//g;
+    $bagel_sent =~ s/(?<!\.)$/./;
+    $bagel_sent =~ s/(?<! )([.;,?!'])/ $1/g;
+
     # Indicate progress
     print STDERR ".";
 
@@ -157,6 +175,7 @@ sub process_instance {
         'da'   => $da_line,
         'text' => $sent,
         'abst' => $abstr,
+        'bagel' => $bagel_sent,
         'conc' => $conc_sent,
     };
 }
@@ -167,6 +186,7 @@ sub print_instance {
     print {$out_das} $instance->{da},    "\n";
     print {$out_text} $instance->{text}, "\n";
     print {$out_abst} $instance->{abst}, "\n";
+    print {$out_bagel} $instance->{bagel}, "\n";
     print {$out_conc} $instance->{conc}, "\n";
 }
 
@@ -209,6 +229,12 @@ sub convert_da {
         my ( $slot, $val ) = ( $1, $2 );
         my $abstract_val = shift_push $abstract_vals->{$slot};
 
+        $val =~ s/^"?/"/;
+        $val =~ s/"?$/"/;
+        if ($abstract_val !~ /^"?X[0-9]+"?$/){
+            $val =~ s/^"citycentre"$/"city centre"/;
+            $val .= '#';
+        }
         if ( !$slot_vals{$slot} ) {
             $slot_vals{$slot} = [];
         }
@@ -219,9 +245,6 @@ sub convert_da {
             # keep track of joined slots for text conversion
             if ( $join_repeats and @{ $slot_vals{$slot} } > 1 ) {
                 my $join_val = join( ' and ', @{ $slot_vals{$slot} } );
-                $join_val =~ s/"? and "?/ and /g;
-                $join_val =~ s/^(?!")/"/g;
-                $join_val =~ s/(?<!")$/"/g;
                 $slot_vals{$slot} = [$join_val];
                 $slot_joins{$slot} = ( $slot_joins{$slot} // 0 ) + 1;
             }
@@ -238,13 +261,13 @@ sub convert_da {
     return ( $full_da_out, \%slot_vals, \%slot_joins );
 }
 
-# Convert one text line (sentence), using abstraction according to global settings 
+# Convert one text line (sentence), using abstraction according to global settings
 # (+values from DA conversion and list of joined repeated values)
 # Output abstract sentence + de-abstraction instructions
 sub convert_text {
 
     my ( $sent, $da_vals, $slot_joins ) = @_;
-    
+
     $sent =~ s/-> "//;
     $sent =~ s/";//;
 
@@ -271,7 +294,7 @@ sub convert_text {
 
     # produce output tokenized sentences along with abstraction instructions
     foreach my $token (@tokens) {
-        
+
         # [slot+val] – starting abstraction
         if ( $token =~ /^\[(.*)\+.*\]/ ) {
 
