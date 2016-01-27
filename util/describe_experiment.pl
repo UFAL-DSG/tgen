@@ -74,17 +74,17 @@ if ( $mode eq 'percrank' ){
         $gadgets = ' + dt ' . $1;
         $gadgets =~ s/weighted/wt/;
     }
-    
+
     if ( $config_data =~ /'future_promise_weight'\s*:\s*([0-9.]+)\s*,/ and $1 ) {
         my $fut_weight = $1;
         $gadgets .= ' + fut:' . ( $config_data =~ /'future_promise_type'\s*:\s*'([^']*)'/ )[0] . '=' . $fut_weight;
         $gadgets =~ s/exp_children/expc/;
     }
-    
+
     if ( $config_data =~ /'nn'\s*:\s*'/ ) {
         $nn_shape = ' + ' . ( $config_data =~ /'nn'\s*:\s*'([^']*)'/ )[0];
     }
-    
+
     # NN shape
     if ( $config_data =~ /'nn'\s*:\s*'emb/ ) {
         $nn_shape .= '/' .  ( $config_data =~ /'nn_shape'\s*:\s*'([^']*)'/ )[0];
@@ -94,15 +94,19 @@ if ( $mode eq 'percrank' ){
         $nn_shape .= '-C' . ( ( $config_data =~ /'cnn_filter_length'\s*:\s*([0-9]+)/ )[0] // 3 )
             . '/' . ( ( $config_data =~ /'cnn_num_filters'\s*:\s*([0-9]+)/ )[0] // 3 );
         $nn_shape .= '-' . ( ( $config_data =~ /'initialization'\s*:\s*'([^']*)'/ )[0] // 'uniform_glorot10' );
-    
+
         # NN gadgets
         $nn_shape .= ' + ngr' if ( $config_data =~ /'normgrad'\s*:\s*True/ );
     }
 }
 elsif ( $mode eq 'seq2seq' ){
-    
+
     $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
-    $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );    
+    $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
+
+    $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq'/ );
+    $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
+    $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ );
 }
 
 # run setting
