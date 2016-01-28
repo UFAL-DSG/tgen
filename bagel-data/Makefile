@@ -77,6 +77,9 @@ TARGET_SELECTOR = gen
 ifdef CV_NUM
     TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-text.sgm
     XS_INSTEAD = 1
+    ifneq (,$(findstring norep,$(TRAINING_SET)))
+    	XS_INSTEAD = '#'
+    endif
     EVAL_SELECTOR = ref0
     TEST_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/test.0-abstr.txt
 endif
@@ -104,7 +107,7 @@ make asearch_gen D='Description'
   (set PERCRANK_MODEL to the model you want to use).
 
 make asearch_gen-XXX
-* Directly test the model trained from experiment number 
+* Directly test the model trained from experiment number
   XXX.
 
 make rerun-XXX
