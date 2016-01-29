@@ -83,7 +83,7 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
             sorted_da = sorted(da, cmp=lambda a, b:
                                cmp(a.dat, b.dat) or cmp(a.name, b.name) or cmp(a.value, b.value))
         for dai in sorted_da[:self.max_da_len]:
-            da_emb_idxs.append(self.dict_slot.get(dai.dat, self.UNK_ACT))
+            da_emb_idxs.append(self.dict_act.get(dai.dat, self.UNK_ACT))
             da_emb_idxs.append(self.dict_slot.get(dai.name, self.UNK_SLOT))
             da_emb_idxs.append(self.dict_value.get(dai.value, self.UNK_VALUE))
         # left-pad with unknown
@@ -639,22 +639,13 @@ class Seq2SeqGen(SentencePlanner):
         """
         log_info("Saving generator to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
-            # TODO change this to using 'cfg' when no experiment is running
-            data = {'emb_size': self.emb_size,
-                    'batch_size': self.batch_size,
-                    'randomize': self.randomize,
-                    'cell_type': self.cell_type,
-                    'passes': self.passes,
+            data = {'cfg': self.cfg,
                     'da_embs': self.da_embs,
                     'tree_embs': self.tree_embs,
                     'da_dict_size': self.da_dict_size,
                     'tree_dict_size': self.tree_dict_size,
                     'max_da_len': self.max_da_len,
-                    'max_tree_len': self.max_tree_len,
-                    'alpha': self.alpha,
-                    'max_cores': self.max_cores,
-                    'use_tokens': self.use_tokens,
-                    'nn_type': self.nn_type, }
+                    'max_tree_len': self.max_tree_len,}
             pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         self.saver.save(self.session, tf_session_fname)
@@ -668,9 +659,9 @@ class Seq2SeqGen(SentencePlanner):
             different extension
         """
         log_info("Loading generator from %s..." % model_fname)
-        ret = Seq2SeqGen(cfg={})
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
+            ret = Seq2SeqGen(cfg=data['cfg'])
             ret.__dict__.update(data)
 
         # re-build TF graph and restore the TF session
