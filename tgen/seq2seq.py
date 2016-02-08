@@ -9,6 +9,9 @@ import tensorflow as tf
 import cPickle as pickle
 from itertools import izip_longest
 import sys
+import math
+import tempfile
+import shutil
 
 from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, embedding_attention_seq2seq, \
     sequence_loss
@@ -366,7 +369,13 @@ class Seq2SeqGen(SentencePlanner):
         # extract the individual elements out of it
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
+
         self.passes = cfg.get('passes', 5)
+        self.min_passes = cfg.get('min_passes', 1)
+        self.improve_interval = cfg.get('improve_interval', 10)
+        self.top_k = cfg.get('top_k', 5)
+        self.checkpoint_dir = cfg.get('checkpoint_dir', '/tmp/')
+
         self.alpha = cfg.get('alpha', 1e-3)
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
@@ -432,6 +441,9 @@ class Seq2SeqGen(SentencePlanner):
                           for b in grouper([self.tree_embs.get_embeddings(tree)
                                             for tree in self.train_trees],
                                            self.batch_size, None)]
+        # initialize top costs
+        self.top_k_costs = [float('nan')] * self.top_k
+        self.checkpoint_path = None
 
         # build the NN
         self._init_neural_network()
@@ -513,7 +525,10 @@ class Seq2SeqGen(SentencePlanner):
                              for trg in self.targets]
 
         # cost
-        self.cost = sequence_loss(self.outputs, self.targets, self.cost_weights, self.tree_dict_size)
+        self.cost = sequence_loss(self.outputs, self.targets,
+                                  self.cost_weights, self.tree_dict_size)
+        self.dec_cost = sequence_loss(self.dec_outputs, self.targets,
+                                      self.cost_weights, self.tree_dict_size)
 
         # optimizer
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
@@ -564,7 +579,29 @@ class Seq2SeqGen(SentencePlanner):
 
         log_info('IT %d total cost: %8.5f' % (iter_no, cost))
 
-    def process_das(self, das):
+    def _should_stop(self, iter_no, cur_cost):
+        """Determine if the training should stop (i.e., we've run for more than self.min_passes
+        and self.top_k_costs hasn't changed for more than self.improve_interval passes).
+
+        @param iter_no: current iteration number
+        @param cur_cost: current validation cost
+        @return a boolean value indicating whether the training should stop (True to stop)
+        """
+        pos = self.top_k
+        while (pos > 0 and
+               (math.isnan(self.top_k_costs[pos - 1]) or
+                cur_cost < self.top_k_costs[pos - 1])):
+            pos -= 1
+
+        if pos < self.top_k:
+            self.top_k_change = iter_no
+            self.top_k_costs.insert(pos, cur_cost)
+            self.top_k_costs.pop()
+            return False
+
+        return iter_no > self.min_passes and iter_no > self.top_k_change + self.improve_interval
+
+    def process_das(self, das, gold_trees=None):
         """
         Process a list of input DAs, return the corresponding trees (using the generator
         network with current parameters).
@@ -583,20 +620,30 @@ class Seq2SeqGen(SentencePlanner):
         for i in xrange(len(enc_inputs)):
             feed_dict[self.enc_inputs[i]] = enc_inputs[i]
 
-        # (fake) decoder inputs
-        empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
-        dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in das])
+        # decoder inputs (either fake, or true but used just for cost computation)
+        if gold_trees is None:
+            empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
+            dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in das])
+        else:
+            dec_inputs = cut_batch_into_steps([self.tree_embs.get_embeddings(tree)
+                                               for tree in gold_trees])
         for i in xrange(len(dec_inputs)):
             feed_dict[self.dec_inputs[i]] = dec_inputs[i]
 
         feed_dict[self.targets[-1]] = len(das) * [self.tree_embs.VOID]
 
         # run the decoding
-        dec_outputs = self.session.run(self.dec_outputs, feed_dict=feed_dict)
+        if gold_trees is None:
+            dec_outputs = self.session.run(self.dec_outputs, feed_dict=feed_dict)
+            dec_cost = None
+        else:
+            res = self.session.run(self.dec_outputs + [self.dec_cost], feed_dict=feed_dict)
+            dec_outputs = res[:-1]
+            dec_cost = res[-1]
 
         # convert the output back into a tree
         dec_output_ids = np.argmax(dec_outputs, axis=2)
-        return [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
+        return [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()], dec_cost
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """
@@ -622,13 +669,22 @@ class Seq2SeqGen(SentencePlanner):
 
             self._training_pass(iter_no)
 
-            # validate every couple iteration
+            # validate every couple iterations
             if iter_no % self.validation_freq == 0:
-                cur_out = self.process_das(self.train_das[:self.batch_size])
-                log_info("Current train output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
+                cur_out, _ = self.process_das(self.train_das[:self.batch_size])
                 if self.validation_size > 0:
-                    cur_out = self.process_das(self.valid_das)
+                    cur_out, cur_cost = self.process_das(self.valid_das, self.valid_trees)
+                    log_info('IT %d validation cost: %8.5f' % (iter_no, cur_cost))
+
+                # if we have the best model so far, save it as a checkpoint (overwrite previous)
+                if math.isnan(self.top_k_costs[0]) or cur_cost < self.top_k_costs[0]:
+                    log_info("Current train output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
                     log_info("Current validation output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
+                    self._save_checkpoint()
+
+                if self._should_stop(iter_no, cur_cost):
+                    log_info("Stoping criterion met.")
+                    break
 
     def save_to_file(self, model_fname):
         """Save the generator to a file (actually two files, one for configuration and one
@@ -648,7 +704,19 @@ class Seq2SeqGen(SentencePlanner):
                     'max_tree_len': self.max_tree_len,}
             pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
-        self.saver.save(self.session, tf_session_fname)
+        if self.checkpoint_path:
+            shutil.copyfile(self.checkpoint_path, tf_session_fname)
+        else:
+            self.saver.save(self.session, tf_session_fname)
+
+    def _save_checkpoint(self):
+        """Save a checkpoint to a temporary path; set `self.checkpoint_path` to the path
+        where it is saved; if called repeatedly, will always overwrite the last checkpoint."""
+        if not self.checkpoint_path:
+            fh, path = tempfile.mkstemp(".ckpt", "tgen-", self.checkpoint_path)
+            self.checkpoint_path = path
+        log_info('Saving checkpoint to %s' % self.checkpoint_path)
+        self.saver.save(self.session, self.checkpoint_path)
 
     @staticmethod
     def load_from_file(model_fname):
