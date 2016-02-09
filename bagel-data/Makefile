@@ -78,7 +78,7 @@ ifdef CV_NUM
     TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-text.sgm
     XS_INSTEAD = 1
     ifneq (,$(findstring norep,$(TRAINING_SET)))
-    	XS_INSTEAD = '#'
+	XS_INSTEAD = "#"
     endif
     EVAL_SELECTOR = ref0
     TEST_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/test.0-abstr.txt
