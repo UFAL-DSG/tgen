@@ -78,7 +78,7 @@ ifdef CV_NUM
     TEST_CONC = data/$(TRAINING_SET)/$(CV_NUM)/test-text.sgm
     XS_INSTEAD = 1
     ifneq (,$(findstring norep,$(TRAINING_SET)))
-	XS_INSTEAD = "#"
+	XS_INSTEAD = "\#"
     endif
     EVAL_SELECTOR = ref0
     TEST_ABSTR = data/$(TRAINING_SET)/$(CV_NUM)/test.0-abstr.txt
@@ -154,9 +154,11 @@ export HELP_MESSAGE
 help:
 	@echo "$$HELP_MESSAGE" | egrep --color '^(\s*make.*|)'
 
-# List all experiments, find scores in logs (of various versions)
+# List last NUM_EXP experiments, find scores in logs (of various versions)
 desc:
-	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
+	@ls -d $(RUNS_DIR)/* | \
+			perl -e '@lns = <>; print join "", sort { ($$na) = ( $$a =~ /\/([0-9]+)_/ ); ($$nb) = ( $$b =~ /\/([0-9]+)_/ ); $$na <=> $$nb } @lns;' | \
+			tail -n $(NUM_EXP) | while read file; do \
 	    	if [[ -f $$file/$(SCOREFILE) && -z "$(REFRESH)" ]]; then \
 			cat $$file/$(SCOREFILE) ; \
 			continue ; \
