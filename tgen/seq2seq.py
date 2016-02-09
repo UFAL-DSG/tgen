@@ -24,7 +24,8 @@ from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
 from tgen.embeddings import EmbeddingExtract
 from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
-from tgen.tree import TreeData, NodeData
+from tgen.tree import TreeData, NodeData, TreeNode
+from tgen.eval import Evaluator
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -409,13 +410,16 @@ class Seq2SeqGen(SentencePlanner):
 
         # save part of the training data for validation:
         if self.validation_size > 0:
-            # check if there are 2 copies of input DAs in the training data. if so, remove both
-            # copies of validation DAs from training
+            # check if there are 2 copies of input DAs in the training data.
+            # if so, put aside both copies of validation DAs/trees
             cut_dbl = self.train_das[train_size / 2 - 1] == self.train_das[-1]
             if cut_dbl:
-                log_info('Detected duplicate DAs in training data: removing both copies for validation')
+                log_info('Detected duplicate DAs in training data -- ' +
+                         'using both copies for validation')
             self.train_trees, self.valid_trees = self._cut_valid_data(self.train_trees, cut_dbl)
             self.train_das, self.valid_das = self._cut_valid_data(self.train_das, cut_dbl)
+            if cut_dbl:
+                self.valid_das = self.valid_das[0]  # the DAs are identical in both copies
 
         log_info('Using %d training, %d validation instances.' %
                  (len(self.train_das), self.validation_size))
@@ -455,7 +459,7 @@ class Seq2SeqGen(SentencePlanner):
         """Put aside part of the training set  for validation.
 
         @param insts: original training set (DAs, tokens, or trees)
-        @param cut_double: remove two copies of the training instances (in case the training \
+        @param cut_double: put aside both copies of the training instances (in case the training \
             data contain two copies of all input DAs -- this holds for the BAGEL set)
         @return: new training and validation sets
         """
@@ -463,6 +467,7 @@ class Seq2SeqGen(SentencePlanner):
         valid = insts[-self.validation_size:]
         train = insts[:-self.validation_size]
         if cut_double:
+            valid = (train[train_size / 2 - self.validation_size:train_size / 2], valid)
             train = train[:train_size / 2 - self.validation_size] + train[train_size / 2:]
         return train, valid
 
@@ -607,7 +612,8 @@ class Seq2SeqGen(SentencePlanner):
         network with current parameters).
 
         @param das: input DAs
-        @return: generated trees as `TreeData` instances
+        @param gold_trees: (optional) gold trees against which cost is computed
+        @return: generated trees as `TreeData` instances, cost if `gold_trees` are given
         """
 
         # initial state
@@ -643,7 +649,12 @@ class Seq2SeqGen(SentencePlanner):
 
         # convert the output back into a tree
         dec_output_ids = np.argmax(dec_outputs, axis=2)
-        return [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()], dec_cost
+        dec_trees = [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
+
+        # return result (trees and optionally cost)
+        if gold_trees is None:
+            return dec_trees
+        return dec_trees, dec_cost
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """
@@ -670,21 +681,44 @@ class Seq2SeqGen(SentencePlanner):
             self._training_pass(iter_no)
 
             # validate every couple iterations
-            if iter_no % self.validation_freq == 0:
-                cur_out, _ = self.process_das(self.train_das[:self.batch_size])
-                if self.validation_size > 0:
-                    cur_out, cur_cost = self.process_das(self.valid_das, self.valid_trees)
-                    log_info('IT %d validation cost: %8.5f' % (iter_no, cur_cost))
+            if iter_no % self.validation_freq == 0 and self.validation_size > 0:
+                cur_train_out = self.process_das(self.train_das[:self.batch_size])
+                log_info("Current train output:\n"
+                         + "\n".join([unicode(tree) for tree in cur_train_out]))
+
+                cur_valid_out = self.process_das(self.valid_das)
+                f1 = self._compute_f1(cur_valid_out, self.valid_trees)
+                log_info("Gold validation trees:\n"
+                         + "\n".join([unicode(tree) for tree in self.valid_trees]))
+                log_info("Current validation output:\n" +
+                         "\n".join([unicode(tree) for tree in cur_valid_out]))
+                log_info('IT %d validation F1: %5.4f' % (iter_no, f1))
+                cur_cost = -f1  # using negative f1 as the cost (maximizing f1)
 
                 # if we have the best model so far, save it as a checkpoint (overwrite previous)
                 if math.isnan(self.top_k_costs[0]) or cur_cost < self.top_k_costs[0]:
-                    log_info("Current train output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
-                    log_info("Current validation output:\n" + "\n".join([unicode(tree) for tree in cur_out]))
                     self._save_checkpoint()
 
                 if self._should_stop(iter_no, cur_cost):
                     log_info("Stoping criterion met.")
                     break
+
+    def _compute_f1(self, cur_valid_out, valid_trees):
+        """Compute F1 score of the current output on a set of validation trees. If the validation
+        set is a tuple (two paraphrases), returns the average.
+
+        @param cur_valid_out: the current system output on the validation DAs
+        @param valid_trees: the gold trees for the validation DAs (one or two paraphrases)
+        @return: (average) F1 score, as a float
+        """
+        if isinstance(valid_trees, tuple):
+            return np.mean((self._compute_f1(cur_valid_out, valid_trees[0]),
+                            self._compute_f1(cur_valid_out, valid_trees[1])))
+        evaluator = Evaluator()
+        for gold_tree, pred_tree in zip(valid_trees, cur_valid_out):
+            evaluator.append(TreeNode(gold_tree), TreeNode(pred_tree))
+        return evaluator.f1()
+
 
     def save_to_file(self, model_fname):
         """Save the generator to a file (actually two files, one for configuration and one
