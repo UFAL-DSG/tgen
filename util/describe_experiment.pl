@@ -47,7 +47,15 @@ elsif ($mode eq 'seq2seq'){
 $iters =~ s/\/\//\/~\//;
 $iters =~ s/\/$/\/~/;
 
-# data
+if ($mode eq 'seq2seq' and $config_data =~ /'validation_size'\s*:\s*([0-9]+)\s*,/ and $1 != 0 ){
+    $iters = ( ( $config_data =~ /'min_passes'\s*:\s*([0-9]+)\s*,/ )[0] // 1 ) . '-' . $iters;
+    $iters .= ' V' . ( $config_data =~ /'validation_size'\s*:\s*([0-9]+)\s*,/ )[0];
+    $iters .= '@' . ( ( $config_data =~ /'validation_freq'\s*:\s*([0-9]+)\s*,/ )[0] // 10);
+    $iters .= ' I' . ( ( $config_data =~ /'improve_interval'\s*:\s*([0-9]+)\s*,/ )[0] // 10);
+    $iters .= '@' . ( ( $config_data =~ /'top_k'\s*:\s*([0-9]+)\s*,/ )[0] // 5);
+}
+
+# data style
 $training_data = ' + all' if ( $training_set =~ /^training2/ );
 $training_data = ' + 1/2' if ( $training_set =~ /^training1/ );
 if ( $portion < 1.0 ) {
