@@ -26,6 +26,7 @@ from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
 from tgen.tree import TreeData, NodeData, TreeNode
 from tgen.eval import Evaluator
+from tgen.bleu import BLEUMeasure
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -370,6 +371,7 @@ class Seq2SeqGen(SentencePlanner):
         # extract the individual elements out of it
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
+        self.dropout_keep_prob = cfg.get('dropout_prob', 1)
 
         self.passes = cfg.get('passes', 5)
         self.min_passes = cfg.get('min_passes', 1)
@@ -385,6 +387,7 @@ class Seq2SeqGen(SentencePlanner):
         self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
         self.randomize = cfg.get('randomize', True)
         self.cell_type = cfg.get('cell_type', 'lstm')
+        self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Load training data, prepare batches, build the NN.
@@ -445,6 +448,11 @@ class Seq2SeqGen(SentencePlanner):
                           for b in grouper([self.tree_embs.get_embeddings(tree)
                                             for tree in self.train_trees],
                                            self.batch_size, None)]
+
+        # convert validation data to flat trees to enable F1 measuring
+        if self.validation_size > 0 and self.use_tokens:
+            self.valid_trees = self._valid_data_to_flat_trees(self.valid_trees)
+
         # initialize top costs
         self.top_k_costs = [float('nan')] * self.top_k
         self.checkpoint_path = None
@@ -471,6 +479,23 @@ class Seq2SeqGen(SentencePlanner):
             train = train[:train_size / 2 - self.validation_size] + train[train_size / 2:]
         return train, valid
 
+    def _valid_data_to_flat_trees(self, valid_sents):
+        """Convert validation data to flat trees, which are the result of `process_das` when
+        `self.use_tokens` is in force. This enables to measure F1 on the resulting flat trees
+        (equals to unigram F1 on sentence tokens).
+
+        @param valid_sents: validation set sentences (list of list of tokens, or a tuple \
+            of two lists containing the individual paraphrases)
+        @return: the same sentences converted to flat trees \
+            (see `TokenEmbeddingSeq2SeqExtract.ids_to_tree`)
+        """
+        if isinstance(valid_sents, tuple):
+            return (self._valid_data_to_flat_trees(valid_sents[0]),
+                    self._valid_data_to_flat_trees(valid_sents[1]))
+
+        return [self.tree_embs.ids_to_tree(self.tree_embs.get_embeddings(sent))
+                for sent in valid_sents]
+
     def _init_neural_network(self):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
 
@@ -479,8 +504,15 @@ class Seq2SeqGen(SentencePlanner):
 
         # create placeholders for input & output (always batch-size * 1, list of up to num. steps)
         self.enc_inputs = []
+        self.enc_inputs_drop = []
         for i in xrange(self.max_da_len):
-            self.enc_inputs.append(tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i)))
+            enc_input = tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
+            self.enc_inputs.append(enc_input)
+            if self.dropout_keep_prob < 1:
+                enc_input_drop = tf.nn.dropout(enc_input, self.dropout_keep_prob,
+                                               name=('enc_inp-drop-%d' % i))
+                self.enc_inputs_drop.append(enc_input_drop)
+
         self.dec_inputs = []
         for i in xrange(self.max_tree_len):
             self.dec_inputs.append(tf.placeholder(tf.int32, [None], name=('dec_inp-%d' % i)))
@@ -506,11 +538,12 @@ class Seq2SeqGen(SentencePlanner):
             if self.nn_type == 'emb_attention_seq2seq':
                 rnn_func = embedding_attention_seq2seq
 
-            # for training: feed_previous == False
+            # for training: feed_previous == False, using dropout if available
             # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps
             # states = cell states at each steps
             self.outputs, self.states = rnn_func(
-                self.enc_inputs, self.dec_inputs, self.cell,
+                self.enc_inputs_drop if self.enc_inputs_drop else self.enc_inputs,
+                self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
                 scope=scope)
 
@@ -682,18 +715,18 @@ class Seq2SeqGen(SentencePlanner):
 
             # validate every couple iterations
             if iter_no % self.validation_freq == 0 and self.validation_size > 0:
+
                 cur_train_out = self.process_das(self.train_das[:self.batch_size])
-                log_info("Current train output:\n"
-                         + "\n".join([unicode(tree) for tree in cur_train_out]))
+                log_info("Current train output:\n" +
+                         "\n".join([unicode(tree) for tree in cur_train_out]))
 
                 cur_valid_out = self.process_das(self.valid_das)
-                f1 = self._compute_f1(cur_valid_out, self.valid_trees)
-                log_info("Gold validation trees:\n"
-                         + "\n".join([unicode(tree) for tree in self.valid_trees]))
+                cur_cost = self._compute_valid_cost(cur_valid_out, self.valid_trees)
+                log_info("Gold validation trees:\n" +
+                         "\n".join([unicode(tree) for tree in self.valid_trees]))
                 log_info("Current validation output:\n" +
                          "\n".join([unicode(tree) for tree in cur_valid_out]))
-                log_info('IT %d validation F1: %5.4f' % (iter_no, f1))
-                cur_cost = -f1  # using negative f1 as the cost (maximizing f1)
+                log_info('IT %d validation cost: %5.4f' % (iter_no, cur_cost))
 
                 # if we have the best model so far, save it as a checkpoint (overwrite previous)
                 if math.isnan(self.top_k_costs[0]) or cur_cost < self.top_k_costs[0]:
@@ -702,6 +735,39 @@ class Seq2SeqGen(SentencePlanner):
                 if self._should_stop(iter_no, cur_cost):
                     log_info("Stoping criterion met.")
                     break
+
+    def _compute_valid_cost(self, cur_valid_out, valid_trees):
+        """Compute the validation set cost for the current output (interpolate negative
+        BLEU and F1 scores according to `self.bleu_validation_weight`).
+
+        @param cur_valid_out: the current system output on the validation DAs
+        @param valid_trees: the gold trees for the validation DAs (one or two paraphrases)
+        @return the cost, as a negative interpolation of BLEU and F1
+        """
+        cost = 0.0
+        if self.bleu_validation_weight > 0.0:
+            cost -=  self.bleu_validation_weight * self._compute_bleu(cur_valid_out, valid_trees)
+        if self.bleu_validation_weight < 1.0:
+            cost -= ((1.0 - self.bleu_validation_weight) *
+                     self._compute_f1(cur_valid_out, valid_trees))
+        return cost
+
+    def _compute_bleu(self, cur_valid_out, valid_trees):
+        """Compute BLEU score of the current output on a set of validation trees. If the
+        validation set is a tuple (two paraphrases), use them both for BLEU computation.
+
+        @param cur_valid_out: the current system output on the validation DAs
+        @param valid_trees: the gold trees for the validation DAs (one or two paraphrases)
+        @return: BLEU score, as a float (percentage)
+        """
+        evaluator = BLEUMeasure()
+        if isinstance(valid_trees, tuple):
+            valid_trees = [valid_trees_inst for valid_trees_inst in zip(*valid_trees)]
+        else:
+            valid_trees = [(valid_tree,) for valid_tree in valid_trees]
+        for pred_tree, gold_trees in zip(cur_valid_out, valid_trees):
+            evaluator.append(pred_tree, gold_trees)
+        return evaluator.bleu()
 
     def _compute_f1(self, cur_valid_out, valid_trees):
         """Compute F1 score of the current output on a set of validation trees. If the validation
@@ -719,7 +785,6 @@ class Seq2SeqGen(SentencePlanner):
             evaluator.append(TreeNode(gold_tree), TreeNode(pred_tree))
         return evaluator.f1()
 
-
     def save_to_file(self, model_fname):
         """Save the generator to a file (actually two files, one for configuration and one
         for the TensorFlow graph, which must be stored separately).
@@ -735,7 +800,7 @@ class Seq2SeqGen(SentencePlanner):
                     'da_dict_size': self.da_dict_size,
                     'tree_dict_size': self.tree_dict_size,
                     'max_da_len': self.max_da_len,
-                    'max_tree_len': self.max_tree_len,}
+                    'max_tree_len': self.max_tree_len, }
             pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         if self.checkpoint_path:
