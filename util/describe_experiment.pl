@@ -53,6 +53,12 @@ if ($mode eq 'seq2seq' and $config_data =~ /'validation_size'\s*:\s*([0-9]+)\s*,
     $iters .= '@' . ( ( $config_data =~ /'validation_freq'\s*:\s*([0-9]+)\s*,/ )[0] // 10);
     $iters .= ' I' . ( ( $config_data =~ /'improve_interval'\s*:\s*([0-9]+)\s*,/ )[0] // 10);
     $iters .= '@' . ( ( $config_data =~ /'top_k'\s*:\s*([0-9]+)\s*,/ )[0] // 5);
+    if ( ( $config_data =~ /'bleu_validation_weight'\s*:\s*([01]\.[0-9]*)/ ) ){
+        my $val = $1;
+        if ($val > 0.0){
+            $iters .= ' B' . sprintf( "%.2g", $val );
+        }
+    }
 }
 
 # data style
@@ -111,11 +117,15 @@ elsif ( $mode eq 'seq2seq' ){
 
     $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
+    if ( ( $config_data =~ /'dropout_keep_prob'\s*:\s*(0\.[0-9]*)/ ) ){
+        $nn_shape .= '-D' . ( $config_data =~ /'dropout_keep_prob'\s*:\s*(0\.[0-9]*)/ )[0];
+    }
     $nn_shape .= ' ' . ( ( $config_data =~ /'cell_type'\s*:\s*'([^']*)'/ )[0] // 'lstm' );
 
     $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq'/ );
     $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
     $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ );
+
 }
 
 # run setting
