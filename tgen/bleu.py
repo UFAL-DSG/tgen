@@ -93,7 +93,7 @@ class BLEUMeasure(object):
         # n-gram precision is smoothed a bit: 0 hits for a given n-gram count are
         # changed to 1e-5 to make BLEU defined everywhere
         prec_avg = sum(1.0 / self.MAX_NGRAM *
-                       math.log((n_hits if n_hits != 0 else 1e-5) / float(n_lens))
+                       math.log((n_hits if n_hits != 0 else 1e-5) / float(max(n_lens, 1.0)))
                        for n_hits, n_lens in zip(self.hits, self.cand_lens))
 
         return bp * math.exp(prec_avg)
