@@ -23,7 +23,8 @@ sample_gen -- sampling generation (oracle experiment; rather obsolete)
     - arguments: [-n trees-per-da] [-o oracle-eval-ttrees] [-w output-ttrees] candgen-model test-das
 
 asearch_gen -- generate using the A*search sentence planner
-    - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] [-c config] candgen-model percrank-model test-das
+    - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] \\
+                 [-c config] candgen-model percrank-model test-das
 """
 
 from __future__ import unicode_literals
@@ -51,6 +52,7 @@ from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
 from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
 from tgen.seq2seq import Seq2SeqGen
+from tgen.parallel_seq2seq_train import ParallelSeq2SeqTraining
 
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
@@ -165,15 +167,25 @@ def percrank_train(args):
 def seq2seq_train(args):
 
     train_size = 1.0
+    parallel = False
+    jobs_number = 0
+    work_dir = None
+    experiment_id = None
 
-    opts, files = getopt(args, 'd:s:r:')
+    opts, files = getopt(args, 'd:s:r:j:w:e:')
 
     for opt, arg in opts:
         if opt == '-d':
             set_debug_stream(file_stream(arg, mode='w'))
         if opt == '-s':
             train_size = float(arg)
-        # TODO does random seed work with TF ??
+        elif opt == '-j':
+            parallel = True
+            jobs_number = int(arg)
+        elif opt == '-w':
+            work_dir = arg
+        elif opt == '-e':
+            experiment_id = arg
         elif opt == '-r' and arg:
             rnd.seed(arg)
 
@@ -184,7 +196,13 @@ def seq2seq_train(args):
     log_info('Training sequence-to-sequence generator...')
 
     config = Config(fname_gen_config)
-    generator = Seq2SeqGen(config)
+    if parallel:
+        config['jobs_number'] = jobs_number
+        if work_dir is None:
+            work_dir, _ = os.path.split(fname_gen_config)
+        generator = ParallelSeq2SeqTraining(config, work_dir, experiment_id)
+    else:
+        generator = Seq2SeqGen(config)
 
     generator.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
     sys.setrecursionlimit(100000)
