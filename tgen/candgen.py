@@ -18,7 +18,6 @@ from tgen.logf import log_warn, log_debug
 from tgen.tree import TreeData
 from tgen.planner import CandidateList
 from tgen.rnd import rnd
-from tgen.classif import TreeClassifier
 
 
 class RandomCandidateGenerator(object):
@@ -50,7 +49,11 @@ class RandomCandidateGenerator(object):
         # do the same also for DA slots?
         self.compatible_slots = cfg.get('compatible_slots', False)
         # tree classifier
-        self.classif = TreeClassifier(cfg['tree_classif']) if cfg.get('tree_classif') else None
+        if cfg.get('tree_classif'):
+            from tgen.classif import TreeClassifier
+            self.classif = TreeClassifier(cfg['tree_classif'])
+        else:
+            self.classif = None
 
         # cache fields for generating successors:
         self.cur_da = None

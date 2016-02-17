@@ -48,7 +48,6 @@ from tgen.eval import p_r_f1_from_counts, corr_pred_gold, f1_from_counts, ASearc
     EvalTypes, Evaluator
 from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelRanker
-from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
 from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
 from tgen.seq2seq import Seq2SeqGen
@@ -140,6 +139,7 @@ def percrank_train(args):
     if candgen_model:
         rank_config['candgen_model'] = candgen_model
     if rank_config.get('nn'):
+        from tgen.rank_nn import SimpleNNRanker, EmbNNRanker
         if rank_config['nn'] in ['emb', 'emb_trees', 'emb_prev']:
             ranker_class = EmbNNRanker
         else:
