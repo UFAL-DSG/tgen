@@ -6,7 +6,8 @@
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
-QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP)# using OB's qsubmit script
+QP = -q *@a*,*@c*,*@f*,*@hyp*,*@i*,*@l*,*@o*,*@p*,*@t*# avoid Hydra and Belzebub
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
 else
@@ -226,9 +227,9 @@ cv_run:
 				TRAIN_RUN=percrank_train ; \
 				TEST_RUN=asearch_gen_cv  ; \
 			fi; \
-			make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+			make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$$CV_NUM 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 			JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-			make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="--hold $$JOB_NUM"; \
+			make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$CV_NUM$$SEED TRY_NUM=$(TRY_NUM) CV_NUM=$$CV_NUM QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
 		done; \
 	done
 
@@ -285,24 +286,24 @@ asearch_gen:
 	cp $(PERCRANK_MODEL) $(TRY_DIR)/percrank.pickle.gz
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)" CV_NUM=$(CV_NUM)
 
 asearch_gen_cv:
 asearch_gen_cv:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)" CV_NUM=$(CV_NUM)
 
 asearch_gen-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
 	$(eval TRY_NUM := $*)
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)" CV_NUM=$(CV_NUM)
 
 seq2seq_gen_cv:
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" CV_NUM=$(CV_NUM)
+	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)" CV_NUM=$(CV_NUM)
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
