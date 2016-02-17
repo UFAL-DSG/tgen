@@ -53,7 +53,7 @@ if ($mode eq 'seq2seq' and $config_data =~ /'validation_size'\s*:\s*([0-9]+)\s*,
     $iters .= '@' . ( ( $config_data =~ /'validation_freq'\s*:\s*([0-9]+)\s*,/ )[0] // 10);
     $iters .= ' I' . ( ( $config_data =~ /'improve_interval'\s*:\s*([0-9]+)\s*,/ )[0] // 10);
     $iters .= '@' . ( ( $config_data =~ /'top_k'\s*:\s*([0-9]+)\s*,/ )[0] // 5);
-    if ( ( $config_data =~ /'bleu_validation_weight'\s*:\s*([01]\.[0-9]*)/ ) ){
+    if ( ( $config_data =~ /'bleu_validation_weight'\s*:\s*([01]\.?[0-9]*)/ ) ){
         my $val = $1;
         if ($val > 0.0){
             $iters .= ' B' . sprintf( "%.2g", $val );
