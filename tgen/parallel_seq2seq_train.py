@@ -135,8 +135,9 @@ class ParallelSeq2SeqTraining(object):
                 time.sleep(self.poll_interval)
 
             # select the best result on devel data + save it
+            log_info('Results:' + unicode(results))
             best_cost, best_sc = min(results, key=lambda res: res[0])
-            log_info('Best cost: %f (computed at %s:%d).' % (best_cost, sc.host, sc.port))
+            log_info('Best cost: %f (computed at %s:%d).' % (best_cost, best_sc.host, best_sc.port))
             self.model_temp_path = os.path.join(self.work_dir, self.TEMPFILE_NAME)
             log_info('Saving best generator temporarily to %s...' % self.model_temp_path)
             best_sc.conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))
