@@ -389,6 +389,8 @@ class Seq2SeqGen(SentencePlanner):
         self.cell_type = cfg.get('cell_type', 'lstm')
         self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
 
+        self.beam_size = cfg.get('beam_size', 1)
+
     def _init_training(self, das_file, ttree_file, data_portion):
         """Load training data, prepare batches, build the NN.
 
@@ -649,27 +651,45 @@ class Seq2SeqGen(SentencePlanner):
         @return: generated trees as `TreeData` instances, cost if `gold_trees` are given
         """
 
-        # initial state
-        initial_state = np.zeros([len(das), self.emb_size])
-        feed_dict = {self.initial_state: initial_state}
-
         # encoder inputs
         enc_inputs = cut_batch_into_steps([self.da_embs.get_embeddings(da)
                                            for da in das])
+
+        if self.beam_size > 1 and len(das) == 1:
+            dec_output_ids = self._beam_search(enc_inputs)
+            dec_cost = None
+        else:
+            dec_output_ids, dec_cost = self._greedy_decoding(enc_inputs, gold_trees)
+
+        dec_trees = [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
+
+        # return result (trees and optionally cost)
+        if dec_cost is None:
+            return dec_trees
+        return dec_trees, dec_cost
+
+    def _greedy_decoding(self, enc_inputs, gold_trees):
+        """Run greedy decoding with the given encoder inputs; optionally use given gold trees
+        as decoder inputs for cost computation."""
+
+        # initial state
+        initial_state = np.zeros([len(enc_inputs[0]), self.emb_size])
+        feed_dict = {self.initial_state: initial_state}
+
         for i in xrange(len(enc_inputs)):
             feed_dict[self.enc_inputs[i]] = enc_inputs[i]
 
         # decoder inputs (either fake, or true but used just for cost computation)
         if gold_trees is None:
             empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
-            dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in das])
+            dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in enc_inputs[0]])
         else:
             dec_inputs = cut_batch_into_steps([self.tree_embs.get_embeddings(tree)
                                                for tree in gold_trees])
         for i in xrange(len(dec_inputs)):
             feed_dict[self.dec_inputs[i]] = dec_inputs[i]
 
-        feed_dict[self.targets[-1]] = len(das) * [self.tree_embs.VOID]
+        feed_dict[self.targets[-1]] = len(enc_inputs[0]) * [self.tree_embs.VOID]
 
         # run the decoding
         if gold_trees is None:
@@ -682,12 +702,83 @@ class Seq2SeqGen(SentencePlanner):
 
         # convert the output back into a tree
         dec_output_ids = np.argmax(dec_outputs, axis=2)
-        dec_trees = [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
+        return dec_output_ids, dec_cost
 
-        # return result (trees and optionally cost)
-        if gold_trees is None:
-            return dec_trees
-        return dec_trees, dec_cost
+    class DecodingPath(object):
+        """A decoding path to be used in beam search."""
+
+        __slots__ = ['dec_inputs', 'dec_outputs', 'dec_states', 'logprob']
+
+        def __init__(self, dec_inputs=[], dec_outputs=[], dec_states=[], logprob=0.0):
+            self.dec_inputs = list(dec_inputs)
+            self.dec_outputs = list(dec_outputs)
+            self.dec_states = list(dec_states)
+            self.logprob = logprob
+
+        def expand(self, dec_output, dec_state):
+            """Expand the path with all possible outputs, updating the log probabilities.
+
+            @param dec_output: the decoder output scores for the current step
+            @param dec_state: the decoder hidden state for the current step
+            @return: an array of all possible continuations of this path
+            """
+
+            ret = []
+
+            # softmax, assuming batches size 1
+            # http://stackoverflow.com/questions/34968722/softmax-function-python
+            probs = np.exp(dec_output[0]) / np.sum(np.exp(dec_output[0]), axis=0)
+
+            # TODO use only n-best here -- others are meaningless
+            for idx, prob in enumerate(probs):
+                expanded = Seq2SeqGen.DecodingPath(self.dec_inputs, self.dec_outputs,
+                                                   self.dec_states, self.logprob)
+                expanded.logprob += np.log(prob)
+                expanded.dec_inputs.append(np.array(idx, ndmin=1))
+                expanded.dec_outputs.append(dec_output)
+                expanded.dec_states.append(dec_state)
+                ret.append(expanded)
+
+            return ret
+
+    def _beam_search(self, enc_inputs):
+        """Run beam search decoding."""
+
+        # true "batches" not implemented yet
+        assert len(enc_inputs[0]) == 1
+
+        # initial state
+        initial_state = np.zeros([1, self.emb_size])
+        feed_dict = {self.initial_state: initial_state}
+
+        for i in xrange(len(enc_inputs)):
+            feed_dict[self.enc_inputs[i]] = enc_inputs[i]
+
+        empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
+        dec_inputs = cut_batch_into_steps([empty_tree_emb])
+
+        paths = [self.DecodingPath(dec_inputs=[dec_inputs[0]])]
+
+        for step in xrange(len(dec_inputs)):
+
+            new_paths = []
+
+            for path in paths:
+
+                for i in xrange(step):
+                    feed_dict[self.dec_inputs[i]] = path.dec_inputs[i]
+                    feed_dict[self.dec_outputs[i]] = path.dec_outputs[i]
+                    feed_dict[self.dec_states[i]] = path.dec_states[i]
+
+                feed_dict[self.dec_inputs[step]] = path.dec_inputs[step]
+                out, st = self.session.run([self.dec_outputs[step], self.dec_states[step]],
+                                           feed_dict=feed_dict)
+
+                new_paths.extend(path.expand(out, st))
+
+            paths = sorted(new_paths, reverse=True)[:self.beam_size]
+
+        return paths[0].dec_inputs
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """
@@ -746,7 +837,7 @@ class Seq2SeqGen(SentencePlanner):
         """
         cost = 0.0
         if self.bleu_validation_weight > 0.0:
-            cost -=  self.bleu_validation_weight * self._compute_bleu(cur_valid_out, valid_trees)
+            cost -= self.bleu_validation_weight * self._compute_bleu(cur_valid_out, valid_trees)
         if self.bleu_validation_weight < 1.0:
             cost -= ((1.0 - self.bleu_validation_weight) *
                      self._compute_f1(cur_valid_out, valid_trees))
