@@ -7,8 +7,8 @@ config = {
           'alpha': 1e-3,
           'randomize': True,
           'num_hidden_units': 128,
-          'emb_size': 50,
-          'batch_size': 30,
+          'emb_size': 100,
+          'batch_size': 20,
           'max_cores': 4,
           'use_tokens': False,
           'nn_type': 'emb_attention_seq2seq',
@@ -22,5 +22,5 @@ config = {
           'min_passes': 100,
           'improve_interval': 100,
           'top_k': 10,
-          'bleu_validation_weight': 0,
+          'bleu_validation_weight': 1,
           }
