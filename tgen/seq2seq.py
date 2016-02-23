@@ -372,6 +372,7 @@ class Seq2SeqGen(SentencePlanner):
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
         self.dropout_keep_prob = cfg.get('dropout_prob', 1)
+        self.optimizer_type = cfg.get('optimizer_type', 'adam')
 
         self.passes = cfg.get('passes', 5)
         self.min_passes = cfg.get('min_passes', 1)
@@ -570,8 +571,11 @@ class Seq2SeqGen(SentencePlanner):
         self.dec_cost = sequence_loss(self.dec_outputs, self.targets,
                                       self.cost_weights, self.tree_dict_size)
 
-        # optimizer
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
+        # optimizer (default to Adam)
+        if self.optimizer_type == 'adagrad':
+            self.optimizer = tf.train.AdagradOptimizer(self.alpha)
+        else:
+            self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.train_func = self.optimizer.minimize(self.cost)
 
         # initialize session
@@ -715,9 +719,11 @@ class Seq2SeqGen(SentencePlanner):
             self.dec_states = list(dec_states)
             self.logprob = logprob
 
-        def expand(self, dec_output, dec_state):
+        def expand(self, max_variants, dec_output, dec_state):
             """Expand the path with all possible outputs, updating the log probabilities.
 
+            @param max_variants: expand to this number of variants at maximum, discard the less \
+                probable ones
             @param dec_output: the decoder output scores for the current step
             @param dec_state: the decoder hidden state for the current step
             @return: an array of all possible continuations of this path
@@ -728,12 +734,13 @@ class Seq2SeqGen(SentencePlanner):
             # softmax, assuming batches size 1
             # http://stackoverflow.com/questions/34968722/softmax-function-python
             probs = np.exp(dec_output[0]) / np.sum(np.exp(dec_output[0]), axis=0)
+            # select only up to max_variants most probable variants
+            top_n_idx = np.argpartition(-probs, max_variants)[:max_variants]
 
-            # TODO use only n-best here -- others are meaningless
-            for idx, prob in enumerate(probs):
+            for idx in top_n_idx:
                 expanded = Seq2SeqGen.DecodingPath(self.dec_inputs, self.dec_outputs,
                                                    self.dec_states, self.logprob)
-                expanded.logprob += np.log(prob)
+                expanded.logprob += np.log(probs[idx])
                 expanded.dec_inputs.append(np.array(idx, ndmin=1))
                 expanded.dec_outputs.append(dec_output)
                 expanded.dec_states.append(dec_state)
@@ -741,11 +748,22 @@ class Seq2SeqGen(SentencePlanner):
 
             return ret
 
+        def __cmp__(self, other):
+            """Comparing the paths according to their logprob."""
+            if self.logprob < other.logprob:
+                return -1
+            if self.logprob > other.logprob:
+                return 1
+            return 0
+
     def _beam_search(self, enc_inputs):
         """Run beam search decoding."""
 
         # true "batches" not implemented yet
         assert len(enc_inputs[0]) == 1
+
+#        log_debug("GREEDY DEC WOULD RETURN:\n" +
+                  #" ".join(self.tree_embs.ids_to_strings([out_tok[0] for out_tok in self._greedy_decoding(enc_inputs, None)[0]])))
 
         # initial state
         initial_state = np.zeros([1, self.emb_size])
@@ -774,11 +792,16 @@ class Seq2SeqGen(SentencePlanner):
                 out, st = self.session.run([self.dec_outputs[step], self.dec_states[step]],
                                            feed_dict=feed_dict)
 
-                new_paths.extend(path.expand(out, st))
+                new_paths.extend(path.expand(self.beam_size, out, st))
 
             paths = sorted(new_paths, reverse=True)[:self.beam_size]
 
-        return paths[0].dec_inputs
+#            log_debug(("\nBEAM SEARCH STEP %d\n" % step) +
+                      #"\n".join([("%f\t" % path.logprob) +
+                                 #" ".join(self.tree_embs.ids_to_strings([inp[0] for inp in path.dec_inputs]))
+                                 #for path in paths]) + "\n")
+
+        return np.array(paths[0].dec_inputs)
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """
@@ -936,6 +959,7 @@ class Seq2SeqGen(SentencePlanner):
         @param gen_doc: the document where the tree should be saved (defaults to None)
         """
         # generate the tree
+        log_debug("GENERATE TREE FOR DA: " + unicode(da))
         tree = self.process_das([da])[0]
         log_debug("RESULT: %s" % unicode(tree))
         # if requested, append the result to the document
