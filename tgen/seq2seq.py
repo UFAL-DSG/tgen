@@ -728,7 +728,6 @@ class Seq2SeqGen(SentencePlanner):
             @param dec_state: the decoder hidden state for the current step
             @return: an array of all possible continuations of this path
             """
-
             ret = []
 
             # softmax, assuming batches size 1
@@ -762,8 +761,9 @@ class Seq2SeqGen(SentencePlanner):
         # true "batches" not implemented yet
         assert len(enc_inputs[0]) == 1
 
-#        log_debug("GREEDY DEC WOULD RETURN:\n" +
-                  #" ".join(self.tree_embs.ids_to_strings([out_tok[0] for out_tok in self._greedy_decoding(enc_inputs, None)[0]])))
+        log_debug("GREEDY DEC WOULD RETURN:\n" +
+                  " ".join(self.tree_embs.ids_to_strings(
+                      [out_tok[0] for out_tok in self._greedy_decoding(enc_inputs, None)[0]])))
 
         # initial state
         initial_state = np.zeros([1, self.emb_size])
@@ -785,21 +785,24 @@ class Seq2SeqGen(SentencePlanner):
 
                 for i in xrange(step):
                     feed_dict[self.dec_inputs[i]] = path.dec_inputs[i]
-                    feed_dict[self.dec_outputs[i]] = path.dec_outputs[i]
-                    feed_dict[self.dec_states[i]] = path.dec_states[i]
+                    feed_dict[self.outputs[i]] = path.dec_outputs[i]
+                    feed_dict[self.states[i]] = path.dec_states[i]
 
                 feed_dict[self.dec_inputs[step]] = path.dec_inputs[step]
-                out, st = self.session.run([self.dec_outputs[step], self.dec_states[step]],
+                out, st = self.session.run([self.outputs[step], self.states[step]],
                                            feed_dict=feed_dict)
 
                 new_paths.extend(path.expand(self.beam_size, out, st))
 
             paths = sorted(new_paths, reverse=True)[:self.beam_size]
 
-#            log_debug(("\nBEAM SEARCH STEP %d\n" % step) +
-                      #"\n".join([("%f\t" % path.logprob) +
-                                 #" ".join(self.tree_embs.ids_to_strings([inp[0] for inp in path.dec_inputs]))
-                                 #for path in paths]) + "\n")
+            if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
+                break  # stop decoding if we have reached the end in all paths
+
+            log_debug(("\nBEAM SEARCH STEP %d\n" % step) +
+                      "\n".join([("%f\t" % p.logprob) +
+                                 " ".join(self.tree_embs.ids_to_strings([inp[0] for inp in p.dec_inputs]))
+                                 for p in paths]) + "\n")
 
         return np.array(paths[0].dec_inputs)
 
