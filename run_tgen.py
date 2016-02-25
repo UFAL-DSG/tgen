@@ -25,6 +25,8 @@ sample_gen -- sampling generation (oracle experiment; rather obsolete)
 asearch_gen -- generate using the A*search sentence planner
     - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] \\
                  [-c config] candgen-model percrank-model test-das
+
+TODO add further actions
 """
 
 from __future__ import unicode_literals
@@ -52,6 +54,7 @@ from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
 from tgen.seq2seq import Seq2SeqGen
 from tgen.parallel_seq2seq_train import ParallelSeq2SeqTraining
+from tgen.tfclassif import TFTreeClassifier
 
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
@@ -101,6 +104,37 @@ def candgen_train(args):
                                         'tree_classif': tree_classif})
     candgen.train(fname_da_train, fname_ttrees_train)
     candgen.save_to_file(fname_cand_model)
+
+
+def tftreecl_train(args):
+
+    opts, files = getopt(args, '')
+
+    if len(files) != 4:
+        sys.exit("Invalid arguments.\n" + __doc__)
+    fname_config, fname_da_train, fname_trees_train, fname_cl_model = files
+
+    config = Config(fname_config)
+    tftreecl = TFTreeClassifier(config)
+
+    tftreecl.train(fname_da_train, fname_trees_train)
+    tftreecl.save_to_file(fname_cl_model)
+
+
+def treecl_train(args):
+    from tgen.classif import TreeClassifier
+
+    opts, files = getopt(args, '')
+
+    if len(files) != 4:
+        sys.exit("Invalid arguments.\n" + __doc__)
+    fname_config, fname_da_train, fname_trees_train, fname_cl_model = files
+
+    config = Config(fname_config)
+    tftreecl = TreeClassifier(config)
+
+    tftreecl.train(fname_da_train, fname_trees_train)
+    tftreecl.save_to_file(fname_cl_model)
 
 
 def percrank_train(args):
@@ -462,6 +496,10 @@ if __name__ == '__main__':
         seq2seq_train(args)
     elif action == 'seq2seq_gen':
         seq2seq_gen(args)
+    elif action == 'treecl_train':
+        treecl_train(args)
+    elif action == 'tftreecl_train':
+        tftreecl_train(args)
     else:
         # Unknown action
         sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)

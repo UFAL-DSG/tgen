@@ -11,7 +11,7 @@ config = {
           'batch_size': 20,
           'optimizer_type': 'adam',
           'max_cores': 4,
-          'use_tokens': False,
+          'use_tokens': True,
           'nn_type': 'emb_attention_seq2seq',
           'sort_da_emb': True,
           'cell_type': 'lstm',
@@ -24,5 +24,5 @@ config = {
           'improve_interval': 100,
           'top_k': 10,
           'bleu_validation_weight': 1,
-          'beam_size': 1,
+          'beam_size': 10,
           }

@@ -27,6 +27,7 @@ from tgen.planner import SentencePlanner
 from tgen.tree import TreeData, NodeData, TreeNode
 from tgen.eval import Evaluator
 from tgen.bleu import BLEUMeasure
+from tgen.tfclassif import TFTreeClassifier
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -267,7 +268,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
 
 class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
-    """Abstract ancestor of embedding extraction classes."""
+    """Extracting token emeddings from a string (array of words)."""
 
     VOID = 0
     GO = 1
@@ -378,9 +379,11 @@ class Seq2SeqGen(SentencePlanner):
         self.min_passes = cfg.get('min_passes', 1)
         self.improve_interval = cfg.get('improve_interval', 10)
         self.top_k = cfg.get('top_k', 5)
-        self.checkpoint_dir = cfg.get('checkpoint_dir', '/tmp/')
+        # self.checkpoint_dir = cfg.get('checkpoint_dir', '/tmp/')  # TODO fix (not used now)
+        self.use_dec_cost = cfg.get('use_dec_cost', False)
 
         self.alpha = cfg.get('alpha', 1e-3)
+        self.alpha_decay = cfg.get('alpha_decay', 0.0)
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
         self.max_cores = cfg.get('max_cores')
@@ -391,6 +394,11 @@ class Seq2SeqGen(SentencePlanner):
         self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
 
         self.beam_size = cfg.get('beam_size', 1)
+
+        self.classif_filter = None
+        if 'classif_filter' in cfg:
+            self.classif_filter = TFTreeClassifier(cfg['classif_filter'])
+            self.misfit_penalty = cfg.get('misfit_penalty', 100)
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Load training data, prepare batches, build the NN.
@@ -456,6 +464,15 @@ class Seq2SeqGen(SentencePlanner):
         if self.validation_size > 0 and self.use_tokens:
             self.valid_trees = self._valid_data_to_flat_trees(self.valid_trees)
 
+        # train the classifier for filtering n-best lists
+        if self.classif_filter:
+            classif_train_trees = (self.train_trees if not self.use_tokens else
+                                   self._tokens_to_flat_trees(self.train_trees))
+            self.classif_filter.train(self.train_das, classif_train_trees,
+                                      valid_das=self.valid_das,
+                                      valid_trees=self.valid_trees)
+            self.classif_filter.restore_checkpoint()  # restore the best performance on devel data
+
         # initialize top costs
         self.top_k_costs = [float('nan')] * self.top_k
         self.checkpoint_path = None
@@ -465,6 +482,9 @@ class Seq2SeqGen(SentencePlanner):
 
         # initialize the NN variables
         self.session.run(tf.initialize_all_variables())
+
+    def _tokens_to_flat_trees(self, sents):
+        return [self.tree_embs.ids_to_tree(self.tree_embs.get_embeddings(sent)) for sent in sents]
 
     def _cut_valid_data(self, insts, cut_double):
         """Put aside part of the training set  for validation.
@@ -496,8 +516,7 @@ class Seq2SeqGen(SentencePlanner):
             return (self._valid_data_to_flat_trees(valid_sents[0]),
                     self._valid_data_to_flat_trees(valid_sents[1]))
 
-        return [self.tree_embs.ids_to_tree(self.tree_embs.get_embeddings(sent))
-                for sent in valid_sents]
+        return self._tokens_to_flat_trees(valid_sents)
 
     def _init_neural_network(self):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
@@ -566,16 +585,24 @@ class Seq2SeqGen(SentencePlanner):
                              for trg in self.targets]
 
         # cost
-        self.cost = sequence_loss(self.outputs, self.targets,
-                                  self.cost_weights, self.tree_dict_size)
+        self.tf_cost = sequence_loss(self.outputs, self.targets,
+                                     self.cost_weights, self.tree_dict_size)
         self.dec_cost = sequence_loss(self.dec_outputs, self.targets,
                                       self.cost_weights, self.tree_dict_size)
+        if self.use_dec_cost:
+            self.cost = 0.5 * (self.tf_cost + self.dec_cost)
+        else:
+            self.cost = self.tf_cost
+
+        self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
 
         # optimizer (default to Adam)
+        if self.optimizer_type == 'sgd':
+            self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         if self.optimizer_type == 'adagrad':
-            self.optimizer = tf.train.AdagradOptimizer(self.alpha)
+            self.optimizer = tf.train.AdagradOptimizer(self.learning_rate)
         else:
-            self.optimizer = tf.train.AdamOptimizer(self.alpha)
+            self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
         self.train_func = self.optimizer.minimize(self.cost)
 
         # initialize session
@@ -601,7 +628,8 @@ class Seq2SeqGen(SentencePlanner):
 
             # initial state
             initial_state = np.zeros([self.batch_size, self.emb_size])
-            feed_dict = {self.initial_state: initial_state}
+            feed_dict = {self.initial_state: initial_state,
+                         self.learning_rate: self.alpha * np.exp(-self.alpha_decay * iter_no)}
 
             # encoder inputs
             for i in xrange(len(self.train_enc[batch_no])):
@@ -660,7 +688,7 @@ class Seq2SeqGen(SentencePlanner):
                                            for da in das])
 
         if self.beam_size > 1 and len(das) == 1:
-            dec_output_ids = self._beam_search(enc_inputs)
+            dec_output_ids = self._beam_search(enc_inputs, das[0])
             dec_cost = None
         else:
             dec_output_ids, dec_cost = self._greedy_decoding(enc_inputs, gold_trees)
@@ -755,7 +783,7 @@ class Seq2SeqGen(SentencePlanner):
                 return 1
             return 0
 
-    def _beam_search(self, enc_inputs):
+    def _beam_search(self, enc_inputs, da):
         """Run beam search decoding."""
 
         # true "batches" not implemented yet
@@ -804,7 +832,21 @@ class Seq2SeqGen(SentencePlanner):
                                  " ".join(self.tree_embs.ids_to_strings([inp[0] for inp in p.dec_inputs]))
                                  for p in paths]) + "\n")
 
+        if self.classif_filter:  # filter out paths that are
+            paths = self._filter_paths(paths, da)
+
         return np.array(paths[0].dec_inputs)
+
+    def _filter_paths(self, paths, da):
+
+        trees = [self.tree_embs.ids_to_tree(np.array(path.dec_inputs).transpose())
+                 for path in path]
+        self.classif_filter.init_run(da)
+        fits = self.classif_filter.dist_to_cur_da(trees)
+        # add distances to logprob so that non-fitting will be heavily penalized
+        for path, fit in zip(paths, fitting):
+            path.logprob -= self.misfit_penalty * fit
+        return sorted(paths, reverse=True)
 
     def train(self, das_file, ttree_file, data_portion=1.0):
         """
@@ -910,6 +952,10 @@ class Seq2SeqGen(SentencePlanner):
             different extension
         """
         log_info("Saving generator to %s..." % model_fname)
+        if self.classif_filter:
+            classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
+            self.classif_filter.save_to_file(classif_filter_fname)
+
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             data = {'cfg': self.cfg,
                     'da_embs': self.da_embs,
@@ -917,7 +963,8 @@ class Seq2SeqGen(SentencePlanner):
                     'da_dict_size': self.da_dict_size,
                     'tree_dict_size': self.tree_dict_size,
                     'max_da_len': self.max_da_len,
-                    'max_tree_len': self.max_tree_len, }
+                    'max_tree_len': self.max_tree_len,
+                    'classif_filter': self.classif_filter is not None}
             pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         if self.checkpoint_path:
@@ -947,6 +994,10 @@ class Seq2SeqGen(SentencePlanner):
             data = pickle.load(fh)
             ret = Seq2SeqGen(cfg=data['cfg'])
             ret.__dict__.update(data)
+
+        if ret.classif_filter:
+            classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
+            ret.classif_filter = TFTreeClassifier.load_from_file(classif_filter_fname)
 
         # re-build TF graph and restore the TF session
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
