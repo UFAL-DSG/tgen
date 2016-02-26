@@ -104,6 +104,7 @@ class TFTreeClassifier(object):
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
 
         self.passes = cfg.get('passes', 200)
+        self.min_passes = cfg.get('min_passes', 0)
         self.alpha = cfg.get('alpha', 0.1)
         self.randomize = cfg.get('randomize', True)
         self.batch_size = cfg.get('batch_size', 1)
@@ -177,6 +178,9 @@ class TFTreeClassifier(object):
 
     def train(self, das_file, ttree_file, data_portion=1.0, valid_das=None, valid_trees=None):
         """Run training on the given training data."""
+
+        log_info('Training tree classifier...')
+
         self._init_training(das_file, ttree_file, data_portion)
         top_cost = float('nan')
 
@@ -192,7 +196,8 @@ class TFTreeClassifier(object):
                 rnd.shuffle(self.train_order)
             pass_cost, pass_diff = self._training_pass(iter_no)
 
-            if iter_no % self.validation_freq == 0 and valid_das > 0:
+            if iter_no > self.min_passes and iter_no % self.validation_freq == 0 and valid_das > 0:
+
                 valid_diff = np.sum([self.dist_to_da(d, t) for d, t in zip(valid_das, valid_trees)])
 
                 # cost combining validation and training data performance
@@ -211,10 +216,13 @@ class TFTreeClassifier(object):
         This does not have a lot of practical use here, see is_subset_of_da.
         """
         if self.tree_embs:
-            X = np.array([self.tree_embs.get_embeddings(tree) for tree in trees])
+            inputs = np.array([self.tree_embs.get_embeddings(tree) for tree in trees])
         else:
-            X = self.tree_vect.transform([self.tree_feats.get_features(tree, {}) for tree in trees])
-        results = self.session.run(self.outputs, feed_dict={self.inputs: X})
+            inputs = self.tree_vect.transform([self.tree_feats.get_features(tree, {})
+                                               for tree in trees])
+        fd = {}
+        self._add_inputs_to_feed_dict(inputs, fd)
+        results = self.session.run(self.outputs, feed_dict=fd)
         # normalize & binarize the result
         return np.array([[1. if r > 0 else 0. for r in result] for result in results])
 
