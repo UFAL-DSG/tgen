@@ -211,13 +211,23 @@ class ParallelSeq2SeqTraining(object):
         self.server_thread.start()
 
     def save_to_file(self, model_fname):
-        """"""
+        """This will actually just move the best generator (which is saved in a temporary file)
+        to the final location."""
         log_info('Moving generator to %s...' % model_fname)
         orig_model_fname = self.model_temp_path
         shutil.move(orig_model_fname, model_fname)
         orig_tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', orig_model_fname)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
-        shutil.move(orig_tf_session_fname, tf_session_fname)
+
+        # move the classification filter model files as well, if they exist
+        orig_clfilter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', orig_model_fname)
+        orig_clfilter_tf_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tfsess', orig_clfilter_fname)
+
+        if os.path.isfile(orig_clfilter_fname) and os.path.isfile(orig_clfilter_tf_fname):
+            clfilter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
+            clfilter_tf_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tfsess', clfilter_fname)
+            shutil.move(orig_clfilter_fname, clfilter_fname)
+            shutil.move(orig_clfilter_tf_fname, clfilter_tf_fname)
 
 
 class Seq2SeqTrainingService(Service):
