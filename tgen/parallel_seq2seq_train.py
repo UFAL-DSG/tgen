@@ -218,6 +218,7 @@ class ParallelSeq2SeqTraining(object):
         shutil.move(orig_model_fname, model_fname)
         orig_tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', orig_model_fname)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        shutil.move(orig_tf_session_fname, tf_session_fname)
 
         # move the classification filter model files as well, if they exist
         orig_clfilter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', orig_model_fname)
