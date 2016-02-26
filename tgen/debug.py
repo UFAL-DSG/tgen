@@ -27,13 +27,15 @@ def exc_info_hook(exc_type, value, tb):
         sys.__excepthook__(exc_type, value, tb)
     else:
         import traceback
-        import ipdb
+        # import ipdb
+        import pudb
         # we are NOT in interactive mode, print the exception
         traceback.print_exception(exc_type, value, tb)
         print
         # then start the debugger in post-mortem mode.
         # pdb.pm() # deprecated
-        ipdb.post_mortem(tb)  # more modern
+        # ipdb.post_mortem(tb)  # more modern
+        pudb.post_mortem(tb)
 
 
 def inspect_inputs(i, node, fn):
