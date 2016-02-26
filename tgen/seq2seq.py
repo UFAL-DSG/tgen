@@ -621,6 +621,8 @@ class Seq2SeqGen(SentencePlanner):
         """
 
         it_cost = 0.0
+        it_learning_rate = self.alpha * np.exp(-self.alpha_decay * iter_no)
+        log_info('IT %d alpha: %8.5f' % (iter_no, it_learning_rate))
 
         for batch_no in self.train_order:
 
@@ -629,7 +631,7 @@ class Seq2SeqGen(SentencePlanner):
             # initial state
             initial_state = np.zeros([self.batch_size, self.emb_size])
             feed_dict = {self.initial_state: initial_state,
-                         self.learning_rate: self.alpha * np.exp(-self.alpha_decay * iter_no)}
+                         self.learning_rate: it_learning_rate}
 
             # encoder inputs
             for i in xrange(len(self.train_enc[batch_no])):
@@ -839,12 +841,12 @@ class Seq2SeqGen(SentencePlanner):
 
     def _filter_paths(self, paths, da):
 
-        trees = [self.tree_embs.ids_to_tree(np.array(path.dec_inputs).transpose())
-                 for path in path]
+        trees = [self.tree_embs.ids_to_tree(np.array(path.dec_inputs).transpose()[0])
+                 for path in paths]
         self.classif_filter.init_run(da)
         fits = self.classif_filter.dist_to_cur_da(trees)
         # add distances to logprob so that non-fitting will be heavily penalized
-        for path, fit in zip(paths, fitting):
+        for path, fit in zip(paths, fits):
             path.logprob -= self.misfit_penalty * fit
         return sorted(paths, reverse=True)
 
