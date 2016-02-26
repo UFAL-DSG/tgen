@@ -28,10 +28,19 @@ die($USAGE) if ( !@ARGV );
 # Gather the settings from the command arguments and config files
 my ( $iters, $training_data, $gadgets, $run_setting, $nn_shape ) = ( '', '', '', '', '' );
 my $config_data = read_file( $ARGV[0] );
+
+# remove commented-out lines
+$config_data =~ s/^\s*#.*$//gm;
+
 my $mode = 'percrank';
+my $classif_filter_data = '';
 
 if ( $ARGV[0] =~ /seq2seq/ ){
     $mode = 'seq2seq';
+
+    # remove classification filter data so that they do not influence reading other settings
+    $classif_filter_data = ( $config_data =~ /'classif_filter'\s*:\s*{([^}]*)}/s )[0];
+    $config_data =~ s/'classif_filter'\s*:\s*{[^}]*}//s;
 }
 
 # iterations
@@ -42,7 +51,10 @@ if ($mode eq 'percrank'){
 }
 elsif ($mode eq 'seq2seq'){
     $iters .= '/' . ( $config_data =~ /'batch_size'\s*:\s*([0-9]+)\s*,/ )[0];
-    $iters .= '/' . ( $config_data =~ /'alpha'\s*:\s*([0-9eE-]+)\s*,/ )[0];
+    $iters .= '/' . ( $config_data =~ /'alpha'\s*:\s*([.0-9eE-]+)\s*,/ )[0];
+    if ( $config_data =~ /'alpha_decay'\s*:\s*([.0-9eE-]+)\s*,/ and $1 > 0){
+        $iters .= '^' . $1;
+    }
 }
 $iters =~ s/\/\//\/~\//;
 $iters =~ s/\/$/\/~/;
@@ -128,8 +140,29 @@ elsif ( $mode eq 'seq2seq' ){
     $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq'/ );
     $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
     $nn_shape .= ' +adgr'  if ( $config_data =~ /'optimizer_type'\s*:\s*'adagrad'/ );
+    $nn_shape .= ' +dc'  if ( $config_data =~ /'use_dec_cost'\s*:\s*True/ );
     $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ );
 
+    # classificator filter settings
+    if ($classif_filter_data){
+        $nn_shape .= ' +cf';
+        my $cf_nn_type = (( $classif_filter_data =~ /'nn_shape'\s*:\s*'([^']*)'/ )[0] // '??' );
+
+        $nn_shape .= '_' . $cf_nn_type . '_';
+
+        if ( $classif_filter_data =~ /'min_passes'\s*:\s*([0-9]+)\s*,/ ){
+            $nn_shape .= ( $classif_filter_data =~ /'min_passes'\s*:\s*([0-9]+)\s*,/ )[0] . '-';
+        }
+        $nn_shape .= (( $classif_filter_data =~ /'passes'\s*:\s*([0-9]+)\s*,/ )[0] // '~' );
+        $nn_shape .= '/' . (( $classif_filter_data =~ /'batch_size'\s*:\s*([0-9]+)\s*,/ )[0] // '~' );
+        $nn_shape .= '/' . (( $classif_filter_data =~ /'alpha'\s*:\s*([.0-9eE-]+)\s*,/ )[0] // '~' );
+        $nn_shape .= '_';
+
+        if ( $cf_nn_type eq 'rnn' ){
+            $nn_shape .= 'E' . ( ( $classif_filter_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
+        }
+        $nn_shape .= '-N' . ( ( $classif_filter_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
+    }
 }
 
 # run setting
