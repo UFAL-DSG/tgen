@@ -12,6 +12,7 @@ import sys
 import math
 import tempfile
 import shutil
+import os
 
 from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, embedding_attention_seq2seq, \
     sequence_loss
@@ -19,7 +20,7 @@ from tensorflow.models.rnn import rnn_cell
 
 from pytreex.core.util import file_stream
 
-from tgen.logf import log_info, log_debug
+from tgen.logf import log_info, log_debug, log_warn
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
 from tgen.embeddings import EmbeddingExtract
 from tgen.rnd import rnd
@@ -350,8 +351,10 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
         for token in tokens:
             if token in ['<GO>', '<STOP>', '<VOID>']:
                 continue
-            if token == '<-s>':
+            if token == '<-s>' and tree.nodes[-1].t_lemma is not None:
                 tree.nodes[-1] = NodeData(tree.nodes[-1].t_lemma + 's', 'x')
+            elif token == '<-s>':
+                continue
             else:
                 tree.create_child(0, len(tree), NodeData(token, 'x'))
 
@@ -969,7 +972,7 @@ class Seq2SeqGen(SentencePlanner):
                     'classif_filter': self.classif_filter is not None}
             pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
-        if self.checkpoint_path:
+        if hasattr(self, 'checkpoint_path') and self.checkpoint_path:
             shutil.copyfile(self.checkpoint_path, tf_session_fname)
         else:
             self.saver.save(self.session, tf_session_fname)
@@ -999,7 +1002,11 @@ class Seq2SeqGen(SentencePlanner):
 
         if ret.classif_filter:
             classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
-            ret.classif_filter = TFTreeClassifier.load_from_file(classif_filter_fname)
+            if os.path.isfile(classif_filter_fname):
+                ret.classif_filter = TFTreeClassifier.load_from_file(classif_filter_fname)
+            else:
+                log_warn("Classification filter data not found, ignoring.")
+                ret.classif_filter = False
 
         # re-build TF graph and restore the TF session
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
