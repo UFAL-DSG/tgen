@@ -25,11 +25,11 @@ from pytreex.core.util import file_stream
 
 from tgen.rnd import rnd
 from tgen.logf import log_debug, log_info
-from tgen.futil import read_das, read_ttrees, trees_from_doc
+from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
 from tgen.features import Features
 from tgen.ml import DictVectorizer
 from tgen.embeddings import TreeEmbeddingExtract, EmbeddingExtract
-from tgen.tree import TreeData
+from tgen.tree import TreeData, NodeData
 from alex.components.slu.da import DialogueAct
 
 
@@ -99,6 +99,7 @@ class TFTreeClassifier(object):
         if self.tree_embs:
             self.tree_embs = TreeEmbeddingClassifExtract(cfg)
             self.emb_size = cfg.get('emb_size', 50)
+        self.use_tokens = cfg.get('use_tokens', False)
 
         self.nn_shape = cfg.get('nn_shape', 'ff')
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
@@ -196,9 +197,11 @@ class TFTreeClassifier(object):
                 rnd.shuffle(self.train_order)
             pass_cost, pass_diff = self._training_pass(iter_no)
 
-            if iter_no > self.min_passes and iter_no % self.validation_freq == 0 and valid_das > 0:
+            if self.validation_freq and iter_no > self.min_passes and iter_no % self.validation_freq == 0:
 
-                valid_diff = np.sum([self.dist_to_da(d, t) for d, t in zip(valid_das, valid_trees)])
+                valid_diff = 0
+                if valid_das:
+                    valid_diff = np.sum([self.dist_to_da(d, t) for d, t in zip(valid_das, valid_trees)])
 
                 # cost combining validation and training data performance
                 cur_cost = 1000 * valid_diff + 100 * pass_diff + pass_cost
@@ -294,7 +297,11 @@ class TFTreeClassifier(object):
         else:
             log_info('Reading t-trees from ' + ttree_file + '...')
             ttree_doc = read_ttrees(ttree_file)
-            trees = trees_from_doc(ttree_doc, self.language, self.selector)
+            if self.use_tokens:
+                tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
+                trees = self._flat_trees_from_tokens(tokens)
+            else:
+                trees = trees_from_doc(ttree_doc, self.language, self.selector)
 
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(trees)))
@@ -339,6 +346,22 @@ class TFTreeClassifier(object):
         self._init_neural_network()
         # initialize the NN variables
         self.session.run(tf.initialize_all_variables())
+
+    def _flat_trees_from_tokens(self, sents):
+        """Use sentences (pairs token-tag) read from Treex files and convert them into flat
+        trees (each token has a node right under the root, lemma is the token, formeme is 'x').
+        Tags are disregarded here.
+
+        @param sents: sentences to be converted
+        @return: a list of flat trees
+        """
+        trees = []
+        for sent in sents:
+            tree = TreeData()
+            for form, _ in sent:
+                tree.create_child(0, len(tree), NodeData(form, 'x'))
+            trees.append(tree)
+        return trees
 
     def _init_neural_network(self):
         """Create the neural network for classification, according to the self.nn_shape
@@ -502,4 +525,31 @@ class TFTreeClassifier(object):
 
     def _print_pass_stats(self, pass_no, time, cost, diff):
         log_info('PASS %03d: duration %s, cost %f, diff %d' % (pass_no, str(time), cost, diff))
+
+    def evaluate_file(self, das_file, ttree_file, use_tokens=False):
+        """Evaluate the reranking classifier on a given pair of DA/tree files (show the
+        total Hamming distance and total number of DAIs)
+
+        @param das_file: DA file path
+        @param ttree_file: trees/sentences file path
+        @param use_tokens: convert trees to tokens before evaluating?
+        @return: a tuple (total DAIs, distance)
+        """
+
+        das = read_das(das_file)
+        ttree_doc = read_ttrees(ttree_file)
+        if use_tokens:
+            tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
+            trees = self._flat_trees_from_tokens(tokens)
+        else:
+            trees = trees_from_doc(ttree_doc, self.language, self.selector)
+
+        da_len = 0
+        dist = 0
+
+        for da, tree in zip(das, trees):
+            da_len += len(da)
+            dist += self.dist_to_da(da, [tree])[0]
+
+        return da_len, dist
 

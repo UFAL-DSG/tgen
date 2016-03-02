@@ -533,7 +533,7 @@ def rerank_cl_eval(args):
         rerank_cl.selector = selector
 
     log_info("Evaluating...")
-    tot_len, dist = rerank_cl.evaluate_files(fname_test_da, fname_test_sent, use_tokens)
+    tot_len, dist = rerank_cl.evaluate_file(fname_test_da, fname_test_sent, use_tokens)
     log_info("Penalty: %d, Total DAIs %d." % (dist, tot_len))
 
 
