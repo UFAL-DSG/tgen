@@ -26,7 +26,23 @@ asearch_gen -- generate using the A*search sentence planner
     - arguments: [-e eval-ttrees-file] [-s eval-ttrees-selector] [-d debug-output] [-w output-ttrees] \\
                  [-c config] candgen-model percrank-model test-das
 
-TODO add further actions
+treecl_train -- train a tree classifier (part of candidate generator, accessible externally here)
+    - arguments: config train-das train-trees treecl-model-file
+
+seq2seq_train -- train a seq2seq generator (via trees or strings)
+    - arguments: [-d debug-output] [-s data-portion] [-r rand-seed] [-j parallel-models] [-w parallel-work-dir] \\
+                 [-e experiment-id] config train-das train-trees seq2seq-model
+
+seq2seq_gen -- evaluate the seq2seq generator
+    - arguments: [-e eval-ttrees-file] [-r eval-ttrees-selector] [-t target-selector] [-d debug-output]
+                 [-w output-ttrees] [-b beam-size-override] seq2seq-model test-das
+
+rerank_cl_train -- train the reranking classifier (part of seq2seq generator, accessible externally here)
+    - arguments:  config train-das train-trees rerank-cl-model
+
+rerank_cl_eval -- evaluate the reranking classifier (part of seq2seq generator, accessible externally here)
+    - arguments: [-l language] [-s selector] [-t] rerank-cl-model test-das test-sents
+                 * -t = flatten trees to tokens
 """
 
 from __future__ import unicode_literals
@@ -106,19 +122,31 @@ def candgen_train(args):
     candgen.save_to_file(fname_cand_model)
 
 
-def tftreecl_train(args):
+def rerank_cl_train(args):
 
-    opts, files = getopt(args, '')
+    opts, files = getopt(args, 'a:')
+
+    load_seq2seq_model = None
+    for opt, arg in opts:
+        if opt == '-a':
+            load_seq2seq_model = arg
 
     if len(files) != 4:
         sys.exit("Invalid arguments.\n" + __doc__)
     fname_config, fname_da_train, fname_trees_train, fname_cl_model = files
 
-    config = Config(fname_config)
-    tftreecl = TFTreeClassifier(config)
+    if load_seq2seq_model:
+        tgen = Seq2SeqGen.load_from_file(load_seq2seq_model)
 
-    tftreecl.train(fname_da_train, fname_trees_train)
-    tftreecl.save_to_file(fname_cl_model)
+    config = Config(fname_config)
+    rerank_cl = TFTreeClassifier(config)
+    rerank_cl.train(fname_da_train, fname_trees_train)
+
+    if load_seq2seq_model:
+        tgen.classif_filter = rerank_cl
+        tgen.save_to_file(fname_cl_model)
+    else:
+        rerank_cl.save_to_file(fname_cl_model)
 
 
 def treecl_train(args):
@@ -131,10 +159,10 @@ def treecl_train(args):
     fname_config, fname_da_train, fname_trees_train, fname_cl_model = files
 
     config = Config(fname_config)
-    tftreecl = TreeClassifier(config)
+    treecl = TreeClassifier(config)
 
-    tftreecl.train(fname_da_train, fname_trees_train)
-    tftreecl.save_to_file(fname_cl_model)
+    treecl.train(fname_da_train, fname_trees_train)
+    treecl.save_to_file(fname_cl_model)
 
 
 def percrank_train(args):
@@ -397,11 +425,12 @@ def asearch_gen(args):
 def seq2seq_gen(args):
     """Sequence-to-sequence generation"""
 
-    opts, files = getopt(args, 'e:d:w:r:t:')
+    opts, files = getopt(args, 'e:d:w:r:t:b:')
     eval_file = None
     fname_ttrees_out = None
     ref_selector = ''
     target_selector = ''
+    beam_size_override = None
 
     for opt, arg in opts:
         if opt == '-e':
@@ -414,12 +443,16 @@ def seq2seq_gen(args):
             set_debug_stream(file_stream(arg, mode='w'))
         elif opt == '-w':
             fname_ttrees_out = arg
+        elif opt == '-b':
+            beam_size_override = int(arg)
 
     if len(files) != 2:
         sys.exit('Invalid arguments.\n' + __doc__)
     fname_seq2seq_model, fname_da_test = files
 
     tgen = Seq2SeqGen.load_from_file(fname_seq2seq_model)
+    if beam_size_override:
+        tgen.beam_size = beam_size_override
 
     log_info('Generating...')
     das = read_das(fname_da_test)
@@ -473,6 +506,37 @@ def seq2seq_gen(args):
         write_ttrees(gen_doc, fname_ttrees_out)
 
 
+def rerank_cl_eval(args):
+
+    opts, files = getopt(args, 's:l:t')
+
+    language = None
+    selector = None
+    use_tokens = False
+    for opt, arg in opts:
+        if opt == '-l':
+            language = arg
+        elif opt == '-s':
+            selector = arg
+        elif opt == '-t':
+            use_tokens = True
+
+    if len(files) != 3:
+        sys.exit("Invalid arguments.\n" + __doc__)
+    fname_cl_model, fname_test_da, fname_test_sent = files
+
+    log_info("Loading tree classifier...")
+    rerank_cl = TFTreeClassifier.load_from_file(fname_cl_model)
+    if language is not None:
+        rerank_cl.language = language
+    if selector is not None:
+        rerank_cl.selector = selector
+
+    log_info("Evaluating...")
+    tot_len, dist = rerank_cl.evaluate_files(fname_test_da, fname_test_sent, use_tokens)
+    log_info("Penalty: %d, Total DAIs %d." % (dist, tot_len))
+
+
 if __name__ == '__main__':
 
     if len(sys.argv) < 3:
@@ -498,8 +562,10 @@ if __name__ == '__main__':
         seq2seq_gen(args)
     elif action == 'treecl_train':
         treecl_train(args)
-    elif action == 'tftreecl_train':
-        tftreecl_train(args)
+    elif action == 'rerank_cl_train':
+        rerank_cl_train(args)
+    elif action == 'rerank_cl_eval':
+        rerank_cl_eval(args)
     else:
         # Unknown action
         sys.exit(("\nERROR: Unknown Tgen action: %s\n\n---" % action) + __doc__)
