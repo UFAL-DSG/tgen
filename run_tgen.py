@@ -70,7 +70,7 @@ from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
 from tgen.seq2seq import Seq2SeqGen
 from tgen.parallel_seq2seq_train import ParallelSeq2SeqTraining
-from tgen.tfclassif import TFTreeClassifier
+from tgen.tfclassif import RerankingClassifier
 
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
@@ -139,7 +139,7 @@ def rerank_cl_train(args):
         tgen = Seq2SeqGen.load_from_file(load_seq2seq_model)
 
     config = Config(fname_config)
-    rerank_cl = TFTreeClassifier(config)
+    rerank_cl = RerankingClassifier(config)
     rerank_cl.train(fname_da_train, fname_trees_train)
 
     if load_seq2seq_model:
@@ -525,8 +525,8 @@ def rerank_cl_eval(args):
         sys.exit("Invalid arguments.\n" + __doc__)
     fname_cl_model, fname_test_da, fname_test_sent = files
 
-    log_info("Loading tree classifier...")
-    rerank_cl = TFTreeClassifier.load_from_file(fname_cl_model)
+    log_info("Loading reranking classifier...")
+    rerank_cl = RerankingClassifier.load_from_file(fname_cl_model)
     if language is not None:
         rerank_cl.language = language
     if selector is not None:

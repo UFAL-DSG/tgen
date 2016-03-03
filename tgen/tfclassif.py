@@ -3,8 +3,6 @@
 
 """
 Classifying trees to determine which DAIs are represented.
-
-TODO this is a "fork" of classif.py. Merge identical code.
 """
 
 from __future__ import unicode_literals
@@ -28,7 +26,7 @@ from tgen.logf import log_debug, log_info
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
 from tgen.features import Features
 from tgen.ml import DictVectorizer
-from tgen.embeddings import TreeEmbeddingExtract, EmbeddingExtract
+from tgen.embeddings import EmbeddingExtract
 from tgen.tree import TreeData, NodeData
 from alex.components.slu.da import DialogueAct
 
@@ -86,7 +84,7 @@ class TreeEmbeddingClassifExtract(EmbeddingExtract):
         return [self.max_tree_len * 2]
 
 
-class TFTreeClassifier(object):
+class RerankingClassifier(object):
     """A classifier for trees that decides which DAIs are currently represented
     (to be used in limiting candidate generator and/or re-scoring the trees)."""
 
@@ -94,7 +92,6 @@ class TFTreeClassifier(object):
         self.cfg = cfg
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
-        # TODO this should allow normal sentences; it should correspond to Seq2Seq model
         self.tree_embs = cfg.get('nn', '').startswith('emb')
         if self.tree_embs:
             self.tree_embs = TreeEmbeddingClassifExtract(cfg)
@@ -168,7 +165,7 @@ class TFTreeClassifier(object):
         log_info("Loading generator from %s..." % model_fname)
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
-            ret = TFTreeClassifier(cfg=data['cfg'])
+            ret = RerankingClassifier(cfg=data['cfg'])
             ret.__dict__.update(data)
 
         # re-build TF graph and restore the TF session
@@ -180,10 +177,10 @@ class TFTreeClassifier(object):
     def train(self, das_file, ttree_file, data_portion=1.0, valid_das=None, valid_trees=None):
         """Run training on the given training data."""
 
-        log_info('Training tree classifier...')
+        log_info('Training reranking classifier...')
 
         self._init_training(das_file, ttree_file, data_portion)
-        top_cost = float('nan')
+        top_comb_cost = float('nan')
 
         if valid_trees:  # preparing valid_trees for evaluation (1 or 2 paraphrases)
             if isinstance(valid_trees, tuple):
@@ -204,19 +201,18 @@ class TFTreeClassifier(object):
                     valid_diff = np.sum([self.dist_to_da(d, t) for d, t in zip(valid_das, valid_trees)])
 
                 # cost combining validation and training data performance
-                cur_cost = 1000 * valid_diff + 100 * pass_diff + pass_cost
-                log_info('Combined validation cost: %8.3f' % cur_cost)
+                # (+ "real" cost with negligible weight)
+                comb_cost = 1000 * valid_diff + 100 * pass_diff + pass_cost
+                log_info('Combined validation cost: %8.3f' % comb_cost)
 
                 # if we have the best model so far, save it as a checkpoint (overwrite previous)
-                if math.isnan(top_cost) or cur_cost < top_cost:
-                    top_cost = cur_cost
+                if math.isnan(top_comb_cost) or comb_cost < top_comb_cost:
+                    top_comb_cost = comb_cost
                     self._save_checkpoint()
 
     def classify(self, trees):
         """Classify the tree -- get DA slot-value pairs and DA type to which the tree
         corresponds (as 1/0 array).
-
-        This does not have a lot of practical use here, see is_subset_of_da.
         """
         if self.tree_embs:
             inputs = np.array([self.tree_embs.get_embeddings(tree) for tree in trees])
@@ -229,53 +225,30 @@ class TFTreeClassifier(object):
         # normalize & binarize the result
         return np.array([[1. if r > 0 else 0. for r in result] for result in results])
 
-    def is_subset_of_da(self, da, trees):
-        """Given a DA and an array of trees, this gives a boolean array indicating which
-        trees currently cover/describe a subset of the DA.
-
-        @param da: the input DA against which the trees should be tested
-        @param trees: the trees to test against the DA
-        @return: boolean array, with True where the tree covers/describes a subset of the DA
-        """
-        # get 1-hot representation of the DA
-        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
-        # convert it to array of booleans
-        da_bin = da_bin != 0
-        # classify the trees
-        covered = self.classify(trees)
-        # decide whether 1's in their 1-hot vectors are subsets of True's in da_bin
-        return [((c != 0) | da_bin == da_bin).all() for c in covered]
-
     def init_run(self, da):
-        """Remember the current DA for subsequent runs of `is_subset_of_cur_da`."""
+        """Remember the current DA for subsequent runs of `dist_to_cur_da`."""
         self.cur_da = da
         da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
         self.cur_da_bin = da_bin != 0
 
-    def is_subset_of_cur_da(self, trees):
-        """Same as `is_subset_of_da`, but using `self.cur_da` set via `init_run`."""
-        da_bin = self.cur_da_bin
-        covered = self.classify(trees)
-        return [((c != 0) | da_bin == da_bin).all() for c in covered]
-
-    def corresponds_to_cur_da(self, trees):
-        """Given an array of trees, this gives a boolean array indicating which
-        trees currently cover exactly the current DA (set via `init_run`).
-
-        @param trees: the trees to test against the current DA
-        @return: boolean array, with True where the tree exactly covers/describes the current DA
-        """
-        da_bin = self.cur_da_bin
-        covered = self.classify(trees)
-        return [((c != 0) == da_bin).all() for c in covered]
-
     def dist_to_da(self, da, trees):
+        """Return Hamming distance of given trees to the given DA.
+
+        @param da: the DA as the base of the Hamming distance measure
+        @param trees: list of trees to measure the distance
+        @return: list of Hamming distances for each tree
+        """
         da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
         da_bin = da_bin != 0
         covered = self.classify(trees)
         return [sum(abs(c - da_bin)) for c in covered]
 
     def dist_to_cur_da(self, trees):
+        """Return Hamming distance of given trees to the current DA (set in `init_run`).
+
+        @param trees: list of trees to measure the distance
+        @return: list of Hamming distances for each tree
+        """
         da_bin = self.cur_da_bin
         covered = self.classify(trees)
         return [sum(abs(c - da_bin)) for c in covered]
@@ -372,21 +345,15 @@ class TFTreeClassifier(object):
 
         self.targets = tf.placeholder(tf.float32, [None, self.num_outputs], name='targets')
 
-        # TODO enable embeddings
-        #if self.tree_embs:
-        #    layers.append([Embedding('emb', self.dict_size, self.emb_size, 'uniform_005')])
-
         # feedforward networks
         if self.nn_shape.startswith('ff'):
             self.inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name='inputs')
-            # TODO enable embeddings
-            #if self.tree_embs:
-            #    layers.append([Flatten('flat')])
             num_ff_layers = 2
             if self.nn_shape[-1] in ['0', '1', '3', '4']:
                 num_ff_layers = int(self.nn_shape[-1])
             self.outputs = self._ff_layers('ff', num_ff_layers, self.inputs)
 
+        # RNNs
         elif self.nn_shape.startswith('rnn'):
             self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
             self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
@@ -394,34 +361,15 @@ class TFTreeClassifier(object):
             self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
             self.outputs = self._rnn('rnn', self.inputs)
 
-        # TODO convolutional networks
-        # elif 'conv' in self.nn_shape or 'pool' in self.nn_shape:
-            #assert self.tree_embs  # convolution makes no sense without embeddings
-            #num_conv = 0
-            #if 'conv' in self.nn_shape:
-                #num_conv = 1
-            #if 'conv2' in self.nn_shape:
-                #num_conv = 2
-            #pooling = None
-            #if 'maxpool' in self.nn_shape:
-                #pooling = T.max
-            #elif 'avgpool' in self.nn_shape:
-                #pooling = T.mean
-            #layers += self._conv_layers('conv', num_conv, pooling)
-            #layers.append([Flatten('flat')])
-            #layers += self._ff_layers('ff', 1)
-
-        # input types: integer 3D for tree embeddings (batch + 2D embeddings),
-        #              float 2D (matrix) for binary input (batch + features)
-
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
         # (or is computed as if there were a sigmoid layer on top)
         self.cost = tf.reduce_mean(tf.reduce_sum(
                  tf.nn.sigmoid_cross_entropy_with_logits(self.outputs, self.targets, name='CE'), 1))
 
-        # this would have been the "true" cost function, if there were a "real" sigmoid layer on top
-        # however, it is not numerically stable
-        #self.cost = tf.reduce_mean(tf.reduce_sum(self.targets * -tf.log(self.outputs) + (1 - self.targets) * -tf.log(1 - self.outputs), 1))
+        # NB: this would have been the "true" cost function, if there were a "real" sigmoid layer on top.
+        # However, it is not numerically stable in practice, so we have to use the TF function.
+        # self.cost = tf.reduce_mean(tf.reduce_sum(self.targets * -tf.log(self.outputs)
+        #                                          + (1 - self.targets) * -tf.log(1 - self.outputs), 1))
 
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.train_func = self.optimizer.minimize(self.cost)
@@ -453,23 +401,12 @@ class TFTreeClassifier(object):
         encoder_cell = rnn_cell.EmbeddingWrapper(self.cell, self.dict_size)
         _, encoder_states = rnn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
         w = tf.Variable(tf.random_normal([self.cell.state_size, self.num_outputs], stddev=0.1),
-                            name + ('-w'))
+                        name + ('-w'))
         b = tf.Variable(tf.zeros([self.num_outputs]), name + ('-b'))
         return tf.matmul(encoder_states[-1], w) + b
 
-
-    #def _conv_layers(self, name, num_layers=1, pooling=None):
-        #ret = []
-        #for i in xrange(num_layers):
-            #ret.append([Conv1D(name + str(i + 1),
-                               #filter_length=self.cnn_filter_length,
-                               #num_filters=self.cnn_num_filters,
-                               #init=self.init, activation=T.tanh)])
-        #if pooling is not None:
-            #ret.append([Pool1D(name + str(i + 1) + 'pool', pooling_func=pooling)])
-        #return ret
-
-    def batches(self):
+    def _batches(self):
+        """Create batches from the input; use as iterator."""
         for i in xrange(0, len(self.train_order), self.batch_size):
             yield self.train_order[i: i + self.batch_size]
 
@@ -485,7 +422,6 @@ class TFTreeClassifier(object):
         else:
             fd[self.inputs] = inputs
 
-
     def _training_pass(self, pass_no):
         """Perform one training pass through the whole training data, print statistics."""
 
@@ -497,7 +433,7 @@ class TFTreeClassifier(object):
         pass_cost = 0
         pass_diff = 0
 
-        for tree_nos in self.batches():
+        for tree_nos in self._batches():
 
             log_debug('TREE-NOS: ' + str(tree_nos))
             log_debug("\n".join(unicode(self.train_trees[i]) + "\n" + unicode(self.train_das[i])
@@ -535,7 +471,6 @@ class TFTreeClassifier(object):
         @param use_tokens: convert trees to tokens before evaluating?
         @return: a tuple (total DAIs, distance)
         """
-
         das = read_das(das_file)
         ttree_doc = read_ttrees(ttree_file)
         if use_tokens:
@@ -552,4 +487,3 @@ class TFTreeClassifier(object):
             dist += self.dist_to_da(da, [tree])[0]
 
         return da_len, dist
-
