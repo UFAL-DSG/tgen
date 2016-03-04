@@ -28,7 +28,7 @@ from tgen.planner import SentencePlanner
 from tgen.tree import TreeData, NodeData, TreeNode
 from tgen.eval import Evaluator
 from tgen.bleu import BLEUMeasure
-from tgen.tfclassif import TFTreeClassifier
+from tgen.tfclassif import RerankingClassifier
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -400,7 +400,7 @@ class Seq2SeqGen(SentencePlanner):
 
         self.classif_filter = None
         if 'classif_filter' in cfg:
-            self.classif_filter = TFTreeClassifier(cfg['classif_filter'])
+            self.classif_filter = RerankingClassifier(cfg['classif_filter'])
             self.misfit_penalty = cfg.get('misfit_penalty', 100)
 
     def _init_training(self, das_file, ttree_file, data_portion):
@@ -1003,7 +1003,7 @@ class Seq2SeqGen(SentencePlanner):
         if ret.classif_filter:
             classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
             if os.path.isfile(classif_filter_fname):
-                ret.classif_filter = TFTreeClassifier.load_from_file(classif_filter_fname)
+                ret.classif_filter = RerankingClassifier.load_from_file(classif_filter_fname)
             else:
                 log_warn("Classification filter data not found, ignoring.")
                 ret.classif_filter = False
