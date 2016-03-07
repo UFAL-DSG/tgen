@@ -1032,3 +1032,29 @@ class Seq2SeqGen(SentencePlanner):
             zone.sentence = unicode(da)
         # return the result
         return tree
+
+    def get_model_params(self):
+        """Return the current model parameters in a dictionary (out of TensorFlow). Calls
+        `var.eval()` on each model parameter.
+
+        @return: all model parameters (variables), as numpy arrays, keyed in a dictionary under \
+            their names
+        """
+        all_vars = tf.all_variables()
+        ret = {}
+        for var in all_vars:
+            ret[var.name] = var.eval(session=self.session)
+        return ret
+
+    def set_model_params(self, vals):
+        """Using a dictionary in the format returned by `get_model_params`, assign new parameter
+        values.
+
+        @param vals: a dictionary of new parameter values, as numpy arrays, keyed und their names \
+            in a dictionary.
+        """
+        all_vars = tf.all_variables()
+        for var in all_vars:
+            if var.name in vals:
+                op = var.assign(vals[var.name])
+                self.session.run(op)

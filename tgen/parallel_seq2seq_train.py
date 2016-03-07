@@ -14,6 +14,7 @@ import os
 from collections import deque
 import shutil
 import re
+import sys
 
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
@@ -68,6 +69,7 @@ class ParallelSeq2SeqTraining(object):
         self.port = cfg.get('port', self.DEFAULT_PORT)
         self.host = socket.getfqdn()
         self.poll_interval = cfg.get('poll_interval', 1)
+        self.average_models = cfg.get('average_models', False)
         self.experiment_id = experiment_id if experiment_id is not None else ''
         # this will be needed when running
         self.server = None
@@ -134,13 +136,22 @@ class ParallelSeq2SeqTraining(object):
                 log_debug('Sleeping.')
                 time.sleep(self.poll_interval)
 
-            # select the best result on devel data + save it
-            log_info('Results:' + unicode(results))
-            best_cost, best_sc = min(results, key=lambda res: res[0])
-            log_info('Best cost: %f (computed at %s:%d).' % (best_cost, best_sc.host, best_sc.port))
+            log_info("Results:\n" + "\n".join("%.5f %s:%d" % (cost, sc.host, sc.port)
+                                              for cost, sc in results))
+
             self.model_temp_path = os.path.join(self.work_dir, self.TEMPFILE_NAME)
-            log_info('Saving best generator temporarily to %s...' % self.model_temp_path)
-            best_sc.conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))
+            # average the computed models
+            if self.average_models:
+                log_info('Averaging models...')
+                avg_model = self.get_averaged_model(results)
+                log_info('Saving the averaged model temporarily to %s...' % self.model_temp_path)
+                avg_model.save_to_file(os.path.relpath(self.model_temp_path, self.work_dir))
+            # select the best result on devel data + save it
+            else:
+                best_cost, best_sc = min(results, key=lambda res: res[0])
+                log_info('Best cost: %f (computed at %s:%d).' % (best_cost, best_sc.host, best_sc.port))
+                log_info('Saving best generator temporarily to %s...' % self.model_temp_path)
+                best_sc.conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))
 
         # kill all jobs
         finally:
@@ -220,7 +231,7 @@ class ParallelSeq2SeqTraining(object):
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         shutil.move(orig_tf_session_fname, tf_session_fname)
 
-        # move the classification filter model files as well, if they exist
+        # move the reranking classifier model files as well, if they exist
         orig_clfilter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', orig_model_fname)
         orig_clfilter_tf_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tfsess', orig_clfilter_fname)
 
@@ -229,6 +240,32 @@ class ParallelSeq2SeqTraining(object):
             clfilter_tf_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tfsess', clfilter_fname)
             shutil.move(orig_clfilter_fname, clfilter_fname)
             shutil.move(orig_clfilter_tf_fname, clfilter_tf_fname)
+
+    def get_averaged_model(self, results):
+        """Retrieve parameters of all models in results, average them, and save a new model with
+        averaged parameters. Using a plain arithmetic average, no weighting.
+
+        @param results: the computation results -- list of pairs (cost, ServiceConn)
+        @return: the averaged model, as a Seq2SeqGen object
+        """
+        # get all models' parameters and average them
+        avg_params = None
+        for _, sc in results:
+            if avg_params is None:
+                avg_params = pickle.loads(sc.conn.root.get_model_params())
+            else:
+                cur_params = pickle.loads(sc.conn.root.get_model_params())
+                for name, val in cur_params.iteritems():
+                    avg_params[name] += val
+        for name in avg_params.iterkeys():
+            avg_params[name] /= float(len(results))
+
+        # save a random model
+        results[0][1].conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))
+        # read it locally
+        model = Seq2SeqGen.load_from_file(self.model_temp_path)
+        model.set_model_params(avg_params)
+        return model
 
 
 class Seq2SeqTrainingService(Service):
@@ -259,7 +296,19 @@ class Seq2SeqTrainingService(Service):
         return top_cost
 
     def exposed_save_model(self, model_fname):
+        """Save the model to the given file (must be given relative to the worker's working
+        directory!).
+        @param model_fname: target path where to save the model (relative to worker's \
+                working directory)
+        """
         self.seq2seq.save_to_file(model_fname)
+
+    def exposed_get_model_params(self):
+        """Retrieve all parameters of the worker's local model (as a dictionary)
+        @return: all model parameters in a dictionary -- keys are names, values are numpy arrays
+        """
+        p_dump = pickle.dumps(self.seq2seq.get_model_params(), protocol=pickle.HIGHEST_PROTOCOL)
+        return p_dump
 
 
 def run_training(head_host, head_port, debug_out=None):
