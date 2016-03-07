@@ -48,7 +48,7 @@ ifdef J # Shortcut J -> JOBS
 endif
 
 ifdef JOBS
-  PARALLEL := -j $(JOBS)
+  PARALLEL := -j $(JOBS) -e "T.$(TRY_NUM)"
 endif
 
 # Input data file defaults
@@ -262,7 +262,7 @@ percrank_train:
 	# run the experiment
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) percrank_train $(DEBUG_LOG_TRAIN) -c $(TRY_DIR)/candgen.pickle.gz  \
-		-s $(TRAIN_PORTION) $(PARALLEL) -e "T.$(TRY_NUM)" -r "$(SEED)" \
+		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" \
 		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
