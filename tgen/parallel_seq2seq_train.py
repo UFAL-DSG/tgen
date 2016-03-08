@@ -70,6 +70,7 @@ class ParallelSeq2SeqTraining(object):
         self.host = socket.getfqdn()
         self.poll_interval = cfg.get('poll_interval', 1)
         self.average_models = cfg.get('average_models', False)
+        self.average_models_top_k = cfg.get('average_models_top_k', 0)
         self.experiment_id = experiment_id if experiment_id is not None else ''
         # this will be needed when running
         self.server = None
@@ -140,15 +141,20 @@ class ParallelSeq2SeqTraining(object):
                                               for cost, sc in results))
 
             self.model_temp_path = os.path.join(self.work_dir, self.TEMPFILE_NAME)
+            results.sort(key=lambda res:res[0])
             # average the computed models
             if self.average_models:
                 log_info('Averaging models...')
-                avg_model = self.get_averaged_model(results)
+                # use only top k if required
+                results_for_avg = (results[:self.average_models_top_k]
+                                   if self.average_models_top_k > 0
+                                   else results)
+                avg_model = self.get_averaged_model(results_for_avg)
                 log_info('Saving the averaged model temporarily to %s...' % self.model_temp_path)
                 avg_model.save_to_file(os.path.relpath(self.model_temp_path, self.work_dir))
             # select the best result on devel data + save it
             else:
-                best_cost, best_sc = min(results, key=lambda res: res[0])
+                best_cost, best_sc = results[0]
                 log_info('Best cost: %f (computed at %s:%d).' % (best_cost, best_sc.host, best_sc.port))
                 log_info('Saving best generator temporarily to %s...' % self.model_temp_path)
                 best_sc.conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))

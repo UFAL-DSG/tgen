@@ -143,6 +143,14 @@ elsif ( $mode eq 'seq2seq' ){
     $nn_shape .= ' +dc'  if ( $config_data =~ /'use_dec_cost'\s*:\s*True/ );
     $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ );
 
+    if ( $config_data =~ /'average_models'\s*:\s*True/ ){
+        $nn_shape .= ' +am';
+        my $top_k = ( ( $config_data =~ /'average_models_top_k'\s*:\s*([0-9]*)/ )[0] // 0 );
+        if ($top_k){
+            $nn_shape .= $top_k;
+        }
+    }
+
     # classificator filter settings
     if ($classif_filter_data){
         $nn_shape .= ' +cf';
