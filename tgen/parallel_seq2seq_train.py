@@ -116,7 +116,7 @@ class ParallelSeq2SeqTraining(object):
                 # check if some of the pending computations have finished
                 for sc, job_no, req in list(self.pending_requests):
                     res = self._check_pending_request(sc, job_no, req)
-                    if res and res is not None:
+                    if res is not None:
                         results[job_no] = res, sc
 
                 # check for free services and assign new computation
@@ -151,12 +151,13 @@ class ParallelSeq2SeqTraining(object):
                                    else results)
                 avg_model = self.get_averaged_model(results_for_avg)
                 log_info('Saving the averaged model temporarily to %s...' % self.model_temp_path)
-                avg_model.save_to_file(os.path.relpath(self.model_temp_path, self.work_dir))
+                avg_model.save_to_file(self.model_temp_path)
             # select the best result on devel data + save it
             else:
                 best_cost, best_sc = results[0]
                 log_info('Best cost: %f (computed at %s:%d).' % (best_cost, best_sc.host, best_sc.port))
                 log_info('Saving best generator temporarily to %s...' % self.model_temp_path)
+                # use relative path (working directory of worker jobs is different)
                 best_sc.conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))
 
         # kill all jobs
@@ -173,7 +174,7 @@ class ParallelSeq2SeqTraining(object):
 
         @param iter_no: current iteration number (for logging)
         @param sc: a ServiceConn object that stores the worker connection parameters
-        @param req_portion: current data portion number (is None for jobs loading)
+        @param job_no: current job number (is None for jobs loading)
         @param req: the request itself
 
         @return: the value returned by the finished data processing request, or None \
@@ -266,11 +267,12 @@ class ParallelSeq2SeqTraining(object):
         for name in avg_params.iterkeys():
             avg_params[name] /= float(len(results))
 
-        # save a random model
+        # save one of the models (use relative path; working directory of worker jobs is different)
         results[0][1].conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))
-        # read it locally
+        # load it locally and set the new averaged parameters
         model = Seq2SeqGen.load_from_file(self.model_temp_path)
         model.set_model_params(avg_params)
+        # save the result
         return model
 
 
