@@ -6,7 +6,8 @@
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
-QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP)# using OB's qsubmit script
+QP = --exclude-comp hyperion5
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
 else
@@ -45,7 +46,7 @@ ifdef J # Shortcut J -> JOBS
 endif
 
 ifdef JOBS
-  PARALLEL := -j $(JOBS)
+  PARALLEL := -j $(JOBS) -e "T.$(TRY_NUM)"
 endif
 
 # Input data file defaults
@@ -222,7 +223,7 @@ cv_run:
 		fi; \
 		make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="--hold $$JOB_NUM"; \
+		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
 	done
 
 cv_score-%:
@@ -289,24 +290,24 @@ asearch_gen:
 	cp $(PERCRANK_MODEL) $(TRY_DIR)/percrank.pickle.gz
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
 
 asearch_gen_cv:
 asearch_gen_cv:
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
 
 asearch_gen-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
 	$(eval TRY_NUM := $*)
 	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
+	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
 
 seq2seq_gen_cv:
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)"
+	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
@@ -354,9 +355,9 @@ rerun-%:
 	    	make rerun TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) RUN_NAME=percrank_train 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
 		if `ls $$DIR/T.*.asearch_gen.* >/dev/null 2>&1`; then \
-			make rerun TRY_NUM=$(TRY_NUM) TRY_DIR=$$DIR RUN_NAME=asearch_gen QP="--hold $$JOB_NUM" ; \
+			make rerun TRY_NUM=$(TRY_NUM) TRY_DIR=$$DIR RUN_NAME=asearch_gen QP="$(QP)" QHOLD="--hold $$JOB_NUM" ; \
 		else \
-			make asearch_gen_cv TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) CV_NUM=`basename $$DIR | sed 's/s.$$//'` QP="--hold $$JOB_NUM"; \
+			make asearch_gen_cv TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) CV_NUM=`basename $$DIR | sed 's/s.$$//'` QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
 		fi ; \
 	    done ; \
 	else \
