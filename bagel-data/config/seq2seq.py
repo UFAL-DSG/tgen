@@ -17,6 +17,8 @@ config = {
           'cell_type': 'lstm',
           'dropout_keep_prob': 1,
           'use_dec_cost': False,
+          'average_models': False,  # not working properly at the moment
+          'average_models_top_k': 1,
 
           'validation_size': 10,
           'validation_freq': 1,
@@ -28,17 +30,17 @@ config = {
           'beam_size': 100,
           'alpha_decay': 0, # 0.03
 
-        'classif_filter': {
+          'classif_filter': {
               'language': 'en',
               'selector': '',
-              'nn': '1-hot',
-              #'nn': 'emb',
-              'nn_shape': 'ff1',
-              #'nn_shape': 'rnn',
+              #'nn': '1-hot',
+              'nn': 'emb',
+              #'nn_shape': 'ff1',
+              'nn_shape': 'rnn',
               'num_hidden_units': 128,
-              'passes': 200,
-              #'passes': 100,
-              'min_passes': 30,
+              #'passes': 200,
+              'passes': 100,
+              'min_passes': 20,
               'randomize': True,
               'batch_size': 20,
               'alpha': 1e-3,
