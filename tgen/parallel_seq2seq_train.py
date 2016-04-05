@@ -15,6 +15,7 @@ from collections import deque
 import shutil
 import re
 import sys
+import hashlib
 
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
@@ -27,6 +28,7 @@ from tgen.logf import log_warn, is_debug_stream
 from tgen.rnd import rnd
 from tgen.parallel_percrank_train import ServiceConn
 from tgen.seq2seq import Seq2SeqGen
+from tgen.seq2seq_ensemble import Seq2SeqEnsemble
 
 
 def get_worker_registrar_for(head):
@@ -41,6 +43,8 @@ def get_worker_registrar_for(head):
             conn = connect(host, port, config={'allow_pickle': True})
             # initialize the remote server (with training data etc.)
             init_func = async(conn.root.init_training)
+            # add unique 'scope suffix' so that the models don't clash in ensembles
+            head.cfg['scope_suffix'] = hashlib.md5("%s:%d" % (host, port)).hexdigest()
             req = init_func(pickle.dumps(head.cfg, pickle.HIGHEST_PROTOCOL))
             # add it to the list of running services
             sc = ServiceConn(host, port, conn)
@@ -144,14 +148,14 @@ class ParallelSeq2SeqTraining(object):
             results.sort(key=lambda res:res[0])
             # average the computed models
             if self.average_models:
-                log_info('Averaging models...')
+                log_info('Creating ensemble models...')
                 # use only top k if required
-                results_for_avg = (results[:self.average_models_top_k]
-                                   if self.average_models_top_k > 0
-                                   else results)
-                avg_model = self.get_averaged_model(results_for_avg)
-                log_info('Saving the averaged model temporarily to %s...' % self.model_temp_path)
-                avg_model.save_to_file(self.model_temp_path)
+                results_for_ensemble = (results[:self.average_models_top_k]
+                                        if self.average_models_top_k > 0
+                                        else results)
+                ensemble_model = self.build_ensemble_model(results_for_ensemble)
+                log_info('Saving the ensemble model temporarily to %s...' % self.model_temp_path)
+                ensemble_model.save_to_file(self.model_temp_path)
             # select the best result on devel data + save it
             else:
                 best_cost, best_sc = results[0]
@@ -236,7 +240,8 @@ class ParallelSeq2SeqTraining(object):
         shutil.move(orig_model_fname, model_fname)
         orig_tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', orig_model_fname)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
-        shutil.move(orig_tf_session_fname, tf_session_fname)
+        if os.path.isfile(orig_tf_session_fname):
+            shutil.move(orig_tf_session_fname, tf_session_fname)
 
         # move the reranking classifier model files as well, if they exist
         orig_clfilter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', orig_model_fname)
@@ -248,33 +253,23 @@ class ParallelSeq2SeqTraining(object):
             shutil.move(orig_clfilter_fname, clfilter_fname)
             shutil.move(orig_clfilter_tf_fname, clfilter_tf_fname)
 
-    def get_averaged_model(self, results):
-        """Retrieve parameters of all models in results, average them, and save a new model with
-        averaged parameters. Using a plain arithmetic average, no weighting.
-
-        @param results: the computation results -- list of pairs (cost, ServiceConn)
-        @return: the averaged model, as a Seq2SeqGen object
-        """
-        # get all models' parameters and average them
-        avg_params = None
+    def build_ensemble_model(self, results):
+        """TODO"""
+        ensemble = Seq2SeqEnsemble(self.cfg)
+        models = []
         for _, sc in results:
-            if avg_params is None:
-                avg_params = pickle.loads(sc.conn.root.get_model_params())
-            else:
-                cur_params = pickle.loads(sc.conn.root.get_model_params())
-                for name, val in cur_params.iteritems():
-                    avg_params[name] += val
-        for name in avg_params.iterkeys():
-            avg_params[name] /= float(len(results))
+            models.append((pickle.loads(sc.conn.root.get_all_settings()),
+                           pickle.loads(sc.conn.root.get_model_params())))
 
-        # save one of the models (use relative path; working directory of worker jobs is different)
-        results[0][1].conn.root.save_model(os.path.relpath(self.model_temp_path, self.work_dir))
-        # load it locally and set the new averaged parameters
-        model = Seq2SeqGen.load_from_file(self.model_temp_path)
-        model.set_model_params(avg_params)
-        # save the result
-        return model
+        rerank_settings = results[0][1].conn.root.get_reranker_settings()
+        if rerank_settings is not None:
+            rerank_settings = pickle.loads(rerank_settings)
+        rerank_params = results[0][1].conn.root.get_reranker_params()
+        if rerank_params is not None:
+            rerank_params = pickle.loads(rerank_params)
 
+        ensemble.build_ensemble(models, rerank_settings, rerank_params)
+        return ensemble
 
 class Seq2SeqTrainingService(Service):
 
@@ -313,10 +308,31 @@ class Seq2SeqTrainingService(Service):
 
     def exposed_get_model_params(self):
         """Retrieve all parameters of the worker's local model (as a dictionary)
-        @return: all model parameters in a dictionary -- keys are names, values are numpy arrays
+        @return: model parameters in a pickled dictionary -- keys are names, values are numpy arrays
         """
         p_dump = pickle.dumps(self.seq2seq.get_model_params(), protocol=pickle.HIGHEST_PROTOCOL)
         return p_dump
+
+    def exposed_get_all_settings(self):
+        """Call `get_all_settings` on the worker and return the result as a pickle."""
+        settings = pickle.dumps(self.seq2seq.get_all_settings(), protocol=pickle.HIGHEST_PROTOCOL)
+        return settings
+
+    def exposed_get_reranker_params(self):
+        """Call `get_model_params` on the worker's reranker and return the result as a pickle."""
+        if not self.seq2seq.classif_filter:
+            return None
+        p_dump = pickle.dumps(self.seq2seq.classif_filter.get_model_params(),
+                              protocol=pickle.HIGHEST_PROTOCOL)
+        return p_dump
+
+    def exposed_get_reranker_settings(self):
+        """Call `get_all_settings` on the worker's reranker and return the result as a pickle."""
+        if not self.seq2seq.classif_filter:
+            return None
+        settings = pickle.dumps(self.seq2seq.classif_filter.get_all_settings(),
+                                protocol=pickle.HIGHEST_PROTOCOL)
+        return settings
 
 
 def run_training(head_host, head_port, debug_out=None):

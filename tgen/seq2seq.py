@@ -30,6 +30,7 @@ from tgen.tree import TreeData, TreeNode
 from tgen.eval import Evaluator
 from tgen.bleu import BLEUMeasure
 from tgen.tfclassif import RerankingClassifier
+from tgen.tf_ml import TFModel
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -48,18 +49,221 @@ def cut_batch_into_steps(batch):
                                         len(batch[0]), axis=1)), axis=2)
 
 
-class Seq2SeqGen(SentencePlanner):
-    """A sequence-to-sequence generator (using encoder-decoder architecture from TensorFlow)."""
+class Seq2SeqBase(SentencePlanner):
+    """A common ancestor for the Plain and Ensemble Seq2Seq generators (decoding methods only)."""
+
+    def __init__(self, cfg):
+        super(Seq2SeqBase, self).__init__(cfg)
+        # save the whole configuration for later use (save/load, construction of embedding
+        # extractors)
+        self.cfg = cfg
+
+        self.beam_size = cfg.get('beam_size', 1)
+
+        self.classif_filter = None
+        if 'classif_filter' in cfg:
+            self.classif_filter = RerankingClassifier(cfg['classif_filter'])
+            self.misfit_penalty = cfg.get('misfit_penalty', 100)
+
+    def process_das(self, das, gold_trees=None):
+        """
+        Process a list of input DAs, return the corresponding trees (using the generator
+        network with current parameters).
+
+        @param das: input DAs
+        @param gold_trees: (optional) gold trees against which cost is computed
+        @return: generated trees as `TreeData` instances, cost if `gold_trees` are given
+        """
+
+        # encoder inputs
+        enc_inputs = cut_batch_into_steps([self.da_embs.get_embeddings(da)
+                                           for da in das])
+
+        if self.beam_size > 1 and len(das) == 1:
+            dec_output_ids = self._beam_search(enc_inputs, das[0])
+            dec_cost = None
+        else:
+            dec_output_ids, dec_cost = self._greedy_decoding(enc_inputs, gold_trees)
+
+        dec_trees = [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
+
+        # return result (trees and optionally cost)
+        if dec_cost is None:
+            return dec_trees
+        return dec_trees, dec_cost
+
+    def _greedy_decoding(self, enc_inputs, gold_trees):
+        """Run greedy decoding with the given encoder inputs; optionally use given gold trees
+        as decoder inputs for cost computation."""
+
+        # decoder inputs (either fake, or true but used just for cost computation)
+        if gold_trees is None:
+            empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
+            dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in enc_inputs[0]])
+        else:
+            dec_inputs = cut_batch_into_steps([self.tree_embs.get_embeddings(tree)
+                                               for tree in gold_trees])
+
+        # run the decoding per se
+        dec_outputs, dec_cost = self._get_greedy_decoder_output(
+                enc_inputs, dec_inputs, compute_cost=gold_trees is not None)
+
+        # convert the output back into a tree
+        dec_output_ids = np.argmax(dec_outputs, axis=2)
+        return dec_output_ids, dec_cost
+
+    def _get_greedy_decoder_output(initial_state, enc_inputs, dec_inputs, compute_cost=False):
+        raise NotImplementedError()
+
+    class DecodingPath(object):
+        """A decoding path to be used in beam search."""
+
+        __slots__ = ['dec_inputs', 'dec_outputs', 'dec_states', 'logprob']
+
+        def __init__(self, dec_inputs=[], dec_outputs=[], dec_states=[], logprob=0.0):
+            self.dec_inputs = list(dec_inputs)
+            self.dec_outputs = list(dec_outputs)
+            self.dec_states = list(dec_states)
+            self.logprob = logprob
+
+        def expand(self, max_variants, dec_output, dec_state):
+            """Expand the path with all possible outputs, updating the log probabilities.
+
+            @param max_variants: expand to this number of variants at maximum, discard the less \
+                probable ones
+            @param dec_output: the decoder output scores for the current step
+            @param dec_state: the decoder hidden state for the current step
+            @return: an array of all possible continuations of this path
+            """
+            ret = []
+
+            # softmax, assuming batches size 1
+            # http://stackoverflow.com/questions/34968722/softmax-function-python
+            probs = np.exp(dec_output[0]) / np.sum(np.exp(dec_output[0]), axis=0)
+            # select only up to max_variants most probable variants
+            top_n_idx = np.argpartition(-probs, max_variants)[:max_variants]
+
+            for idx in top_n_idx:
+                expanded = Seq2SeqGen.DecodingPath(self.dec_inputs, self.dec_outputs,
+                                                   self.dec_states, self.logprob)
+                expanded.logprob += np.log(probs[idx])
+                expanded.dec_inputs.append(np.array(idx, ndmin=1))
+                expanded.dec_outputs.append(dec_output)
+                expanded.dec_states.append(dec_state)
+                ret.append(expanded)
+
+            return ret
+
+        def __cmp__(self, other):
+            """Comparing the paths according to their logprob."""
+            if self.logprob < other.logprob:
+                return -1
+            if self.logprob > other.logprob:
+                return 1
+            return 0
+
+    def _beam_search(self, enc_inputs, da):
+        """Run beam search decoding."""
+
+        # true "batches" not implemented
+        assert len(enc_inputs[0]) == 1
+
+        self._init_beam_search(enc_inputs)
+
+        log_debug("GREEDY DEC WOULD RETURN:\n" +
+                  " ".join(self.tree_embs.ids_to_strings(
+                      [out_tok[0] for out_tok in self._greedy_decoding(enc_inputs, None)[0]])))
+
+        empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
+        dec_inputs = cut_batch_into_steps([empty_tree_emb])
+
+        paths = [self.DecodingPath(dec_inputs=[dec_inputs[0]])]
+
+        for step in xrange(len(dec_inputs)):
+
+            new_paths = []
+
+            for path in paths:
+                out, st = self._beam_search_step(path.dec_inputs, path.dec_outputs, path.dec_states)
+                new_paths.extend(path.expand(self.beam_size, out, st))
+
+            paths = sorted(new_paths, reverse=True)[:self.beam_size]
+
+            if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
+                break  # stop decoding if we have reached the end in all paths
+
+            log_debug(("\nBEAM SEARCH STEP %d\n" % step) +
+                      "\n".join([("%f\t" % p.logprob) +
+                                 " ".join(self.tree_embs.ids_to_strings([inp[0] for inp in p.dec_inputs]))
+                                 for p in paths]) + "\n")
+
+        # rerank paths by their distance to the input DA
+        if self.classif_filter:
+            paths = self._rerank_paths(paths, da)
+
+        # return just the best path (as token IDs)
+        return np.array(paths[0].dec_inputs)
+
+    def _init_beam_search(self, enc_inputs):
+        raise NotImplementedError()
+
+    def _beam_search_step(self, dec_inputs, dec_outputs, dec_states):
+        raise NotImplementedError()
+
+    def _rerank_paths(self, paths, da):
+        """Rerank the n-best decoded paths according to the reranking classifier."""
+
+        trees = [self.tree_embs.ids_to_tree(np.array(path.dec_inputs).transpose()[0])
+                 for path in paths]
+        self.classif_filter.init_run(da)
+        fits = self.classif_filter.dist_to_cur_da(trees)
+        # add distances to logprob so that non-fitting will be heavily penalized
+        for path, fit in zip(paths, fits):
+            path.logprob -= self.misfit_penalty * fit
+        return sorted(paths, reverse=True)
+
+    def generate_tree(self, da, gen_doc=None):
+        """Generate one tree, saving it into the document provided (if applicable).
+
+        @param da: the input DA
+        @param gen_doc: the document where the tree should be saved (defaults to None)
+        """
+        # generate the tree
+        log_debug("GENERATE TREE FOR DA: " + unicode(da))
+        tree = self.process_das([da])[0]
+        log_debug("RESULT: %s" % unicode(tree))
+        # if requested, append the result to the document
+        if gen_doc:
+            zone = self.get_target_zone(gen_doc)
+            zone.ttree = tree.create_ttree()
+            zone.sentence = unicode(da)
+        # return the result
+        return tree
+
+    @staticmethod
+    def load_from_file(model_fname):
+        """Detect correct model type (plain/ensemble) and start loading."""
+        model_type = Seq2SeqGen
+        with file_stream(model_fname, 'rb', encoding=None) as fh:
+            data = pickle.load(fh)
+            if data == 'ENSEMBLE':
+                from tgen.seq2seq_ensemble import Seq2SeqEnsemble
+                model_type = Seq2SeqEnsemble
+
+        return model_type.load_from_file(model_fname)
+
+
+class Seq2SeqGen(Seq2SeqBase, TFModel):
+    """A plain sequence-to-sequence generator (using encoder-decoder architecture
+    from TensorFlow)."""
 
     def __init__(self, cfg):
         """Initialize the generator, fill in the configuration."""
 
         super(Seq2SeqGen, self).__init__(cfg)
 
-        # save the whole configuration for later use (save/load, construction of embedding
-        # extractors)
-        self.cfg = cfg
-        # extract the individual elements out of it
+        # extract the individual elements out of the configuration dict
+
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
         self.dropout_keep_prob = cfg.get('dropout_prob', 1)
@@ -83,12 +287,7 @@ class Seq2SeqGen(SentencePlanner):
         self.cell_type = cfg.get('cell_type', 'lstm')
         self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
 
-        self.beam_size = cfg.get('beam_size', 1)
-
-        self.classif_filter = None
-        if 'classif_filter' in cfg:
-            self.classif_filter = RerankingClassifier(cfg['classif_filter'])
-            self.misfit_penalty = cfg.get('misfit_penalty', 100)
+        self.scope_suffix = cfg.get('scope_suffix', '')  # used for ensembles to have more models
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Load training data, prepare batches, build the NN.
@@ -244,7 +443,7 @@ class Seq2SeqGen(SentencePlanner):
             self.cell = rnn_cell.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
-        with tf.variable_scope("seq2seq_gen") as scope:
+        with tf.variable_scope("seq2seq_gen" + self.scope_suffix) as scope:
 
             rnn_func = embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
@@ -365,181 +564,6 @@ class Seq2SeqGen(SentencePlanner):
 
         return iter_no > self.min_passes and iter_no > self.top_k_change + self.improve_interval
 
-    def process_das(self, das, gold_trees=None):
-        """
-        Process a list of input DAs, return the corresponding trees (using the generator
-        network with current parameters).
-
-        @param das: input DAs
-        @param gold_trees: (optional) gold trees against which cost is computed
-        @return: generated trees as `TreeData` instances, cost if `gold_trees` are given
-        """
-
-        # encoder inputs
-        enc_inputs = cut_batch_into_steps([self.da_embs.get_embeddings(da)
-                                           for da in das])
-
-        if self.beam_size > 1 and len(das) == 1:
-            dec_output_ids = self._beam_search(enc_inputs, das[0])
-            dec_cost = None
-        else:
-            dec_output_ids, dec_cost = self._greedy_decoding(enc_inputs, gold_trees)
-
-        dec_trees = [self.tree_embs.ids_to_tree(ids) for ids in dec_output_ids.transpose()]
-
-        # return result (trees and optionally cost)
-        if dec_cost is None:
-            return dec_trees
-        return dec_trees, dec_cost
-
-    def _greedy_decoding(self, enc_inputs, gold_trees):
-        """Run greedy decoding with the given encoder inputs; optionally use given gold trees
-        as decoder inputs for cost computation."""
-
-        # initial state
-        initial_state = np.zeros([len(enc_inputs[0]), self.emb_size])
-        feed_dict = {self.initial_state: initial_state}
-
-        for i in xrange(len(enc_inputs)):
-            feed_dict[self.enc_inputs[i]] = enc_inputs[i]
-
-        # decoder inputs (either fake, or true but used just for cost computation)
-        if gold_trees is None:
-            empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
-            dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in enc_inputs[0]])
-        else:
-            dec_inputs = cut_batch_into_steps([self.tree_embs.get_embeddings(tree)
-                                               for tree in gold_trees])
-        for i in xrange(len(dec_inputs)):
-            feed_dict[self.dec_inputs[i]] = dec_inputs[i]
-
-        feed_dict[self.targets[-1]] = len(enc_inputs[0]) * [self.tree_embs.VOID]
-
-        # run the decoding
-        if gold_trees is None:
-            dec_outputs = self.session.run(self.dec_outputs, feed_dict=feed_dict)
-            dec_cost = None
-        else:
-            res = self.session.run(self.dec_outputs + [self.dec_cost], feed_dict=feed_dict)
-            dec_outputs = res[:-1]
-            dec_cost = res[-1]
-
-        # convert the output back into a tree
-        dec_output_ids = np.argmax(dec_outputs, axis=2)
-        return dec_output_ids, dec_cost
-
-    class DecodingPath(object):
-        """A decoding path to be used in beam search."""
-
-        __slots__ = ['dec_inputs', 'dec_outputs', 'dec_states', 'logprob']
-
-        def __init__(self, dec_inputs=[], dec_outputs=[], dec_states=[], logprob=0.0):
-            self.dec_inputs = list(dec_inputs)
-            self.dec_outputs = list(dec_outputs)
-            self.dec_states = list(dec_states)
-            self.logprob = logprob
-
-        def expand(self, max_variants, dec_output, dec_state):
-            """Expand the path with all possible outputs, updating the log probabilities.
-
-            @param max_variants: expand to this number of variants at maximum, discard the less \
-                probable ones
-            @param dec_output: the decoder output scores for the current step
-            @param dec_state: the decoder hidden state for the current step
-            @return: an array of all possible continuations of this path
-            """
-            ret = []
-
-            # softmax, assuming batches size 1
-            # http://stackoverflow.com/questions/34968722/softmax-function-python
-            probs = np.exp(dec_output[0]) / np.sum(np.exp(dec_output[0]), axis=0)
-            # select only up to max_variants most probable variants
-            top_n_idx = np.argpartition(-probs, max_variants)[:max_variants]
-
-            for idx in top_n_idx:
-                expanded = Seq2SeqGen.DecodingPath(self.dec_inputs, self.dec_outputs,
-                                                   self.dec_states, self.logprob)
-                expanded.logprob += np.log(probs[idx])
-                expanded.dec_inputs.append(np.array(idx, ndmin=1))
-                expanded.dec_outputs.append(dec_output)
-                expanded.dec_states.append(dec_state)
-                ret.append(expanded)
-
-            return ret
-
-        def __cmp__(self, other):
-            """Comparing the paths according to their logprob."""
-            if self.logprob < other.logprob:
-                return -1
-            if self.logprob > other.logprob:
-                return 1
-            return 0
-
-    def _beam_search(self, enc_inputs, da):
-        """Run beam search decoding."""
-
-        # true "batches" not implemented yet
-        assert len(enc_inputs[0]) == 1
-
-        log_debug("GREEDY DEC WOULD RETURN:\n" +
-                  " ".join(self.tree_embs.ids_to_strings(
-                      [out_tok[0] for out_tok in self._greedy_decoding(enc_inputs, None)[0]])))
-
-        # initial state
-        initial_state = np.zeros([1, self.emb_size])
-        feed_dict = {self.initial_state: initial_state}
-
-        for i in xrange(len(enc_inputs)):
-            feed_dict[self.enc_inputs[i]] = enc_inputs[i]
-
-        empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
-        dec_inputs = cut_batch_into_steps([empty_tree_emb])
-
-        paths = [self.DecodingPath(dec_inputs=[dec_inputs[0]])]
-
-        for step in xrange(len(dec_inputs)):
-
-            new_paths = []
-
-            for path in paths:
-
-                for i in xrange(step):
-                    feed_dict[self.dec_inputs[i]] = path.dec_inputs[i]
-                    feed_dict[self.outputs[i]] = path.dec_outputs[i]
-                    feed_dict[self.states[i]] = path.dec_states[i]
-
-                feed_dict[self.dec_inputs[step]] = path.dec_inputs[step]
-                out, st = self.session.run([self.outputs[step], self.states[step]],
-                                           feed_dict=feed_dict)
-
-                new_paths.extend(path.expand(self.beam_size, out, st))
-
-            paths = sorted(new_paths, reverse=True)[:self.beam_size]
-
-            if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
-                break  # stop decoding if we have reached the end in all paths
-
-            log_debug(("\nBEAM SEARCH STEP %d\n" % step) +
-                      "\n".join([("%f\t" % p.logprob) +
-                                 " ".join(self.tree_embs.ids_to_strings([inp[0] for inp in p.dec_inputs]))
-                                 for p in paths]) + "\n")
-
-        if self.classif_filter:  # filter out paths that are
-            paths = self._filter_paths(paths, da)
-
-        return np.array(paths[0].dec_inputs)
-
-    def _filter_paths(self, paths, da):
-
-        trees = [self.tree_embs.ids_to_tree(np.array(path.dec_inputs).transpose()[0])
-                 for path in paths]
-        self.classif_filter.init_run(da)
-        fits = self.classif_filter.dist_to_cur_da(trees)
-        # add distances to logprob so that non-fitting will be heavily penalized
-        for path, fit in zip(paths, fits):
-            path.logprob -= self.misfit_penalty * fit
-        return sorted(paths, reverse=True)
-
     def train(self, das_file, ttree_file, data_portion=1.0):
         """
         The main training process – initialize and perform a specified number of
@@ -649,20 +673,24 @@ class Seq2SeqGen(SentencePlanner):
             self.classif_filter.save_to_file(classif_filter_fname)
 
         with file_stream(model_fname, 'wb', encoding=None) as fh:
-            data = {'cfg': self.cfg,
-                    'da_embs': self.da_embs,
-                    'tree_embs': self.tree_embs,
-                    'da_dict_size': self.da_dict_size,
-                    'tree_dict_size': self.tree_dict_size,
-                    'max_da_len': self.max_da_len,
-                    'max_tree_len': self.max_tree_len,
-                    'classif_filter': self.classif_filter is not None}
-            pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         if hasattr(self, 'checkpoint_path') and self.checkpoint_path:
             shutil.copyfile(self.checkpoint_path, tf_session_fname)
         else:
             self.saver.save(self.session, tf_session_fname)
+
+    def get_all_settings(self):
+        """Get all settings except the trained model parameters (to be stored in a pickle)."""
+        data = {'cfg': self.cfg,
+                'da_embs': self.da_embs,
+                'tree_embs': self.tree_embs,
+                'da_dict_size': self.da_dict_size,
+                'tree_dict_size': self.tree_dict_size,
+                'max_da_len': self.max_da_len,
+                'max_tree_len': self.max_tree_len,
+                'classif_filter': self.classif_filter is not None}
+        return data
 
     def _save_checkpoint(self):
         """Save a checkpoint to a temporary path; set `self.checkpoint_path` to the path
@@ -685,7 +713,7 @@ class Seq2SeqGen(SentencePlanner):
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
             ret = Seq2SeqGen(cfg=data['cfg'])
-            ret.__dict__.update(data)
+            ret.load_all_settings(data)
 
         if ret.classif_filter:
             classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
@@ -702,46 +730,61 @@ class Seq2SeqGen(SentencePlanner):
 
         return ret
 
-    def generate_tree(self, da, gen_doc=None):
-        """Generate one tree, saving it into the document provided (if applicable).
+    def _get_greedy_decoder_output(self, enc_inputs, dec_inputs, compute_cost=False):
+        """Run greedy decoding with the given inputs; return decoder outputs and the cost
+        (if required).
 
-        @param da: the input DA
-        @param gen_doc: the document where the tree should be saved (defaults to None)
+        @param enc_inputs: encoder inputs (list of token IDs)
+        @param dec_inputs: decoder inputs (list of token IDs)
+        @param compute_cost: if True, decoding cost is computed (the dec_inputs must be valid trees)
+        @return a tuple of list of decoder outputs + decoding cost (None if not required)
         """
-        # generate the tree
-        log_debug("GENERATE TREE FOR DA: " + unicode(da))
-        tree = self.process_das([da])[0]
-        log_debug("RESULT: %s" % unicode(tree))
-        # if requested, append the result to the document
-        if gen_doc:
-            zone = self.get_target_zone(gen_doc)
-            zone.ttree = tree.create_ttree()
-            zone.sentence = unicode(da)
-        # return the result
-        return tree
+        initial_state = np.zeros([len(enc_inputs[0]), self.emb_size])
+        feed_dict = {self.initial_state: initial_state}
 
-    def get_model_params(self):
-        """Return the current model parameters in a dictionary (out of TensorFlow). Calls
-        `var.eval()` on each model parameter.
+        for i in xrange(len(enc_inputs)):
+            feed_dict[self.enc_inputs[i]] = enc_inputs[i]
 
-        @return: all model parameters (variables), as numpy arrays, keyed in a dictionary under \
-            their names
-        """
-        all_vars = tf.all_variables()
-        ret = {}
-        for var in all_vars:
-            ret[var.name] = var.eval(session=self.session)
-        return ret
+        for i in xrange(len(dec_inputs)):
+            feed_dict[self.dec_inputs[i]] = dec_inputs[i]
 
-    def set_model_params(self, vals):
-        """Using a dictionary in the format returned by `get_model_params`, assign new parameter
-        values.
+        feed_dict[self.targets[-1]] = len(enc_inputs[0]) * [self.tree_embs.VOID]
 
-        @param vals: a dictionary of new parameter values, as numpy arrays, keyed und their names \
-            in a dictionary.
-        """
-        all_vars = tf.all_variables()
-        for var in all_vars:
-            if var.name in vals:
-                op = var.assign(vals[var.name])
-                self.session.run(op)
+        # run the decoding
+        if not compute_cost:
+            dec_outputs = self.session.run(self.dec_outputs, feed_dict=feed_dict)
+            dec_cost = None
+        else:
+            res = self.session.run(self.dec_outputs + [self.dec_cost], feed_dict=feed_dict)
+            dec_outputs = res[:-1]
+            dec_cost = res[-1]
+
+        return dec_outputs, dec_cost
+
+    def _init_beam_search(self, enc_inputs):
+        """Initialize beam search for the current DA (with the given encoder inputs)."""
+        # initial state
+        initial_state = np.zeros([1, self.emb_size])
+        self._beam_search_feed_dict = {self.initial_state: initial_state}
+        # encoder inputs
+        for i in xrange(len(enc_inputs)):
+            self._beam_search_feed_dict[self.enc_inputs[i]] = enc_inputs[i]
+
+    def _beam_search_step(self, dec_inputs, dec_outputs, dec_states):
+        """Run one step of beam search decoding with the given decoder inputs and
+        (previous steps') outputs and states."""
+
+        step = len(dec_outputs)  # find the decoder position
+
+        # fill in all previous path data
+        for i in xrange(step):
+            self._beam_search_feed_dict[self.dec_inputs[i]] = dec_inputs[i]
+            self._beam_search_feed_dict[self.outputs[i]] = dec_outputs[i]
+            self._beam_search_feed_dict[self.states[i]] = dec_states[i]
+
+        # the decoder outputs are always one step longer
+        self._beam_search_feed_dict[self.dec_inputs[step]] = dec_inputs[step]
+
+        # run one step of the decoder
+        return self.session.run([self.outputs[step], self.states[step]],
+                                feed_dict=self._beam_search_feed_dict)

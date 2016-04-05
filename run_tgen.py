@@ -68,7 +68,7 @@ from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelRanker
 from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
-from tgen.seq2seq import Seq2SeqGen
+from tgen.seq2seq import Seq2SeqBase, Seq2SeqGen
 from tgen.parallel_seq2seq_train import ParallelSeq2SeqTraining
 from tgen.tfclassif import RerankingClassifier
 
@@ -136,7 +136,7 @@ def rerank_cl_train(args):
     fname_config, fname_da_train, fname_trees_train, fname_cl_model = files
 
     if load_seq2seq_model:
-        tgen = Seq2SeqGen.load_from_file(load_seq2seq_model)
+        tgen = Seq2SeqBase.load_from_file(load_seq2seq_model)
 
     config = Config(fname_config)
     rerank_cl = RerankingClassifier(config)
@@ -450,7 +450,7 @@ def seq2seq_gen(args):
         sys.exit('Invalid arguments.\n' + __doc__)
     fname_seq2seq_model, fname_da_test = files
 
-    tgen = Seq2SeqGen.load_from_file(fname_seq2seq_model)
+    tgen = Seq2SeqBase.load_from_file(fname_seq2seq_model)
     if beam_size_override:
         tgen.beam_size = beam_size_override
 

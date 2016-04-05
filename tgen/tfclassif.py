@@ -29,6 +29,7 @@ from tgen.ml import DictVectorizer
 from tgen.embeddings import EmbeddingExtract
 from tgen.tree import TreeData, NodeData
 from alex.components.slu.da import DialogueAct
+from tgen.tf_ml import TFModel
 
 
 class TreeEmbeddingClassifExtract(EmbeddingExtract):
@@ -84,7 +85,7 @@ class TreeEmbeddingClassifExtract(EmbeddingExtract):
         return [self.max_tree_len * 2]
 
 
-class RerankingClassifier(object):
+class RerankingClassifier(TFModel):
     """A classifier for trees that decides which DAIs are currently represented
     (to be used in limiting candidate generator and/or re-scoring the trees)."""
 
@@ -122,23 +123,27 @@ class RerankingClassifier(object):
         """
         log_info("Saving classifier to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
-            data = {'cfg': self.cfg,
-                    'da_feats': self.da_feats,
-                    'da_vect': self.da_vect,
-                    'tree_embs': self.tree_embs,
-                    'input_shape': self.input_shape,
-                    'num_outputs': self.num_outputs, }
-            if self.tree_embs:
-                data['dict_size'] = self.dict_size
-            else:
-                data['tree_feats'] = self.tree_feats
-                data['tree_vect'] = self.tree_vect
-            pickle.dump(data, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         if self.checkpoint_path:
             shutil.copyfile(self.checkpoint_path, tf_session_fname)
         else:
             self.saver.save(self.session, tf_session_fname)
+
+    def get_all_settings(self):
+        """Get all settings except the trained model parameters (to be stored in a pickle)."""
+        data = {'cfg': self.cfg,
+                'da_feats': self.da_feats,
+                'da_vect': self.da_vect,
+                'tree_embs': self.tree_embs,
+                'input_shape': self.input_shape,
+                'num_outputs': self.num_outputs, }
+        if self.tree_embs:
+            data['dict_size'] = self.dict_size
+        else:
+            data['tree_feats'] = self.tree_feats
+            data['tree_vect'] = self.tree_vect
+        return data
 
     def _save_checkpoint(self):
         """Save a checkpoint to a temporary path; set `self.checkpoint_path` to the path
@@ -166,7 +171,7 @@ class RerankingClassifier(object):
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
             ret = RerankingClassifier(cfg=data['cfg'])
-            ret.__dict__.update(data)
+            ret.load_all_settings(data)
 
         # re-build TF graph and restore the TF session
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
