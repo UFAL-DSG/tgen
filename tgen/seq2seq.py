@@ -243,12 +243,10 @@ class Seq2SeqBase(SentencePlanner):
     @staticmethod
     def load_from_file(model_fname):
         """Detect correct model type (plain/ensemble) and start loading."""
-        model_type = Seq2SeqGen
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
-            if data == 'ENSEMBLE':
-                from tgen.seq2seq_ensemble import Seq2SeqEnsemble
-                model_type = Seq2SeqEnsemble
+            if isinstance(data, type):
+                model_type = data
 
         return model_type.load_from_file(model_fname)
 
@@ -260,7 +258,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
     def __init__(self, cfg):
         """Initialize the generator, fill in the configuration."""
 
-        super(Seq2SeqGen, self).__init__(cfg)
+        Seq2SeqBase.__init__(self, cfg)
+        TFModel.__init__(self, scope_name='seq2seq_gen-' + cfg.get('scope_suffix', ''))
 
         # extract the individual elements out of the configuration dict
 
@@ -286,8 +285,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.randomize = cfg.get('randomize', True)
         self.cell_type = cfg.get('cell_type', 'lstm')
         self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
-
-        self.scope_suffix = cfg.get('scope_suffix', '')  # used for ensembles to have more models
 
     def _init_training(self, das_file, ttree_file, data_portion):
         """Load training data, prepare batches, build the NN.
@@ -443,7 +440,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.cell = rnn_cell.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
-        with tf.variable_scope("seq2seq_gen" + self.scope_suffix) as scope:
+        with tf.variable_scope(self.scope_name) as scope:
 
             rnn_func = embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':

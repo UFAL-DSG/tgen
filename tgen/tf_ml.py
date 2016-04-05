@@ -20,6 +20,9 @@ from tensorflow.models.rnn.seq2seq import embedding_attention_decoder
 class TFModel(object):
     """An interface / methods wrapper for all TF models, used to load and save parameters."""
 
+    def __init__(self, scope_name=None):
+        self.scope_name = scope_name
+
     def get_all_settings(self):
         """Get all settings except the trained model parameters (to be stored in a pickle)."""
         raise NotImplementedError()
@@ -39,6 +42,8 @@ class TFModel(object):
         all_vars = tf.all_variables()
         ret = {}
         for var in all_vars:
+            if not var.name.startswith(self.scope_name):  # skip variables not in my scope
+                continue
             ret[var.name] = var.eval(session=self.session)
         return ret
 
@@ -51,6 +56,8 @@ class TFModel(object):
         """
         all_vars = tf.all_variables()
         for var in all_vars:
+            if not var.name.startswith(self.scope_name):  # skip variables not in my scope
+                continue
             if var.name in vals:
                 op = var.assign(vals[var.name])
                 self.session.run(op)

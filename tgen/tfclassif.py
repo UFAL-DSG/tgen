@@ -90,6 +90,9 @@ class RerankingClassifier(TFModel):
     (to be used in limiting candidate generator and/or re-scoring the trees)."""
 
     def __init__(self, cfg):
+
+        super(RerankingClassifier, self).__init__(scope_name='rerank-' +
+                                                  cfg.get('scope_suffix', ''))
         self.cfg = cfg
         self.language = cfg.get('language', 'en')
         self.selector = cfg.get('selector', '')
@@ -350,21 +353,23 @@ class RerankingClassifier(TFModel):
 
         self.targets = tf.placeholder(tf.float32, [None, self.num_outputs], name='targets')
 
-        # feedforward networks
-        if self.nn_shape.startswith('ff'):
-            self.inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name='inputs')
-            num_ff_layers = 2
-            if self.nn_shape[-1] in ['0', '1', '3', '4']:
-                num_ff_layers = int(self.nn_shape[-1])
-            self.outputs = self._ff_layers('ff', num_ff_layers, self.inputs)
+        with tf.variable_scope(self.scope_name) as scope:
 
-        # RNNs
-        elif self.nn_shape.startswith('rnn'):
-            self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
-            self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
-                           for i in xrange(self.input_shape[0])]
-            self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
-            self.outputs = self._rnn('rnn', self.inputs)
+            # feedforward networks
+            if self.nn_shape.startswith('ff'):
+                self.inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name='inputs')
+                num_ff_layers = 2
+                if self.nn_shape[-1] in ['0', '1', '3', '4']:
+                    num_ff_layers = int(self.nn_shape[-1])
+                self.outputs = self._ff_layers('ff', num_ff_layers, self.inputs)
+
+            # RNNs
+            elif self.nn_shape.startswith('rnn'):
+                self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
+                self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
+                               for i in xrange(self.input_shape[0])]
+                self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
+                self.outputs = self._rnn('rnn', self.inputs)
 
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
         # (or is computed as if there were a sigmoid layer on top)
@@ -396,18 +401,19 @@ class RerankingClassifier(TFModel):
         activ = (num_layers * [tf.nn.tanh]) + [tf.identity]
         Y = X
         for i in xrange(num_layers + 1):
-            w = tf.Variable(tf.random_normal([width[i], width[i+1]], stddev=0.1),
-                            name + ('-w%d' % i))
-            b = tf.Variable(tf.zeros([width[i+1]]), name + ('-b%d' % i))
+            w = tf.get_variable(name + ('-w%d' %i), (width[i], width[i+1]),
+                                initializer=tf.random_normal_initializer(stddev=0.1))
+            b = tf.get_variable(name + ('-b%d' % i), (width[i+1],),
+                                initializer=tf.constant_initializer())
             Y = activ[i](tf.matmul(Y, w) + b)
         return Y
 
     def _rnn(self, name, enc_inputs):
         encoder_cell = rnn_cell.EmbeddingWrapper(self.cell, self.dict_size)
         _, encoder_states = rnn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
-        w = tf.Variable(tf.random_normal([self.cell.state_size, self.num_outputs], stddev=0.1),
-                        name + ('-w'))
-        b = tf.Variable(tf.zeros([self.num_outputs]), name + ('-b'))
+        w = tf.get_variable(name + '-w', (self.cell.state_size, self.num_outputs),
+                            initializer=tf.random_normal_initializer(stddev=0.1))
+        b = tf.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
         return tf.matmul(encoder_states[-1], w) + b
 
     def _batches(self):

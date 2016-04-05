@@ -25,8 +25,6 @@ class Seq2SeqEnsemble(Seq2SeqBase):
 
     def build_ensemble(self, models, ranker_settings=None, ranker_params=None):
 
-        #import pudb; pudb.set_trace()
-
         for setting, parset in models:
             model = Seq2SeqGen(setting['cfg'])
             model.load_all_settings(setting)
@@ -41,6 +39,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         if ranker_settings is not None:
             self.classif_filter = RerankingClassifier(cfg=ranker_settings['cfg'])
             self.classif_filter.load_all_settings(ranker_settings)
+            self.classif_filter._init_neural_network()
             self.classif_filter.set_model_params(ranker_params)
 
     def _get_greedy_decoder_output(self, enc_inputs, dec_inputs, compute_cost=False):
@@ -104,12 +103,12 @@ class Seq2SeqEnsemble(Seq2SeqBase):
 
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             typeid = pickle.load(fh)
-            if typename != Seq2SeqEnsemble:
+            if typeid != Seq2SeqEnsemble:
                 raise ValueError('Wrong type identifier in file %s' % model_fname)
             cfg = pickle.load(fh)
             ret = Seq2SeqEnsemble(cfg)
             gens_dump = pickle.load(fh)
-            if settings['classif_filter']:
+            if cfg['classif_filter']:
                 ranker_settings = pickle.load(fh)
                 ranker_params = pickle.load(fh)
             else:
