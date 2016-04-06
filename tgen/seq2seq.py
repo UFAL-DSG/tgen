@@ -168,17 +168,19 @@ class Seq2SeqBase(SentencePlanner):
         # true "batches" not implemented
         assert len(enc_inputs[0]) == 1
 
-        self._init_beam_search(enc_inputs)
-
+        # run greedy decoder for comparison (debugging purposes)
         log_debug("GREEDY DEC WOULD RETURN:\n" +
                   " ".join(self.tree_embs.ids_to_strings(
                       [out_tok[0] for out_tok in self._greedy_decoding(enc_inputs, None)[0]])))
 
+        # initialize
+        self._init_beam_search(enc_inputs)
         empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
         dec_inputs = cut_batch_into_steps([empty_tree_emb])
 
         paths = [self.DecodingPath(dec_inputs=[dec_inputs[0]])]
 
+        # beam search steps
         for step in xrange(len(dec_inputs)):
 
             new_paths = []

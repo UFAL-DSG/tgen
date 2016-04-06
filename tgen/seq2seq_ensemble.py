@@ -64,12 +64,13 @@ class Seq2SeqEnsemble(Seq2SeqBase):
 
         for step in xrange(len(dec_inputs)):
             out, st = self._beam_search_step(path.dec_inputs, path.dec_outputs, path.dec_states)
-            path = path.expand(1, out, st)
+            path = path.expand(1, out, st)[0]
 
             if path.dec_inputs[-1] == self.tree_embs.VOID:
                 break  # stop decoding if we have reached the end of path
 
-        return np.array(path.dec_inputs)
+        # ignore cost computation here
+        return path.dec_outputs, None
 
     def _init_beam_search(self, enc_inputs):
         """Initialize beam search for the current DA (with the given encoder inputs)
@@ -87,7 +88,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
             output, state = gen._beam_search_step(dec_inputs, dec_outputs,
                                                   [state[gen_no] for state in dec_states])
             ensemble_state.append(state)
-            if not ensemble_output:
+            if ensemble_output is None:
                 ensemble_output = output
             else:
                 ensemble_output += output
