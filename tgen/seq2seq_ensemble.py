@@ -88,6 +88,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
             output, state = gen._beam_search_step(dec_inputs, dec_outputs,
                                                   [state[gen_no] for state in dec_states])
             ensemble_state.append(state)
+            output = np.exp(output) / np.sum(np.exp(output), axis=0)
             if ensemble_output is None:
                 ensemble_output = output
             else:
@@ -109,7 +110,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
             cfg = pickle.load(fh)
             ret = Seq2SeqEnsemble(cfg)
             gens_dump = pickle.load(fh)
-            if cfg['classif_filter']:
+            if 'classif_filter' in cfg:
                 ranker_settings = pickle.load(fh)
                 ranker_params = pickle.load(fh)
             else:
