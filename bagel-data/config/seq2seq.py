@@ -17,8 +17,8 @@ config = {
           'cell_type': 'lstm',
           'dropout_keep_prob': 1,
           'use_dec_cost': False,
-          'average_models': False,  # not working properly at the moment
-          'average_models_top_k': 1,
+          'average_models': True,
+          'average_models_top_k': 2,
 
           'validation_size': 10,
           'validation_freq': 1,
