@@ -16,7 +16,8 @@ from pytreex.core.util import file_stream
 
 
 class Seq2SeqEnsemble(Seq2SeqBase):
-    """TODO"""
+    """Ensemble Sequence-to-Sequence models (averaging outputs of networks with different random
+    initialization)."""
 
     def __init__(self, cfg):
         super(Seq2SeqEnsemble, self).__init__(cfg)
@@ -84,11 +85,13 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         states are kept separately."""
         ensemble_state = []
         ensemble_output = None
+
         for gen_no, gen in enumerate(self.gens):
             output, state = gen._beam_search_step(dec_inputs, dec_outputs,
                                                   [state[gen_no] for state in dec_states])
             ensemble_state.append(state)
-            output = np.exp(output) / np.sum(np.exp(output), axis=0)
+            # TODO: it seems weird, but normalizing here makes things worse
+            #output = np.exp(output) / np.sum(np.exp(output))
             if ensemble_output is None:
                 ensemble_output = output
             else:
