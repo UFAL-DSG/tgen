@@ -1,11 +1,6 @@
 
 SHELL=/bin/bash
-CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1
-
-ABSTRACTED = 'address,area,count,name,near,phone,postcode,price'
-ifdef AALL
-  ABSTRACTED = 'address,area,count,food,good_for_meal,name,near,phone,postcode,price,price_range,type'
-endif
+CONVERT_SETTINGS = -s 3:1:1
 
 COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 ifeq ($(COORD),stanford)
@@ -42,7 +37,7 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abst.txt x_only=1 $(COORD_ADJUST) \
 	 	Write::Treex to=$@
 
-train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt: sfxrestaurant.emnlp.json
+train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt: dataset.json
 	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
 train-%.txt: all-%.txt
