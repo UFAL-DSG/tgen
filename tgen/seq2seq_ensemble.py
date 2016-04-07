@@ -24,7 +24,12 @@ class Seq2SeqEnsemble(Seq2SeqBase):
 
         self.gens = []
 
-    def build_ensemble(self, models, ranker_settings=None, ranker_params=None):
+    def build_ensemble(self, models, rerank_settings=None, rerank_params=None):
+        """Build the ensemble model (build all networks and load their parameters).
+
+        @param models: list of tuples (settings, parameter set) of all models in the ensemble
+        @param rerank_settings:
+        """
 
         for setting, parset in models:
             model = Seq2SeqGen(setting['cfg'])
@@ -37,11 +42,11 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         self.da_embs = self.gens[0].da_embs
         self.tree_embs = self.gens[0].tree_embs
 
-        if ranker_settings is not None:
-            self.classif_filter = RerankingClassifier(cfg=ranker_settings['cfg'])
-            self.classif_filter.load_all_settings(ranker_settings)
+        if rerank_settings is not None:
+            self.classif_filter = RerankingClassifier(cfg=rerank_settings['cfg'])
+            self.classif_filter.load_all_settings(rerank_settings)
             self.classif_filter._init_neural_network()
-            self.classif_filter.set_model_params(ranker_params)
+            self.classif_filter.set_model_params(rerank_params)
 
     def _get_greedy_decoder_output(self, enc_inputs, dec_inputs, compute_cost=False):
         """Run greedy decoding with the given inputs; return decoder outputs and the cost
@@ -103,6 +108,8 @@ class Seq2SeqEnsemble(Seq2SeqBase):
 
     @staticmethod
     def load_from_file(model_fname):
+        """Load the whole ensemble from a file (load settings and model parameters, then build the
+        ensemble network)."""
 
         log_info("Loading ensemble generator from %s..." % model_fname)
 
@@ -114,16 +121,18 @@ class Seq2SeqEnsemble(Seq2SeqBase):
             ret = Seq2SeqEnsemble(cfg)
             gens_dump = pickle.load(fh)
             if 'classif_filter' in cfg:
-                ranker_settings = pickle.load(fh)
-                ranker_params = pickle.load(fh)
+                rerank_settings = pickle.load(fh)
+                rerank_params = pickle.load(fh)
             else:
-                ranker_settings = None
-                ranker_params = None
+                rerank_settings = None
+                rerank_params = None
 
-        ret.build_ensemble(gens_dump, ranker_settings, ranker_params)
+        ret.build_ensemble(gens_dump, rerank_settings, rerank_params)
         return ret
 
     def save_to_file(self, model_fname):
+        """Save the whole ensemble into a file (get all settings and parameters, dump them in a
+        pickle)."""
 
         log_info("Saving generator to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:

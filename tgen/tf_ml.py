@@ -21,6 +21,9 @@ class TFModel(object):
     """An interface / methods wrapper for all TF models, used to load and save parameters."""
 
     def __init__(self, scope_name=None):
+        """Just set variable scope name.
+        @param scope_name: preferred variable scope name (may be None)
+        """
         self.scope_name = scope_name
 
     def get_all_settings(self):

@@ -35,6 +35,7 @@ def get_worker_registrar_for(head):
     """Return a class that will handle worker registration for the given head."""
 
     class WorkerRegistrarService(Service):
+        """An RPyC service to register workers with a head."""
 
         def exposed_register_worker(self, host, port):
             """Register a worker with my head, initialize it."""
@@ -56,7 +57,8 @@ def get_worker_registrar_for(head):
 
 
 class ParallelSeq2SeqTraining(object):
-    """TODO"""
+    """Main (head) that handles parallel Seq2Seq generator training, submitting training jobs and
+    collecting their results"""
 
     DEFAULT_PORT = 25125
     TEMPFILE_NAME = 'seq2seq_temp_dump.pickle.gz'
@@ -254,17 +256,20 @@ class ParallelSeq2SeqTraining(object):
             shutil.move(orig_clfilter_tf_fname, clfilter_tf_fname)
 
     def build_ensemble_model(self, results):
-        """TODO"""
+        """Load the models computed by the individual jobs and compose them into a single
+        ensemble model.
+
+        @param results: list of tuples (cost, ServiceConn object), where cost is not used"""
         ensemble = Seq2SeqEnsemble(self.cfg)
         models = []
         for _, sc in results:
             models.append((pickle.loads(sc.conn.root.get_all_settings()),
                            pickle.loads(sc.conn.root.get_model_params())))
 
-        rerank_settings = results[0][1].conn.root.get_reranker_settings()
+        rerank_settings = results[0][1].conn.root.get_rerank_settings()
         if rerank_settings is not None:
             rerank_settings = pickle.loads(rerank_settings)
-        rerank_params = results[0][1].conn.root.get_reranker_params()
+        rerank_params = results[0][1].conn.root.get_rerank_params()
         if rerank_params is not None:
             rerank_params = pickle.loads(rerank_params)
 
@@ -272,6 +277,7 @@ class ParallelSeq2SeqTraining(object):
         return ensemble
 
 class Seq2SeqTrainingService(Service):
+    """RPyC Worker class for a job training a Seq2Seq generator."""
 
     def __init__(self, conn_ref):
         super(Seq2SeqTrainingService, self).__init__(conn_ref)
@@ -318,7 +324,7 @@ class Seq2SeqTrainingService(Service):
         settings = pickle.dumps(self.seq2seq.get_all_settings(), protocol=pickle.HIGHEST_PROTOCOL)
         return settings
 
-    def exposed_get_reranker_params(self):
+    def exposed_get_rerank_params(self):
         """Call `get_model_params` on the worker's reranker and return the result as a pickle."""
         if not self.seq2seq.classif_filter:
             return None
@@ -326,7 +332,7 @@ class Seq2SeqTrainingService(Service):
                               protocol=pickle.HIGHEST_PROTOCOL)
         return p_dump
 
-    def exposed_get_reranker_settings(self):
+    def exposed_get_rerank_settings(self):
         """Call `get_all_settings` on the worker's reranker and return the result as a pickle."""
         if not self.seq2seq.classif_filter:
             return None
@@ -336,6 +342,13 @@ class Seq2SeqTrainingService(Service):
 
 
 def run_training(head_host, head_port, debug_out=None):
+    """Main worker training routine (creates the Seq2SeqTrainingService and connects it to the
+    head.
+
+    @param head_host: hostname of the head
+    @param head_port: head port number
+    @param debug_out: path to the debugging output file (debug output discarded if None)
+    """
     # setup debugging output, if applicable
     if debug_out is not None:
         set_debug_stream(file_stream(debug_out, mode='w'))

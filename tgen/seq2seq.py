@@ -577,8 +577,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self._init_training(das_file, ttree_file, data_portion)
 
         # do the training passes
-        # TODO: better stopping criterion than just # of passes
-        # look at the tagger – they're much better -- using performance on development data
         for iter_no in xrange(1, self.passes + 1):
 
             self.train_order = range(len(self.train_enc))
