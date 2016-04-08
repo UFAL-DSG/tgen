@@ -245,6 +245,7 @@ class Seq2SeqBase(SentencePlanner):
     @staticmethod
     def load_from_file(model_fname):
         """Detect correct model type (plain/ensemble) and start loading."""
+        model_type = Seq2SeqGen  # default to plain generator
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
             if isinstance(data, type):
