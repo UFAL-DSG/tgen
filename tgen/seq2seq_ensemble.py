@@ -69,14 +69,14 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         path = self.DecodingPath(dec_inputs=[dec_inputs[0]])
 
         for step in xrange(len(dec_inputs)):
-            out, st = self._beam_search_step(path.dec_inputs, path.dec_outputs, path.dec_states)
-            path = path.expand(1, out, st)[0]
+            out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
+            path = path.expand(1, out_probs, st)[0]
 
             if path.dec_inputs[-1] == self.tree_embs.VOID:
                 break  # stop decoding if we have reached the end of path
 
-        # ignore cost computation here
-        return path.dec_outputs, None
+        # return just token IDs, ignore cost computation here
+        return np.array(path.dec_inputs), None
 
     def _init_beam_search(self, enc_inputs):
         """Initialize beam search for the current DA (with the given encoder inputs)
@@ -84,7 +84,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         for gen in self.gens:
             gen._init_beam_search(enc_inputs)
 
-    def _beam_search_step(self, dec_inputs, dec_outputs, dec_states):
+    def _beam_search_step(self, dec_inputs, dec_states):
         """Run one step of beam search decoding with the given decoder inputs and
         (previous steps') outputs and states. Outputs are averaged over all member generators,
         states are kept separately."""
@@ -92,11 +92,10 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         ensemble_output = None
 
         for gen_no, gen in enumerate(self.gens):
-            output, state = gen._beam_search_step(dec_inputs, dec_outputs,
+            output, state = gen._beam_search_step(dec_inputs,
                                                   [state[gen_no] for state in dec_states])
             ensemble_state.append(state)
-            # TODO: it seems weird, but normalizing here makes things worse
-            #output = np.exp(output) / np.sum(np.exp(output))
+            output = np.exp(output) / np.sum(np.exp(output))
             if ensemble_output is None:
                 ensemble_output = output
             else:

@@ -74,7 +74,6 @@ class Seq2SeqBase(SentencePlanner):
         @param gold_trees: (optional) gold trees against which cost is computed
         @return: generated trees as `TreeData` instances, cost if `gold_trees` are given
         """
-
         # encoder inputs
         enc_inputs = cut_batch_into_steps([self.da_embs.get_embeddings(da)
                                            for da in das])
@@ -105,11 +104,9 @@ class Seq2SeqBase(SentencePlanner):
                                                for tree in gold_trees])
 
         # run the decoding per se
-        dec_outputs, dec_cost = self._get_greedy_decoder_output(
+        dec_output_ids, dec_cost = self._get_greedy_decoder_output(
                 enc_inputs, dec_inputs, compute_cost=gold_trees is not None)
 
-        # convert the output back into a tree
-        dec_output_ids = np.argmax(dec_outputs, axis=2)
         return dec_output_ids, dec_cost
 
     def _get_greedy_decoder_output(initial_state, enc_inputs, dec_inputs, compute_cost=False):
@@ -118,15 +115,14 @@ class Seq2SeqBase(SentencePlanner):
     class DecodingPath(object):
         """A decoding path to be used in beam search."""
 
-        __slots__ = ['dec_inputs', 'dec_outputs', 'dec_states', 'logprob']
+        __slots__ = ['dec_inputs', 'dec_states', 'logprob']
 
-        def __init__(self, dec_inputs=[], dec_outputs=[], dec_states=[], logprob=0.0):
+        def __init__(self, dec_inputs=[], dec_states=[], logprob=0.0):
             self.dec_inputs = list(dec_inputs)
-            self.dec_outputs = list(dec_outputs)
             self.dec_states = list(dec_states)
             self.logprob = logprob
 
-        def expand(self, max_variants, dec_output, dec_state):
+        def expand(self, max_variants, dec_out_probs, dec_state):
             """Expand the path with all possible outputs, updating the log probabilities.
 
             @param max_variants: expand to this number of variants at maximum, discard the less \
@@ -137,18 +133,13 @@ class Seq2SeqBase(SentencePlanner):
             """
             ret = []
 
-            # softmax, assuming batches size 1
-            # http://stackoverflow.com/questions/34968722/softmax-function-python
-            probs = np.exp(dec_output[0]) / np.sum(np.exp(dec_output[0]), axis=0)
             # select only up to max_variants most probable variants
-            top_n_idx = np.argpartition(-probs, max_variants)[:max_variants]
+            top_n_idx = np.argpartition(-dec_out_probs, max_variants)[:max_variants]
 
             for idx in top_n_idx:
-                expanded = Seq2SeqGen.DecodingPath(self.dec_inputs, self.dec_outputs,
-                                                   self.dec_states, self.logprob)
-                expanded.logprob += np.log(probs[idx])
+                expanded = Seq2SeqGen.DecodingPath(self.dec_inputs, self.dec_states, self.logprob)
+                expanded.logprob += np.log(dec_out_probs[idx])
                 expanded.dec_inputs.append(np.array(idx, ndmin=1))
-                expanded.dec_outputs.append(dec_output)
                 expanded.dec_states.append(dec_state)
                 ret.append(expanded)
 
@@ -186,8 +177,8 @@ class Seq2SeqBase(SentencePlanner):
             new_paths = []
 
             for path in paths:
-                out, st = self._beam_search_step(path.dec_inputs, path.dec_outputs, path.dec_states)
-                new_paths.extend(path.expand(self.beam_size, out, st))
+                out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
+                new_paths.extend(path.expand(self.beam_size, out_probs, st))
 
             paths = sorted(new_paths, reverse=True)[:self.beam_size]
 
@@ -209,7 +200,7 @@ class Seq2SeqBase(SentencePlanner):
     def _init_beam_search(self, enc_inputs):
         raise NotImplementedError()
 
-    def _beam_search_step(self, dec_inputs, dec_outputs, dec_states):
+    def _beam_search_step(self, dec_inputs, dec_states):
         raise NotImplementedError()
 
     def _rerank_paths(self, paths, da):
@@ -757,7 +748,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             dec_outputs = res[:-1]
             dec_cost = res[-1]
 
-        return dec_outputs, dec_cost
+        # get the highest-scoring IDs
+        dec_output_ids = np.argmax(dec_outputs, axis=2)
+
+        return dec_output_ids, dec_cost
 
     def _init_beam_search(self, enc_inputs):
         """Initialize beam search for the current DA (with the given encoder inputs)."""
@@ -768,21 +762,25 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         for i in xrange(len(enc_inputs)):
             self._beam_search_feed_dict[self.enc_inputs[i]] = enc_inputs[i]
 
-    def _beam_search_step(self, dec_inputs, dec_outputs, dec_states):
+    def _beam_search_step(self, dec_inputs, dec_states):
         """Run one step of beam search decoding with the given decoder inputs and
         (previous steps') outputs and states."""
 
-        step = len(dec_outputs)  # find the decoder position
+        step = len(dec_states)  # find the decoder position
 
         # fill in all previous path data
         for i in xrange(step):
             self._beam_search_feed_dict[self.dec_inputs[i]] = dec_inputs[i]
-            self._beam_search_feed_dict[self.outputs[i]] = dec_outputs[i]
             self._beam_search_feed_dict[self.states[i]] = dec_states[i]
 
         # the decoder outputs are always one step longer
         self._beam_search_feed_dict[self.dec_inputs[step]] = dec_inputs[step]
 
         # run one step of the decoder
-        return self.session.run([self.outputs[step], self.states[step]],
-                                feed_dict=self._beam_search_feed_dict)
+        output, state = self.session.run([self.outputs[step], self.states[step]],
+                                            feed_dict=self._beam_search_feed_dict)
+
+        # softmax (normalize decoder outputs to obtain prob. distribution), assuming batches size 1
+        # http://stackoverflow.com/questions/34968722/softmax-function-python
+        out_probs = np.exp(output[0]) / np.sum(np.exp(output[0]), axis=0)
+        return out_probs, state
