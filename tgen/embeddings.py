@@ -413,7 +413,10 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
             add_plural = False
             if tag == 'NNS' and form.endswith('s'):
                 add_plural = True
-                form = form[-1]
+                form = form[:-1]
+            elif tag == 'NNS' and form == 'children':
+                add_plural = True
+                form = 'child'
             embs.append(self.dict.get(form, self.UNK))
             if add_plural:
                 embs.append(self.PLURAL_S)
@@ -457,7 +460,10 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
             if token in ['<GO>', '<STOP>', '<VOID>']:
                 continue
             if token == '<-s>' and tree.nodes[-1].t_lemma is not None:
-                tree.nodes[-1] = NodeData(tree.nodes[-1].t_lemma + 's', 'x')
+                if tree.nodes[-1].t_lemma == 'child':
+                    tree.nodes[-1] = NodeData('children', 'x')
+                else:
+                    tree.nodes[-1] = NodeData(tree.nodes[-1].t_lemma + 's', 'x')
             elif token == '<-s>':
                 continue
             else:
