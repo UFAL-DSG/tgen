@@ -21,7 +21,7 @@ from tensorflow.models.rnn import rnn_cell
 from pytreex.core.util import file_stream
 
 from tgen.logf import log_info, log_debug, log_warn
-from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
+from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list
 from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtract, \
     TreeEmbeddingSeq2SeqExtract
 from tgen.rnd import rnd
@@ -273,6 +273,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.alpha_decay = cfg.get('alpha_decay', 0.0)
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
+        self.multiple_refs = cfg.get('multiple_refs', False) # multiple references for validation
         self.max_cores = cfg.get('max_cores')
         self.use_tokens = cfg.get('use_tokens', False)
         self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
@@ -304,16 +305,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # save part of the training data for validation:
         if self.validation_size > 0:
-            # check if there are 2 copies of input DAs in the training data.
-            # if so, put aside both copies of validation DAs/trees
-            cut_dbl = self.train_das[train_size / 2 - 1] == self.train_das[-1]
-            if cut_dbl:
-                log_info('Detected duplicate DAs in training data -- ' +
-                         'using both copies for validation')
-            self.train_trees, self.valid_trees = self._cut_valid_data(self.train_trees, cut_dbl)
-            self.train_das, self.valid_das = self._cut_valid_data(self.train_das, cut_dbl)
-            if cut_dbl:
-                self.valid_das = self.valid_das[0]  # the DAs are identical in both copies
+            self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
 
         log_info('Using %d training, %d validation instances.' %
                  (len(self.train_das), self.validation_size))
@@ -364,39 +356,73 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.session.run(tf.initialize_all_variables())
 
     def _tokens_to_flat_trees(self, sents):
+        """Use sentences (pairs token-tag) read from Treex files and convert them into flat
+        trees (each token has a node right under the root, lemma is the token, formeme is 'x').
+        Uses TokenEmbeddingSeq2SeqExtract conversion there and back.
+
+        @param sents: sentences to be converted
+        @return: a list of flat trees
+        """
         return [self.tree_embs.ids_to_tree(self.tree_embs.get_embeddings(sent)) for sent in sents]
 
-    def _cut_valid_data(self, insts, cut_double):
+    def _cut_valid_data(self):
         """Put aside part of the training set  for validation.
-
-        @param insts: original training set (DAs, tokens, or trees)
-        @param cut_double: put aside both copies of the training instances (in case the training \
-            data contain two copies of all input DAs -- this holds for the BAGEL set)
-        @return: new training and validation sets
         """
-        train_size = len(insts)
-        valid = insts[-self.validation_size:]
-        train = insts[:-self.validation_size]
-        if cut_double:
-            valid = (train[train_size / 2 - self.validation_size:train_size / 2], valid)
-            train = train[:train_size / 2 - self.validation_size] + train[train_size / 2:]
-        return train, valid
+        train_size = len(self.train_trees)
+
+        # we have multiple references
+        if self.multiple_refs:
+            num_refs, refs_stored = self.multiple_refs.split(',')
+            num_refs = int(num_refs)
+            if train_size % num_refs != 0:
+                raise Exception('Training data length must be divisible by the number ' +
+                                'of validation references!')
+
+            # data stored "serially" (all different instances next to each other, then again in the
+            # same order)
+            if refs_stored == 'serial':
+                train_tree_chunks = [chunk for chunk in
+                                     chunk_list(self.train_trees, train_size / num_refs)]
+                train_da_chunks = [chunk for chunk in
+                                   chunk_list(self.train_das, train_size / num_refs)]
+                self.valid_trees = [[chunk[i] for chunk in train_tree_chunks]
+                                    for i in xrange(train_size / num_refs - self.validation_size,
+                                                    train_size / num_refs)]
+                self.valid_das = train_da_chunks[0][-self.validation_size:]
+                self.train_trees = sum([chunk[:-self.validation_size]
+                                        for chunk in train_tree_chunks], [])
+                self.train_das = sum([chunk[:-self.validation_size]
+                                      for chunk in train_da_chunks], [])
+            # data stored in "parallel" (all synonymous instances next to each other)
+            else:
+                self.valid_trees = [chunk for chunk in
+                                    chunk_list(self.train_trees[-self.validation_size * num_refs:],
+                                               num_refs)]
+                self.valid_das = self.train_das[-self.validation_size::num_refs]
+                self.train_trees = self.train_trees[:-self.validation_size * num_refs]
+                self.train_das = self.train_das[:-self.validation_size * num_refs]
+
+        # single validation reference
+        else:
+            # make "reference lists" of length 1 to accommodate for functions working
+            # with multiple references
+            self.valid_trees = [[tree] for tree in self.train_trees[-self.validation_size:]]
+            self.valid_das = self.train_das[-self.validation_size:]
+            self.train_trees = self.train_trees[:-self.validation_size]
+            self.train_das = self.train_das[:-self.validation_size]
 
     def _valid_data_to_flat_trees(self, valid_sents):
         """Convert validation data to flat trees, which are the result of `process_das` when
         `self.use_tokens` is in force. This enables to measure F1 on the resulting flat trees
         (equals to unigram F1 on sentence tokens).
 
-        @param valid_sents: validation set sentences (list of list of tokens, or a tuple \
-            of two lists containing the individual paraphrases)
+        @param valid_sents: validation set sentences (for each sentence, list of lists of \
+            tokens+tags)
         @return: the same sentences converted to flat trees \
             (see `TokenEmbeddingSeq2SeqExtract.ids_to_tree`)
         """
-        if isinstance(valid_sents, tuple):
-            return (self._valid_data_to_flat_trees(valid_sents[0]),
-                    self._valid_data_to_flat_trees(valid_sents[1]))
-
-        return self._tokens_to_flat_trees(valid_sents)
+        # sent = list of paraphrases for a given sentence
+        return [self._tokens_to_flat_trees(sent) for sent in valid_sents]
 
     def _init_neural_network(self):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
@@ -625,10 +651,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @return: BLEU score, as a float (percentage)
         """
         evaluator = BLEUMeasure()
-        if isinstance(valid_trees, tuple):
-            valid_trees = [valid_trees_inst for valid_trees_inst in zip(*valid_trees)]
-        else:
-            valid_trees = [(valid_tree,) for valid_tree in valid_trees]
         for pred_tree, gold_trees in zip(cur_valid_out, valid_trees):
             evaluator.append(pred_tree, gold_trees)
         return evaluator.bleu()
@@ -641,12 +663,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @param valid_trees: the gold trees for the validation DAs (one or two paraphrases)
         @return: (average) F1 score, as a float
         """
-        if isinstance(valid_trees, tuple):
-            return np.mean((self._compute_f1(cur_valid_out, valid_trees[0]),
-                            self._compute_f1(cur_valid_out, valid_trees[1])))
         evaluator = Evaluator()
-        for gold_tree, pred_tree in zip(valid_trees, cur_valid_out):
-            evaluator.append(TreeNode(gold_tree), TreeNode(pred_tree))
+        for pred_tree, gold_trees in zip(cur_valid_out, valid_trees):
+            for gold_tree in gold_trees:
+                evaluator.append(TreeNode(gold_tree), TreeNode(pred_tree))
         return evaluator.f1()
 
     def save_to_file(self, model_fname):
@@ -778,7 +798,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # run one step of the decoder
         output, state = self.session.run([self.outputs[step], self.states[step]],
-                                            feed_dict=self._beam_search_feed_dict)
+                                         feed_dict=self._beam_search_feed_dict)
 
         # softmax (normalize decoder outputs to obtain prob. distribution), assuming batches size 1
         # http://stackoverflow.com/questions/34968722/softmax-function-python
