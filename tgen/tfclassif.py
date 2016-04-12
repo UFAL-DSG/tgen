@@ -26,7 +26,7 @@ from tgen.logf import log_debug, log_info
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
 from tgen.features import Features
 from tgen.ml import DictVectorizer
-from tgen.embeddings import EmbeddingExtract
+from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract
 from tgen.tree import TreeData, NodeData
 from alex.components.slu.da import DialogueAct
 from tgen.tf_ml import TFModel
@@ -280,7 +280,7 @@ class RerankingClassifier(TFModel):
             ttree_doc = read_ttrees(ttree_file)
             if self.use_tokens:
                 tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
-                trees = self._flat_trees_from_tokens(tokens)
+                trees = self._tokens_to_flat_trees(tokens)
             else:
                 trees = trees_from_doc(ttree_doc, self.language, self.selector)
 
@@ -328,21 +328,17 @@ class RerankingClassifier(TFModel):
         # initialize the NN variables
         self.session.run(tf.initialize_all_variables())
 
-    def _flat_trees_from_tokens(self, sents):
+    def _tokens_to_flat_trees(self, sents):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
         trees (each token has a node right under the root, lemma is the token, formeme is 'x').
-        Tags are disregarded here.
+        Uses TokenEmbeddingSeq2SeqExtract conversion there and back.
 
         @param sents: sentences to be converted
         @return: a list of flat trees
         """
-        trees = []
-        for sent in sents:
-            tree = TreeData()
-            for form, _ in sent:
-                tree.create_child(0, len(tree), NodeData(form, 'x'))
-            trees.append(tree)
-        return trees
+        tree_embs = TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
+        tree_embs.init_dict(sents)
+        return [tree_embs.ids_to_tree(tree_embs.get_embeddings(sent)) for sent in sents]
 
     def _init_neural_network(self):
         """Create the neural network for classification, according to the self.nn_shape
@@ -486,7 +482,7 @@ class RerankingClassifier(TFModel):
         ttree_doc = read_ttrees(ttree_file)
         if use_tokens:
             tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
-            trees = self._flat_trees_from_tokens(tokens)
+            trees = self._tokens_to_flat_trees(tokens)
         else:
             trees = trees_from_doc(ttree_doc, self.language, self.selector)
 
