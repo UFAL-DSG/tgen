@@ -33,7 +33,7 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 	treex -Len Read::Treex from=$< Write::YAML to=$@
 
 %-text.treex.gz: %-text.txt %-conc.txt %-abst.txt
-	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt en_analysis.scen \
+	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt Scen::Analysis::EN \
 	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abst.txt x_only=1 $(COORD_ADJUST) \
 	 	Write::Treex to=$@
 
