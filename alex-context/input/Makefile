@@ -1,6 +1,7 @@
 
 SHELL=/bin/bash
 CONVERT_SETTINGS = -s 3:1:1
+ABSTRACTED = from_stop,to_stop,direction,departure_time,departure_time_rel,ampm,vehicle,line,arrival_time,duration,distance,num_transfers,alternative
 
 COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
 ifeq ($(COORD),stanford)
@@ -33,7 +34,7 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 	treex -Len Read::Treex from=$< Write::YAML to=$@
 
 %-text.treex.gz: %-text.txt %-conc.txt %-abst.txt
-	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt Scen::Analysis::EN \
+	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt W2A::ResegmentSentences Scen::Analysis::EN pretokenized=1 Misc::JoinBundles \
 	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abst.txt x_only=1 $(COORD_ADJUST) \
 	 	Write::Treex to=$@
 
