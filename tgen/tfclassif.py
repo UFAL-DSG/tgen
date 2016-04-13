@@ -182,19 +182,20 @@ class RerankingClassifier(TFModel):
         ret.saver.restore(ret.session, tf_session_fname)
         return ret
 
-    def train(self, das_file, ttree_file, data_portion=1.0, valid_das=None, valid_trees=None):
-        """Run training on the given training data."""
+    def train(self, das, trees, data_portion=1.0, valid_das=None, valid_trees=None):
+        """Run training on the given training data.
+
+        @param das: name of source file with training DAs, or list of DAs
+        @param trees: name of source file with corresponding trees/sentences, or list of trees
+        @param data_portion: portion of the training data to be used (defaults to 1.0)
+        @param valid_das: validation data DAs
+        @param valid_trees: list of lists of corresponding paraphrases (same length as valid_das)
+        """
 
         log_info('Training reranking classifier...')
 
-        self._init_training(das_file, ttree_file, data_portion)
+        self._init_training(das, trees, data_portion)
         top_comb_cost = float('nan')
-
-        if valid_trees:  # preparing valid_trees for evaluation (1 or 2 paraphrases)
-            if isinstance(valid_trees, tuple):
-                valid_trees = [[t1, t2] for t1, t2 in zip(valid_trees[0], valid_trees[1])]
-            else:
-                valid_trees = [[t] for t in valid_trees]
 
         for iter_no in xrange(1, self.passes + 1):
             self.train_order = range(len(self.train_trees))
@@ -261,21 +262,21 @@ class RerankingClassifier(TFModel):
         covered = self.classify(trees)
         return [sum(abs(c - da_bin)) for c in covered]
 
-    def _init_training(self, das_file, ttree_file, data_portion):
+    def _init_training(self, das, trees, data_portion):
         """Initialize training.
 
         Store input data, initialize 1-hot feature representations for input and output and
         transform training data accordingly, initialize the classification neural network.
+
+        @param das: name of source file with training DAs, or list of DAs
+        @param trees: name of source file with corresponding trees/sentences, or list of trees
+        @param data_portion: portion of the training data to be used (0.0-1.0)
         """
         # read input from files or take it directly from parameters
-        if isinstance(das_file, list):
-            das = das_file
-        else:
+        if not isinstance(das, list):
             log_info('Reading DAs from ' + das_file + '...')
             das = read_das(das_file)
-        if isinstance(ttree_file, list):
-            trees = ttree_file
-        else:
+        if not isinstance(trees, list):
             log_info('Reading t-trees from ' + ttree_file + '...')
             ttree_doc = read_ttrees(ttree_file)
             if self.use_tokens:
