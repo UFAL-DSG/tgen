@@ -102,17 +102,18 @@ def postprocess_sent(sent):
     return sent
 
 def fix_capitalization(sent):
-    sent = re.sub(r' [.?!] [a-z]', lambda m: m.string[m.start():m.end()].upper(), sent)
+    sent = re.sub(r'( [.?!] [a-z])', lambda m: m.group(1).upper(), sent)
+    sent = re.sub(r'\b(Ok|ok|i)\b', lambda m: m.group(1).upper(), sent)
     sent = sent[0].upper() + sent[1:]
     return sent
 
 
 def find_substr(needle, haystack):
     """Find a sub-list in a list of tokens.
-    
+
     @param haystack: the longer list of tokens – the list where we should search
     @param needle: the shorter list – the list whose position is to be found
-    @return: a tuple of starting and ending position of needle in the haystack, \ 
+    @return: a tuple of starting and ending position of needle in the haystack, \
             or None if not found
     """
     h = 0
@@ -166,7 +167,7 @@ def find_substr_approx(needle, haystack):
 
 def abstract_sent(da, conc, abst_slots):
     """Abstract the given slots in the given sentence (replace them with X).
-    
+
     @param da: concrete DA
     @param conc: concrete sentence text
     @param abstr_slots: a set of slots to be abstracted
