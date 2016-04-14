@@ -612,14 +612,18 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
                 cur_train_out = self.process_das(self.train_das[:self.batch_size])
                 log_info("Current train output:\n" +
-                         "\n".join([unicode(tree) for tree in cur_train_out]))
+                         "\n".join([" ".join(n.t_lemma for n in tree.nodes[1:])
+                                    if self.use_tokens
+                                    else unicode(tree)
+                                    for tree in cur_train_out]))
 
-                cur_valid_out = self.process_das(self.valid_das)
+                cur_valid_out = self.process_das(self.valid_das[:self.batch_size])
                 cur_cost = self._compute_valid_cost(cur_valid_out, self.valid_trees)
-                log_info("Gold validation trees:\n" +
-                         "\n".join([unicode(tree) for tree in self.valid_trees]))
                 log_info("Current validation output:\n" +
-                         "\n".join([unicode(tree) for tree in cur_valid_out]))
+                         "\n".join([" ".join(n.t_lemma for n in tree.nodes[1:])
+                                    if self.use_tokens
+                                    else unicode(tree)
+                                    for tree in cur_valid_out]))
                 log_info('IT %d validation cost: %5.4f' % (iter_no, cur_cost))
 
                 # if we have the best model so far, save it as a checkpoint (overwrite previous)
