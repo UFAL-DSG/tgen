@@ -45,12 +45,6 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt: sfxrestaurant.emnlp.json
 	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
-train-%.txt: all-%.txt
-	head -n 362 $< > $@
-
-test-%.txt: all-%.txt
-	tail -n 42 $< > $@
-
 grammatemes.tsv: train-text.treex.gz train-das.txt
 	treex -Len Read::Treex from=$< Print::GrammatemesForTgen to=$@ da_file=train-das.txt
 
