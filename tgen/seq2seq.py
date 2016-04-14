@@ -62,7 +62,13 @@ class Seq2SeqBase(SentencePlanner):
 
         self.classif_filter = None
         if 'classif_filter' in cfg:
-            self.classif_filter = RerankingClassifier(cfg['classif_filter'])
+            # use the specialized settings for the reranking classifier
+            rerank_cfg = cfg['classif_filter']
+            # plus, copy some settings from the main Seq2Seq module (so we're consistent)
+            for setting in ['use_tokens', 'embeddings_lowercase', 'embeddings_split_plurals']:
+                if setting in cfg:
+                    rerank_cfg[setting] = cfg[setting]
+            self.classif_filter = RerankingClassifier(rerank_cfg)
             self.misfit_penalty = cfg.get('misfit_penalty', 100)
 
     def process_das(self, das, gold_trees=None):
@@ -332,18 +338,16 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                                             for tree in self.train_trees],
                                            self.batch_size, None)]
 
-        # convert validation data to flat trees to enable F1 measuring
-        if self.validation_size > 0 and self.use_tokens:
-            self.valid_trees = self._valid_data_to_flat_trees(self.valid_trees)
-
         # train the classifier for filtering n-best lists
         if self.classif_filter:
-            classif_train_trees = (self.train_trees if not self.use_tokens else
-                                   self._tokens_to_flat_trees(self.train_trees))
-            self.classif_filter.train(self.train_das, classif_train_trees,
+            self.classif_filter.train(self.train_das, self.train_trees,
                                       valid_das=self.valid_das,
                                       valid_trees=self.valid_trees)
             self.classif_filter.restore_checkpoint()  # restore the best performance on devel data
+
+        # convert validation data to flat trees to enable F1 measuring
+        if self.validation_size > 0 and self.use_tokens:
+            self.valid_trees = self._valid_data_to_flat_trees(self.valid_trees)
 
         # initialize top costs
         self.top_k_costs = [float('nan')] * self.top_k

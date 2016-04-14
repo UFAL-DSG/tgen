@@ -194,7 +194,12 @@ class RerankingClassifier(TFModel):
 
         log_info('Training reranking classifier...')
 
+        # initialize training
         self._init_training(das, trees, data_portion)
+        if self.use_tokens and valid_trees is not None:
+            valid_trees = [self._tokens_to_flat_trees(paraphrases) for paraphrases in valid_trees]
+
+        # start training
         top_comb_cost = float('nan')
 
         for iter_no in xrange(1, self.passes + 1):
@@ -284,6 +289,8 @@ class RerankingClassifier(TFModel):
                 trees = self._tokens_to_flat_trees(tokens)
             else:
                 trees = trees_from_doc(ttree_doc, self.language, self.selector)
+        elif self.use_tokens:
+            trees = self._tokens_to_flat_trees(trees)
 
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(trees)))
@@ -339,7 +346,9 @@ class RerankingClassifier(TFModel):
         """
         tree_embs = TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
         tree_embs.init_dict(sents)
-        return [tree_embs.ids_to_tree(tree_embs.get_embeddings(sent)) for sent in sents]
+        # no postprocessing, i.e. keep lowercasing/plural splitting if set in the configuration
+        return [tree_embs.ids_to_tree(tree_embs.get_embeddings(sent), postprocess=False)
+                for sent in sents]
 
     def _init_neural_network(self):
         """Create the neural network for classification, according to the self.nn_shape
@@ -470,18 +479,17 @@ class RerankingClassifier(TFModel):
     def _print_pass_stats(self, pass_no, time, cost, diff):
         log_info('PASS %03d: duration %s, cost %f, diff %d' % (pass_no, str(time), cost, diff))
 
-    def evaluate_file(self, das_file, ttree_file, use_tokens=False):
+    def evaluate_file(self, das_file, ttree_file):
         """Evaluate the reranking classifier on a given pair of DA/tree files (show the
         total Hamming distance and total number of DAIs)
 
         @param das_file: DA file path
         @param ttree_file: trees/sentences file path
-        @param use_tokens: convert trees to tokens before evaluating?
         @return: a tuple (total DAIs, distance)
         """
         das = read_das(das_file)
         ttree_doc = read_ttrees(ttree_file)
-        if use_tokens:
+        if self.use_tokens:
             tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
             trees = self._tokens_to_flat_trees(tokens)
         else:

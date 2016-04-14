@@ -31,7 +31,8 @@ config = {
           'beam_size': 100,
           'alpha_decay': 0, # 0.03
 
-          'classif_filter': {
+          # reranking classifier settings
+          'classif_filter': {  # embedding settings will be copied here
               'language': 'en',
               'selector': '',
               #'nn': '1-hot',

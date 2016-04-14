@@ -512,14 +512,11 @@ def rerank_cl_eval(args):
 
     language = None
     selector = None
-    use_tokens = False
     for opt, arg in opts:
         if opt == '-l':
             language = arg
         elif opt == '-s':
             selector = arg
-        elif opt == '-t':
-            use_tokens = True
 
     if len(files) != 3:
         sys.exit("Invalid arguments.\n" + __doc__)
@@ -533,7 +530,7 @@ def rerank_cl_eval(args):
         rerank_cl.selector = selector
 
     log_info("Evaluating...")
-    tot_len, dist = rerank_cl.evaluate_file(fname_test_da, fname_test_sent, use_tokens)
+    tot_len, dist = rerank_cl.evaluate_file(fname_test_da, fname_test_sent)
     log_info("Penalty: %d, Total DAIs %d." % (dist, tot_len))
 
 
