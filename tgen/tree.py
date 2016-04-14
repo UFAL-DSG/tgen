@@ -125,6 +125,15 @@ class TreeData(object):
                 elif self.parents[pos] > node_idx and self.parents[pos] <= target_pos:
                     self.parents[pos] -= 1
 
+    def remove_node(self, node_idx):
+        """Remove a node, rehang all its children to its parent."""
+        for pos in xrange(len(self)):
+            if self.parents[pos] == node_idx:
+                self.parents[pos] = self.parents[node_idx]
+        self.move_node(node_idx, len(self)-1)
+        del self.parents[-1]
+        del self.nodes[-1]
+
     def subtree_bound(self, parent_idx, right):
         """Return the subtree bound of the given node (furthermost index belonging to the subtree),
         going left or right.
