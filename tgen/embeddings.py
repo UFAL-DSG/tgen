@@ -385,7 +385,9 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
     def __init__(self, cfg={}):
         self.max_sent_len = cfg.get('max_sent_len', 50)
-        self.dict = {'UNK': self.UNK}
+        self.lowercase = cfg.get('embeddings_lowercase', False)
+        self.split_plurals = cfg.get('embeddings_split_plurals', True)
+        self.dict = {'<UNK>': self.UNK}
         self.rev_dict = {self.VOID: '<VOID>', self.GO: '<GO>',
                          self.STOP: '<STOP>', self.UNK: '<UNK>',
                          self.PLURAL_S: '<-s>'}
@@ -397,8 +399,13 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
         for sent in train_sents:
             for form, tag in sent:
-                if tag == 'NNS' and form.endswith('s'):
-                    form = form[:-1]  # TODO this is very stupid, but probably works with BAGEL
+                # handle plurals
+                if tag == 'NNS' and self.split_plurals:
+                    form = self._plural_to_singular(form)
+                # lowercase
+                if self.lowercase:
+                    form = self._lowercase(form)
+                # add new normalized forms to dictionary
                 if form not in self.dict:
                     self.dict[form] = dict_ord
                     self.rev_dict[dict_ord] = form
@@ -406,19 +413,44 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
         return dict_ord
 
+    def _lowercase(self, form):
+        """Lowercase a word form, keeping X-* placeholders + select all-caps words intact."""
+        if form is None or form in ['I', 'OK'] or form.startswith('X-'):
+            return form
+        return form.lower()
+
+    def _plural_to_singular(self, plural_form):
+        """Return singular form for a plural noun."""
+        if plural_form is None:
+            return None
+        if plural_form == 'children':
+            return 'child'
+        elif plural_form.endswith('s'):
+            return plural_form[:-1]
+        return plural_form
+
+    def _singular_to_plural(self, singular_form):
+        """Returns plural form for a singular noun."""
+        if singular_form is None:
+            return None
+        if singular_form == 'child':
+            return 'children'
+        return singular_form + 's'
+
     def get_embeddings(self, sent):
         """Get the embeddings of a sentence (list of word form/tag pairs)."""
         embs = [self.GO]
         for form, tag in sent:
+            # normalize form (handle plurals and casing)
             add_plural = False
-            if tag == 'NNS' and form.endswith('s'):
+            if self.split_plurals and tag == 'NNS':
                 add_plural = True
-                form = form[:-1]
-            elif tag == 'NNS' and form == 'children':
-                add_plural = True
-                form = 'child'
+                form = self._plural_to_singular(form)
+            if self.lowercase:
+                form = self._lowercase(form)
+            # append the token ID, or <UNK>
             embs.append(self.dict.get(form, self.UNK))
-            if add_plural:
+            if add_plural:  # append <-s> for split plurals
                 embs.append(self.PLURAL_S)
 
         embs += [self.STOP]
@@ -446,10 +478,12 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
         return ret
 
-    def ids_to_tree(self, emb):
+    def ids_to_tree(self, emb, postprocess=True):
         """Create a fake (flat) t-tree from token embeddings (IDs).
 
         @param emb: source embeddings (token IDs)
+        @param postprocess: postprocess the sentence (capitalize sentence start, merge plural \
+            markers)? True by default.
         @return: the corresponding tree
         """
 
@@ -459,14 +493,17 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
         for token in tokens:
             if token in ['<GO>', '<STOP>', '<VOID>']:
                 continue
-            if token == '<-s>' and tree.nodes[-1].t_lemma is not None:
-                if tree.nodes[-1].t_lemma == 'child':
-                    tree.nodes[-1] = NodeData('children', 'x')
-                else:
-                    tree.nodes[-1] = NodeData(tree.nodes[-1].t_lemma + 's', 'x')
-            elif token == '<-s>':
-                continue
-            else:
-                tree.create_child(0, len(tree), NodeData(token, 'x'))
+            if postprocess:
+                # casing (only if set to lowercase)
+                if self.lowercase and len(tree) == 1 or tree.nodes[-1].t_lemma in ['.', '?', '!']:
+                    token = token[0].upper() + token[1:]
+                # plural merging (if plural tokens come up)
+                if token == '<-s>' and tree.nodes[-1].t_lemma is not None:
+                    token = self._singular_to_plural(tree.nodes[-1].t_lemma)
+                    tree.remove_node(len(tree) - 1)
+                elif token == '<-s>':
+                    continue
+
+            tree.create_child(0, len(tree), NodeData(token, 'x'))
 
         return tree
