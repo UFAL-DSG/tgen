@@ -1,6 +1,6 @@
 
 SHELL=/bin/bash
-CONVERT_SETTINGS = -s 3:1:1
+CONVERT_SETTINGS = -s 3:1:1 -m
 ABSTRACTED = from_stop,to_stop,direction,departure_time,departure_time_rel,ampm,vehicle,line,arrival_time,duration,distance,num_transfers,alternative
 
 COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
@@ -34,27 +34,40 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 	treex -Len Read::Treex from=$< Write::YAML to=$@
 
 %-text.treex.gz: %-text.txt %-conc.txt %-abst.txt
+	if echo "$@" | grep -E '^(devel|test)' >/dev/null; then \
+	    GROUP="Misc::GroupBundles selector_suffixes=ref0,ref1,ref2"; \
+        else \
+	    GROUP=""; \
+	fi; \
 	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt W2A::ResegmentSentences Scen::Analysis::EN pretokenized=1 Misc::JoinBundles \
-	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abst.txt x_only=1 $(COORD_ADJUST) \
+	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abst.txt x_only=1 $(COORD_ADJUST) $$GROUP \
 	 	Write::Treex to=$@
 
 train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt: dataset.json
 	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
-train-%.txt: all-%.txt
-	head -n 362 $< > $@
-
-test-%.txt: all-%.txt
-	tail -n 42 $< > $@
-
 grammatemes.tsv: train-text.treex.gz train-das.txt
 	treex -Len Read::Treex from=$< Print::GrammatemesForTgen to=$@ da_file=train-das.txt
 
 %-conc.sgm: %-conc.txt
-	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset | sed 's/docid="[^"]*"/docid="test"/' > $@
+	echo '<refset setid="AlexContext" srclang="any" trglang="en">' > $@
+	treex -Len Read::Sentences from=$< \
+	    Misc::GroupBundles selector_suffixes=ref0,ref1,ref2 \
+	    Write::SgmMTEval to=- set_id=AlexContext sys_id=manual_0 selector=ref0 \
+	    Write::SgmMTEval to=- set_id=AlexContext sys_id=manual_1 selector=ref1 \
+	    Write::SgmMTEval to=- set_id=AlexContext sys_id=manual_2 selector=ref2 \
+	    | sed 's/docid="[^"]*"/docid="test"/' >> $@
+	echo '</refset>' >> $@
 
 %-text.sgm: %-text.txt
-	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=manual add_header=refset | sed 's/docid="[^"]*"/docid="test"/' > $@
+	echo '<refset setid="AlexContext" srclang="any" trglang="en">' > $@
+	treex -Len Read::Sentences from=$< \
+	    Misc::GroupBundles selector_suffixes=ref0,ref1,ref2 \
+	    Write::SgmMTEval to=- set_id=AlexContext sys_id=manual_0 selector=ref0 \
+	    Write::SgmMTEval to=- set_id=AlexContext sys_id=manual_1 selector=ref1 \
+	    Write::SgmMTEval to=- set_id=AlexContext sys_id=manual_2 selector=ref2 \
+	    | sed 's/docid="[^"]*"/docid="test"/' >> $@
+	echo '</refset>' >> $@
 
 %-das.sgm: %-das.txt
-	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=SfxRest sys_id=source add_header=srcset | sed 's/docid="[^"]*"/docid="test"/' > $@
+	treex -Len Read::Sentences from=$< Write::SgmMTEval to=- set_id=AlexContext sys_id=source add_header=srcset | sed 's/docid="[^"]*"/docid="test"/' > $@

@@ -78,7 +78,7 @@ endif
 SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
 
 XS_INSTEAD = 0
-EVAL_SELECTOR =
+EVAL_SELECTOR = ref0
 TARGET_SELECTOR = gen
 
 # Help text
@@ -341,7 +341,7 @@ gen_process:
 			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
-			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=BAGEL sys_id=TGEN add_header=tstset; \
+			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=AlexContext sys_id=TGEN add_header=tstset; \
 		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 

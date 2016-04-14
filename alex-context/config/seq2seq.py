@@ -22,6 +22,7 @@ config = {
 
           'validation_size': 100,
           'validation_freq': 1,
+          'multiple_refs': '3,parallel',
           'passes': 1000,
           'min_passes': 100,
           'improve_interval': 50,

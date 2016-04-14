@@ -194,7 +194,11 @@ def convert(args):
     for part_size, part_name in zip(data_sizes, out_names):
         with open(part_name + '-das.txt', 'w') as fh:
             for da in das[0:part_size]:
-                for _ in xrange(len(concs[0])):
+                # repeat DAs for synonymous paraphrases, unless for test data in multi-ref mode
+                repeat_num = len(concs[0])
+                if args.multi_ref and part_name in ['devel', 'test', 'dtest', 'etest']:
+                    repeat_num = 1
+                for _ in xrange(repeat_num):
                     fh.write(unicode(da).encode('utf-8') + "\n")
             del das[0:part_size]
 
@@ -222,5 +226,6 @@ if  __name__ == '__main__':
     argp.add_argument('in_file', help='Input JSON file')
     argp.add_argument('out_name', help='Output files name prefix(es - when used with -s, comma-separated)')
     argp.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
+    argp.add_argument('-m', '--multi-ref', help='Multiple reference mode; i.e. do not repeat DA in devel and test parts', action='store_true')
     args = argp.parse_args()
     convert(args)
