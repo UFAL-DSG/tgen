@@ -11,7 +11,11 @@ config = {
           'batch_size': 20,
           'optimizer_type': 'adam',
           'max_cores': 4,
+
           'use_tokens': True,
+          'embeddings_lowercase': True,
+          'embeddings_split_plurals': True,
+
           'nn_type': 'emb_attention_seq2seq',
           'sort_da_emb': True,
           'cell_type': 'lstm',
