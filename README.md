@@ -40,7 +40,7 @@ Manual installation:
 
 From the manual modules, the first two ones can be avoided by just copying a few libraries; these will be integrated here in the future.
 
-Additionally, some obsolete code depends on [Theano](https://www.tensorflow.org/), but the imports are optional and the code will be probably removed in the future.
+Additionally, some obsolete code depends on [Theano](http://deeplearning.net/software/theano/), but the imports are optional and the code will be probably removed in the future.
 
 Citing TGen
 -----------
