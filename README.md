@@ -21,14 +21,26 @@ new experimental features using neural networks (not stable and worse performanc
 Dependencies
 ------------
 
-For TGen to work properly, you need to have these modules installed:
+TGen is written in Python (version 2.7). For TGen to work properly, you need to have several modules installed.
+
+"Standard" (can be installed easily, with pip):
+
+- [enum34](https://pypi.python.org/pypi/enum34)
+- [numpy](http://www.numpy.org/)
+- [rpyc](https://pypi.python.org/pypi/rpyc/)
+- [pudb](https://pypi.python.org/pypi/pudb)
+- [TensorFlow](https://www.tensorflow.org/)
+
+Manual installation:
 
 - [Alex](https://github.com/UFAL-DSG/alex)
 - [Flect](https://github.com/UFAL-DSG/flect)
 - [PyTreex](https://github.com/ufal/pytreex)
 - [Treex](http://ufal.cz/treex)
 
-The first two ones can be avoided by just copying a few libraries; these will be integrated here in the future.
+From the manual modules, the first two ones can be avoided by just copying a few libraries; these will be integrated here in the future.
+
+Additionally, some obsolete code depends on [Theano](https://www.tensorflow.org/), but the imports are optional and the code will be probably removed in the future.
 
 Citing TGen
 -----------
