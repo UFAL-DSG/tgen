@@ -42,6 +42,8 @@ From the manual modules, the first two ones can be avoided by just copying a few
 
 Additionally, some obsolete code depends on [Theano](http://deeplearning.net/software/theano/), but the imports are optional and the code will be probably removed in the future.
 
+Parallel training on the cluster is using [SGE](https://arc.liv.ac.uk/trac/SGE)'s `qsub`.
+
 Citing TGen
 -----------
 
