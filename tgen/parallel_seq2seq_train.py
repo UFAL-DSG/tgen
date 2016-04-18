@@ -89,7 +89,7 @@ class ParallelSeq2SeqTraining(object):
         # this is needed for saving the model
         self.model_temp_path = None
 
-    def train(self, das_file, ttree_file, data_portion=1.0):
+    def train(self, das_file, ttree_file, data_portion=1.0, context_file=None):
         """Run parallel perceptron training, start and manage workers."""
         # initialize the ranker instance
         log_info('Initializing...')
@@ -134,7 +134,9 @@ class ParallelSeq2SeqTraining(object):
                     req = train_func(rnd_seeds[cur_assign],
                                      os.path.relpath(das_file, self.work_dir),
                                      os.path.relpath(ttree_file, self.work_dir),
-                                     data_portion)
+                                     data_portion,
+                                     os.path.relpath(context_file, self.work_dir)
+                                     if context_file else None)
                     self.pending_requests.add((sc, cur_assign, req))
                     cur_assign += 1
                     log_debug('Assigned %d' % cur_assign)
@@ -291,14 +293,14 @@ class Seq2SeqTrainingService(Service):
         self.seq2seq = Seq2SeqGen(cfg)
         log_info('Training initialized. Time taken: %f secs.' % (time.time() - tstart))
 
-    def exposed_train(self, rnd_seed, das_file, ttree_file, data_portion):
+    def exposed_train(self, rnd_seed, das_file, ttree_file, data_portion, context_file):
         """Run the whole training.
         """
         rnd.seed(rnd_seed)
         log_info('Random seed: %f' % rnd_seed)
         tstart = time.time()
         log_info('Starting training...')
-        self.seq2seq.train(das_file, ttree_file, data_portion)
+        self.seq2seq.train(das_file, ttree_file, data_portion, context_file)
         log_info('Training finished -- time taken: %f secs.' % (time.time() - tstart))
         top_cost = self.seq2seq.top_k_costs[0]
         log_info('Best cost: %f' % top_cost)

@@ -58,7 +58,7 @@ from flect.config import Config
 
 from tgen.logf import log_info, set_debug_stream, log_debug
 from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
-    trees_from_doc, ttrees_from_doc, write_ttrees
+    trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import ASearchPlanner, SamplingPlanner
@@ -233,8 +233,9 @@ def seq2seq_train(args):
     jobs_number = 0
     work_dir = None
     experiment_id = None
+    fname_contexts = None
 
-    opts, files = getopt(args, 'd:s:r:j:w:e:')
+    opts, files = getopt(args, 'd:s:r:j:w:e:c:')
 
     for opt, arg in opts:
         if opt == '-d':
@@ -250,6 +251,8 @@ def seq2seq_train(args):
             experiment_id = arg
         elif opt == '-r' and arg:
             rnd.seed(arg)
+        elif opt == '-c':
+            fname_contexts = arg
 
     if len(files) != 4:
         sys.exit(__doc__)
@@ -266,7 +269,8 @@ def seq2seq_train(args):
     else:
         generator = Seq2SeqGen(config)
 
-    generator.train(fname_train_das, fname_train_ttrees, data_portion=train_size)
+    generator.train(fname_train_das, fname_train_ttrees,
+                    data_portion=train_size, context_file=fname_contexts)
     sys.setrecursionlimit(100000)
     generator.save_to_file(fname_gen_model)
 
@@ -425,12 +429,13 @@ def asearch_gen(args):
 def seq2seq_gen(args):
     """Sequence-to-sequence generation"""
 
-    opts, files = getopt(args, 'e:d:w:r:t:b:')
+    opts, files = getopt(args, 'e:d:w:r:t:b:c:')
     eval_file = None
     fname_ttrees_out = None
     ref_selector = ''
     target_selector = ''
     beam_size_override = None
+    fname_contexts = None
 
     for opt, arg in opts:
         if opt == '-e':
@@ -445,6 +450,8 @@ def seq2seq_gen(args):
             fname_ttrees_out = arg
         elif opt == '-b':
             beam_size_override = int(arg)
+        elif opt == '-c':
+            fname_contexts = arg
 
     if len(files) != 2:
         sys.exit('Invalid arguments.\n' + __doc__)
@@ -456,6 +463,9 @@ def seq2seq_gen(args):
 
     log_info('Generating...')
     das = read_das(fname_da_test)
+    if fname_contexts:
+        contexts = tokens_from_docs(read_ttrees(fname_contexts), tgen.language, tgen.selector)
+        das = [(context, da) for context, da in zip(contexts, das)]
 
     if eval_file is None:
         gen_doc = Document()
