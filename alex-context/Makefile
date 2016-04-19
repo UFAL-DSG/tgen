@@ -62,18 +62,21 @@ TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
 TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
+TRAIN_CONTEXT = data/$(TRAINING_SET)/train-context.pickle.gz
 GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
 TEST_REF = data/$(TRAINING_SET)/devel-das.sgm
 TEST_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
 TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
 TEST_CONC = data/$(TRAINING_SET)/devel-conc.sgm
+TEST_CONTEXT = data/$(TRAINING_SET)/devel-context.pickle.gz
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
   TEST_REF = data/$(TRAINING_SET)/test-das.sgm
   TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
   TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
+  TEST_CONTEXT = data/$(TRAINING_SET)/test-context.pickle.gz
 endif
 SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
 
@@ -276,6 +279,7 @@ seq2seq_train:
 	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
+	cp $(TRAIN_CONTEXT) $(TRY_DIR)/train-context.pickle.gz
 	# run the experiment
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
@@ -314,6 +318,7 @@ prepare_test_data:
 	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
+	cp $(TEST_CONTEXT) $(TRY_DIR)/test-context.pickle.gz
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
 

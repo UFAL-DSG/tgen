@@ -23,7 +23,7 @@ from pytreex.core.util import file_stream
 from tgen.logf import log_info, log_debug, log_warn
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list
 from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtract, \
-    TreeEmbeddingSeq2SeqExtract
+    TreeEmbeddingSeq2SeqExtract, ContextDAEmbeddingSeq2SeqExtract
 from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
 from tgen.tree import TreeData, TreeNode
@@ -279,7 +279,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.alpha_decay = cfg.get('alpha_decay', 0.0)
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
-        self.multiple_refs = cfg.get('multiple_refs', False) # multiple references for validation
+        self.multiple_refs = cfg.get('multiple_refs', False)  # multiple references for validation
         self.max_cores = cfg.get('max_cores')
         self.use_tokens = cfg.get('use_tokens', False)
         self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
@@ -287,7 +287,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.cell_type = cfg.get('cell_type', 'lstm')
         self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
 
-    def _init_training(self, das_file, ttree_file, data_portion):
+        self.use_context = cfg.get('use_context', False)
+
+    def _init_training(self, das_file, ttree_file, data_portion, context_file):
         """Load training data, prepare batches, build the NN.
 
         @param das_file: training DAs (file path)
@@ -303,6 +305,13 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             trees = tokens_from_doc(ttree_doc, self.language, self.selector)
         else:
             trees = trees_from_doc(ttree_doc, self.language, self.selector)
+        # read contexts, combine them with corresponding DAs for easier handling
+        if self.use_context:
+            if context_file is None:
+                raise ValueError('Expected context utterances file name!')
+            log_info('Reading context utterances from %s...' % context_file)
+            contexts = tokens_from_doc(read_ttrees(context_file), self.language, self.selector)
+            das = [(context, da) for context, da in zip(contexts, das)]
 
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(trees)))
@@ -317,7 +326,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                  (len(self.train_das), self.validation_size))
 
         # initialize embeddings
-        self.da_embs = DAEmbeddingSeq2SeqExtract(cfg=self.cfg)
+        if self.use_context:
+            self.da_embs = ContextDAEmbeddingSeq2SeqExtract(cfg=self.cfg)
+        else:
+            self.da_embs = DAEmbeddingSeq2SeqExtract(cfg=self.cfg)
         if self.use_tokens:
             self.tree_embs = TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
         else:
@@ -529,7 +541,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Perform one pass through the training data (epoch).
         @param iter_no: pass number (for logging)
         """
-
         it_cost = 0.0
         it_learning_rate = self.alpha * np.exp(-self.alpha_decay * iter_no)
         log_info('IT %d alpha: %8.5f' % (iter_no, it_learning_rate))
@@ -585,7 +596,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         return iter_no > self.min_passes and iter_no > self.top_k_change + self.improve_interval
 
-    def train(self, das_file, ttree_file, data_portion=1.0):
+    def train(self, das_file, ttree_file, data_portion=1.0, context_file=None):
         """
         The main training process – initialize and perform a specified number of
         training passes, validating every couple iterations.
@@ -594,9 +605,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @param ttree_file: training data file with t-trees
         @param data_portion: portion of training data to be actually used, defaults to 1.0
         """
-
         # load and prepare data and initialize the neural network
-        self._init_training(das_file, ttree_file, data_portion)
+        self._init_training(das_file, ttree_file, data_portion, context_file)
 
         # do the training passes
         for iter_no in xrange(1, self.passes + 1):

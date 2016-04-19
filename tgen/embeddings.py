@@ -168,7 +168,7 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
         self.sort = cfg.get('sort_da_emb', False)
 
     def init_dict(self, train_das, dict_ord=None):
-        """"""
+        """Initialize dictionaries for DA types, slots, and values."""
         if dict_ord is None:
             dict_ord = self.MIN_VALID
 
@@ -186,8 +186,9 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
         return dict_ord
 
-    def get_embeddings(self, da):
-        """"""
+    def get_embeddings(self, da, pad=True):
+        """Get the embeddings (list of IDs for triples of da type - slot - value) for the given DA.
+        """
         # list the IDs of act types, slots, values
         da_emb_idxs = []
         sorted_da = da
@@ -200,13 +201,55 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
             da_emb_idxs.append(self.dict_value.get(dai.value, self.UNK_VALUE))
         # left-pad with unknown
         padding = []
-        if len(da) < self.max_da_len:
-            padding = [self.UNK_ACT, self.UNK_SLOT, self.UNK_VALUE] * (self.max_da_len - len(da))
+        if pad:
+            if len(da) < self.max_da_len:
+                padding = [self.UNK_ACT, self.UNK_SLOT, self.UNK_VALUE] * (self.max_da_len - len(da))
         return padding + da_emb_idxs
 
     def get_embeddings_shape(self):
         """Return the shape of the embedding matrix (for one object, disregarding batches)."""
         return [3 * self.max_da_len]
+
+
+class ContextDAEmbeddingSeq2SeqExtract(DAEmbeddingSeq2SeqExtract):
+    """This encodes both context user utterance and input DA into a combined embedding (list of IDs)"""
+
+    UNK_TOKEN = 3
+
+    def __init__(self, cfg={}):
+        super(ContextDAEmbeddingSeq2SeqExtract, self).__init__(cfg)
+        self.dict_token = {'UNK_TOKEN': self.UNK_TOKEN}
+        self.max_context_len = cfg.get('max_context_len', 30)
+
+    def init_dict(self, train_data, dict_ord=None):
+        """Initialize dictionaries for context tokens and input DAs."""
+        # init dicts for DAs
+        dict_ord = super(ContextDAEmbeddingSeq2SeqExtract, self).init_dict(
+                [da for _, da in train_data], dict_ord)
+
+        # init dicts for context tokens
+        for context_toks, _ in train_data:
+            for context_tok in context_toks:
+                if context_tok not in self.dict_token:
+                    self.dict_token[context_tok] = dict_ord
+                    dict_ord += 1
+        return dict_ord
+
+    def get_embeddings(self, in_data):
+        """Get the embedding IDs, given the current context and input DA (as a tuple)."""
+        context, da = in_data
+        da_emb = super(ContextDAEmbeddingSeq2SeqExtract, self).get_embeddings(da, pad=False)
+        max_context_len = (self.max_context_len + 3 * self.max_da_len) - len(da_emb)
+        context_emb = []
+        for tok in context[-max_context_len:]:
+            context_emb.append(self.dict_token.get(tok, self.UNK_TOKEN))
+
+        padding = [self.UNK_TOKEN] * (max_context_len - len(context))
+
+        return padding + context_emb + da_emb
+
+    def get_embeddings_shape(self):
+        return [self.max_context_len + 3 * self.max_da_len]
 
 
 class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):

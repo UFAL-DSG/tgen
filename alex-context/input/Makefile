@@ -2,8 +2,9 @@
 SHELL=/bin/bash
 CONVERT_SETTINGS = -s 3:1:1 -m
 ABSTRACTED = from_stop,to_stop,direction,departure_time,departure_time_rel,ampm,vehicle,line,arrival_time,duration,distance,num_transfers,alternative
+TREEX_BASIC_SCEN = W2A::ResegmentSentences Scen::Analysis::EN pretokenized=1 Misc::JoinBundles
 
-COORD_ADJUST = # Adjusting coordinations (deleting or transforming) 
+COORD_ADJUST = # Adjusting coordinations (deleting or transforming)
 ifeq ($(COORD),stanford)
   COORD_ADJUST = Misc::DeleteCoordNodes attach_below_1st=1 delete_conj=0
 endif
@@ -22,15 +23,16 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
    devel-das.sgm devel-text.sgm devel-conc.sgm \
    test-text.pickle.gz test-das.txt test-abst.txt test-conc.txt \
    test-das.sgm test-text.sgm test-conc.sgm \
+   train-context.pickle.gz devel-context.pickle.gz test-context.pickle.gz \
    grammatemes.tsv
 
 # prevent deleting intermediate files
 .SECONDARY:
 
-%-text.pickle.gz: %-text.yaml.gz
+%.pickle.gz: %.yaml.gz
 	../../util/yaml2pickle.py $<
 
-%-text.yaml.gz: %-text.treex.gz
+%.yaml.gz: %.treex.gz
 	treex -Len Read::Treex from=$< Write::YAML to=$@
 
 %-text.treex.gz: %-text.txt %-conc.txt %-abst.txt
@@ -39,11 +41,14 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
         else \
 	    GROUP=""; \
 	fi; \
-	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt W2A::ResegmentSentences Scen::Analysis::EN pretokenized=1 Misc::JoinBundles \
+	treex Read::AlignedSentences en=$< en_conc=$*-conc.txt $(TREEX_BASIC_SCEN) \
 	    Misc::AbstractDialogueSlots slots=$(ABSTRACTED) abstraction_file=$*-abst.txt x_only=1 $(COORD_ADJUST) $$GROUP \
 	 	Write::Treex to=$@
 
-train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt: dataset.json
+%-context.treex.gz: %-context.txt
+	treex -Len Read::Sentences from=$< $(TREEX_BASIC_SCEN) $(COORD_ADJUST) Write::Treex to=$@
+
+train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt train-context.txt devel-context.txt test-context.txt: dataset.json
 	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
 grammatemes.tsv: train-text.treex.gz train-das.txt
