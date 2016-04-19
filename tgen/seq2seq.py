@@ -309,7 +309,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         if self.use_context:
             if context_file is None:
                 raise ValueError('Expected context utterances file name!')
-            log_info('Read context utterances from %s...' % context_file)
+            log_info('Reading context utterances from %s...' % context_file)
             contexts = tokens_from_doc(read_ttrees(context_file), self.language, self.selector)
             das = [(context, da) for context, da in zip(contexts, das)]
 

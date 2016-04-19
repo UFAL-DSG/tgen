@@ -224,11 +224,12 @@ class ContextDAEmbeddingSeq2SeqExtract(DAEmbeddingSeq2SeqExtract):
     def init_dict(self, train_data, dict_ord=None):
         """Initialize dictionaries for context tokens and input DAs."""
         # init dicts for DAs
-        super(ContextDAEmbeddingSeq2SeqExtract, self).init_dict([da for _, da in train_data],
-                                                                dict_ord)
+        dict_ord = super(ContextDAEmbeddingSeq2SeqExtract, self).init_dict(
+                [da for _, da in train_data], dict_ord)
+
         # init dicts for context tokens
         for context_toks, _ in train_data:
-            for context_tok in context_tok:
+            for context_tok in context_toks:
                 if context_tok not in self.dict_token:
                     self.dict_token[context_tok] = dict_ord
                     dict_ord += 1
@@ -248,7 +249,7 @@ class ContextDAEmbeddingSeq2SeqExtract(DAEmbeddingSeq2SeqExtract):
         return padding + context_emb + da_emb
 
     def get_embeddings_shape(self):
-        return [self.max_context_len + 3* self.max_da_len]
+        return [self.max_context_len + 3 * self.max_da_len]
 
 
 class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
