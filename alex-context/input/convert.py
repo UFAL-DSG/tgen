@@ -129,12 +129,16 @@ def get_abstraction(text, conc_da):
     return ' '.join(toks), abstr
 
 
+def convert_abstractions(abstr_str):
+    return re.sub(r'\*([A-Z_]+)', lambda m: 'X-' + m.group(1).lower(), abstr_str)
+
+
 def convert_abstr_da(abstr_da):
     """Convert *SLOT to X-slot in an abstract DA."""
     for dai in abstr_da:
         if dai.value is None:
             continue
-        dai.value = re.sub(r'\*([A-Z_]+)', lambda m: 'X-' + m.group(1).lower(), dai.value)
+        dai.value = convert_abstractions(dai.value)
     return abstr_da
 
 
@@ -147,6 +151,7 @@ def convert(args):
     concs = []  # concrete sentences
     texts = []  # abstracted sentences
     absts = []  # abstraction descriptions
+    contexts = []
 
     # process the input data and store it in memory
     with open(args.in_file, 'r') as fh:
@@ -154,6 +159,7 @@ def convert(args):
         for item in data:
             # todo handle contexts somehow
             da = convert_abstr_da(parse_da(item['response_da']))
+            context = convert_abstractions(item['context_utt'])
             conc_da = parse_da(item['response_da_l'])
             concs_ = [tokenize(s) for s in item['response_nl_l']]
             absts_ = []
@@ -164,6 +170,7 @@ def convert(args):
                 texts_.append(text)
 
             das.append(da)
+            contexts.append(context)
             concs.append(concs_)
             absts.append(absts_)
             texts.append(texts_)
@@ -201,6 +208,16 @@ def convert(args):
                 for _ in xrange(repeat_num):
                     fh.write(unicode(da).encode('utf-8') + "\n")
             del das[0:part_size]
+
+        with open(part_name + '-context.txt', 'w') as fh:
+            for context in contexts[0:part_size]:
+                # same with contexts -- repeat for synonymous paraphrases if not in multi-ref mode
+                repeat_num = len(concs[0])
+                if args.multi_ref and part_name in ['devel', 'test', 'dtest', 'etest']:
+                    repeat_num = 1
+                for _ in xrange(repeat_num):
+                    fh.write(context.encode('utf-8') + "\n")
+            del contexts[0:part_size]
 
         with open(part_name + '-conc.txt', 'w') as fh:
             for concs_ in concs[0:part_size]:
