@@ -338,7 +338,7 @@ gen_process:
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
 			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv da_file=$(TRY_DIR)/test-das.txt \
-			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
+			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) skip_factor=3 \
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=AlexContext sys_id=TGEN add_header=tstset; \
