@@ -284,6 +284,7 @@ seq2seq_train:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" \
+		-c $(TRY_DIR)/train-context.pickle.gz \
 		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
@@ -339,6 +340,7 @@ gen_process:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
 		$(SELECTOR_CONFIG) \
+		-c $(TRY_DIR)/train-context.pickle.gz \
 		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \

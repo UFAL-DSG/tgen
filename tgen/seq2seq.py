@@ -414,7 +414,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 self.valid_trees = [chunk for chunk in
                                     chunk_list(self.train_trees[-self.validation_size * num_refs:],
                                                num_refs)]
-                self.valid_das = self.train_das[-self.validation_size::num_refs]
+                self.valid_das = self.train_das[-self.validation_size * num_refs::num_refs]
                 self.train_trees = self.train_trees[:-self.validation_size * num_refs]
                 self.train_das = self.train_das[:-self.validation_size * num_refs]
 

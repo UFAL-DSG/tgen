@@ -464,7 +464,7 @@ def seq2seq_gen(args):
     log_info('Generating...')
     das = read_das(fname_da_test)
     if fname_contexts:
-        contexts = tokens_from_docs(read_ttrees(fname_contexts), tgen.language, tgen.selector)
+        contexts = tokens_from_doc(read_ttrees(fname_contexts), tgen.language, tgen.selector)
         das = [(context, da) for context, da in zip(contexts, das)]
 
     if eval_file is None:
