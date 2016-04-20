@@ -1,6 +1,3 @@
 .qsubmit-*.bash
-compare.*.txt
 data
-model
-logs
 runs
