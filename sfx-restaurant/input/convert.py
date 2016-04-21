@@ -313,6 +313,8 @@ def convert(args):
     # write all data parts
     for part_size, part_name in zip(data_sizes, out_names):
 
+        # create multiple lexicalized references for each instance by relexicalizing sentences
+        # with the same DA from the same part
         if args.multi_ref and part_name in ['devel', 'test', 'dtest', 'etest']:
 
             # group sentences with the same DA
