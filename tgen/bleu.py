@@ -9,15 +9,17 @@ from __future__ import unicode_literals
 from collections import defaultdict
 import math
 
+from tgen.tree import TreeData
+
 
 class BLEUMeasure(object):
     """An accumulator object capable of computing BLEU score using multiple references.
 
-    We assume computing BLEU over TreeData instances (flat trees may be used to compute
-    "real" BLEU over words).
+    BLEU may be computed over TreeData instances (with flat trees equivalent to "real" BLEU
+    over words), or over tokens -- lists of pairs form-tag.
 
     The BLEU score is smoothed a bit so that it's not undefined when there are zero matches
-    for a particular n-gram count.
+    for a particular n-gram count, or when the predicted sentence is empty.
     """
 
     MAX_NGRAM = 4
@@ -31,40 +33,40 @@ class BLEUMeasure(object):
         self.cand_lens = [0] * self.MAX_NGRAM
         self.hits = [0] * self.MAX_NGRAM
 
-    def append(self, pred_tree, ref_trees):
+    def append(self, pred_sent, ref_sents):
         """Append a sentence for measurements, increase counters.
 
-        @param pred_tree: the system output tree
-        @param ref_trees: the corresponding reference trees (list/tuple)
+        @param pred_sent: the system output sentence (tree/tokens)
+        @param ref_sents: the corresponding reference sentences (list/tuple of trees/tokens)
         """
 
         for i in xrange(self.MAX_NGRAM):
-            self.hits[i] += self.compute_hits(i+1, pred_tree, ref_trees)
-            self.cand_lens[i] += len(pred_tree) - i
+            self.hits[i] += self.compute_hits(i+1, pred_sent, ref_sents)
+            self.cand_lens[i] += len(pred_sent) - i
 
         # take the reference that is closest in length to the candidate
-        closest_ref = min(ref_trees, key=lambda ref_tree: abs(len(ref_tree) - len(pred_tree)))
+        closest_ref = min(ref_sents, key=lambda ref_sent: abs(len(ref_sent) - len(pred_sent)))
         self.ref_len += len(closest_ref)
 
-    def compute_hits(self, n, pred_tree, ref_trees):
-        """Compute clipped n-gram hits for the given trees and the given N
+    def compute_hits(self, n, pred_sent, ref_sents):
+        """Compute clipped n-gram hits for the given sentences and the given N
 
         @param n: n-gram 'N' (1 for unigrams, 2 for bigrams etc.)
-        @param pred_tree: the system output tree
-        @param ref_trees: the corresponding reference trees (list/tuple)
+        @param pred_sent: the system output sentence (tree/tokens)
+        @param ref_sents: the corresponding reference sentences (list/tuple of trees/tokens)
         """
         merged_ref_ngrams = {}
 
-        for ref_tree in ref_trees:
+        for ref_sent in ref_sents:
             ref_ngrams = defaultdict(int)
 
-            for ngram in self.ngrams(n, ref_tree):
+            for ngram in self.ngrams(n, ref_sent):
                 ref_ngrams[ngram] += 1
             for ngram, cnt in ref_ngrams.iteritems():
                 merged_ref_ngrams[ngram] = max((merged_ref_ngrams.get(ngram, 0), cnt))
 
         pred_ngrams = defaultdict(int)
-        for ngram in self.ngrams(n, pred_tree):
+        for ngram in self.ngrams(n, pred_sent):
             pred_ngrams[ngram] += 1
 
         hits = 0
@@ -73,14 +75,19 @@ class BLEUMeasure(object):
 
         return hits
 
-    def ngrams(self, n, tree):
-        """Given a trees, return n-grams of nodes for the given N
+    def ngrams(self, n, sent):
+        """Given a sentence, return n-grams of nodes for the given N
 
         @param n: n-gram 'N' (1 for unigrams, 2 for bigrams etc.)
-        @param tree: the tree in question
+        @param sent: the sent in question
         @return: n-grams of nodes, as tuples of tuples (t-lemma & formeme)
         """
-        return zip(*[tree.nodes[i:] for i in range(n)])
+        # with sents
+        if isinstance(sent, TreeData):
+            return zip(*[sent.nodes[i:] for i in range(n)])
+        # with tokens (list of pairs form+tag)
+        forms = [form for (form, _) in sent]  # ignore tags, use just forms
+        return zip(*[forms[i:] for i in range(n)])
 
     def bleu(self):
         """Return the current BLEU score, according to the accumulated counts."""
