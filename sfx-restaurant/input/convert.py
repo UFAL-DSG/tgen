@@ -36,6 +36,12 @@ class Abst(recordclass('Abst', ['slot', 'value', 'start', 'end'])):
         return (self.slot + '=' + quote + self.value + quote + ':' +
                 str(self.start) + '-' + str(self.end))
 
+    def __str__(self):
+        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
+
+    def __repr__(self):
+        return str(self)
+
 
 class DA(object):
     """Dialogue act – basically a list of DAIs."""
@@ -57,6 +63,9 @@ class DA(object):
 
     def __str__(self):
         return unicode(self).encode('ascii', errors='xmlcharrefreplace')
+
+    def __repr__(self):
+        return str(self)
 
     def __len__(self):
         return len(self.dais)
@@ -95,16 +104,18 @@ def parse_da(da_text):
 
 def postprocess_sent(sent):
     """Postprocess a sentence from the format used in Cambridge NN into plain English."""
-    sent = re.sub(r'child -s', 'children', sent)
-    sent = re.sub(r' -s', 's', sent)
-    sent = re.sub(r' -ly', 'ly', sent)
+    # TODO remove ?
+    #sent = re.sub(r'child -s', 'children', sent)
+    #sent = re.sub(r' -s', 's', sent)
+    #sent = re.sub(r' -ly', 'ly', sent)
     sent = re.sub(r'\s+', ' ', sent)
     return sent
 
 def fix_capitalization(sent):
-    sent = re.sub(r'( [.?!] [a-z])', lambda m: m.group(1).upper(), sent)
-    sent = re.sub(r'\b(Ok|ok|i)\b', lambda m: m.group(1).upper(), sent)
-    sent = sent[0].upper() + sent[1:]
+    # TODO remove ?
+    #sent = re.sub(r'( [.?!] [a-z])', lambda m: m.group(1).upper(), sent)
+    #sent = re.sub(r'\b(Ok|ok|i)\b', lambda m: m.group(1).upper(), sent)
+    #sent = sent[0].upper() + sent[1:]
     return sent
 
 
@@ -154,7 +165,8 @@ def find_substr_approx(needle, haystack):
         # fuzzy match: one may be substring of the other, with up to 2 chars difference
         # (moderate/moderately etc.)
         if (haystack[h] == needle[n] or
-            ((haystack[h] in needle[n] or needle[n] in haystack[h]) and
+            (haystack[h] != '' and
+             (haystack[h] in needle[n] or needle[n] in haystack[h]) and
              abs(len(haystack[h]) - len(needle[n])) <= 2)):
             n += 1
             h += 1
@@ -177,22 +189,29 @@ def abstract_sent(da, conc, abst_slots):
     toks = conc.split(' ')
     absts = []
     abst_da = DA()
+    toks_mask = [True] * len(toks)
 
     # find all values in the sentence, building the abstracted DA along the way
-    for dai in da:
+    # search first for longer values (so that substrings don't block them)
+    for dai in sorted(da,
+                      key=lambda dai: len(dai.value) if dai.value is not None else 0,
+                      reverse=True):
         # first, create the 'abstracted' DAI as the copy of the current DAI
         abst_da.append(DAI(dai.type, dai.slot, dai.value))
         if dai.value is None:
             continue
         # try to find the value in the sentence (first exact, then fuzzy)
+        # while masking tokens of previously found values
         val_toks = dai.value.split(' ')
-        pos = find_substr(val_toks, toks)
+        pos = find_substr(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
         if pos is None:
-            pos = find_substr_approx(val_toks, toks)
+            pos = find_substr_approx(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
         if pos is not None:
             # save the abstraction instruction
             absts.append(Abst(dai.slot, dai.value, pos[0], pos[1]))
-            # if this is to be abstracted, replace the value in the abstracted DAI
+            for idx in xrange(pos[0], pos[1]):  # mask found things so they're not found twice
+                toks_mask[idx] = False
+            # if the value is to be abstracted, replace the value in the abstracted DAI
             if dai.slot in abst_slots and dai.value != 'dont_care':
                 abst_da[-1].value = 'X-' + dai.slot
 
@@ -212,6 +231,29 @@ def abstract_sent(da, conc, abst_slots):
         shift += shift_add
 
     return ' '.join(toks), abst_da, absts
+
+
+def relexicalize(texts, cur_abst):
+    """Lexicalize given texts (list of pairs abstracted text -- abstraction instructions) based on
+    the current slot values (stored in abstraction instructions)."""
+    ret = []
+    for text, abst in texts:
+        abst.sort(key=lambda a: a.slot)
+        cur_abst.sort(key=lambda a: a.slot)
+        if len(abst) != len(cur_abst):
+            import pudb; pudb.set_trace()
+        assert len(abst) == len(cur_abst)
+        toks = text.split(' ')
+        for a, c in zip(abst, cur_abst):
+            assert a.slot == c.slot
+            toks[a.start] = c.value
+        ret.append(' '.join(toks))
+    return ret
+
+
+def filter_abst(abst, slots_to_abstract):
+    """Filter abstraction instruction to only contain slots that are actually to be abstracted."""
+    return [a for a in abst if a.slot in slots_to_abstract]
 
 
 def convert(args):
@@ -270,6 +312,35 @@ def convert(args):
 
     # write all data parts
     for part_size, part_name in zip(data_sizes, out_names):
+
+        if args.multi_ref and part_name in ['devel', 'test', 'dtest', 'etest']:
+
+            # group sentences with the same DA
+            da_groups = {}
+            for da, text, abst in zip(das[0:part_size], texts[0:part_size], absts[0:part_size]):
+                da_groups[unicode(da)] = da_groups.get(unicode(da), [])
+                da_groups[unicode(da)].append((text, filter_abst(abst, slots_to_abstract)))
+
+            for da_str in da_groups.keys():
+                seen = set()
+                uniq = []
+                for text, abst in da_groups[da_str]:
+                    sig = text + "\n" + ' '.join([a.slot + str(a.start) for a in abst])
+                    if sig not in seen:
+                        seen.add(sig)
+                        uniq.append((text, abst))
+                da_groups[da_str] = uniq
+
+            # relexicalize all abstract sentences for each DA
+            relex = []
+            for da, abst in zip(das[0:part_size], absts[0:part_size]):
+                relex.append(relexicalize(da_groups[unicode(da)],
+                                          filter_abst(abst, slots_to_abstract)))
+
+            with open(part_name + '-ref.txt', 'w') as fh:
+                for relex_pars in relex:
+                    fh.write("\n".join(relex_pars).encode('utf-8') + "\n\n")
+
         with open(part_name + '-das.txt', 'w') as fh:
             for da in das[0:part_size]:
                 fh.write(unicode(da).encode('utf-8') + "\n")
@@ -291,11 +362,13 @@ def convert(args):
             del texts[0:part_size]
 
 
+
 if  __name__ == '__main__':
     argp = argparse.ArgumentParser()
     argp.add_argument('in_file', help='Input JSON file')
     argp.add_argument('out_name', help='Output files name prefix(es - when used with -s, comma-separated)')
     argp.add_argument('-a', '--abstract', help='Comma-separated list of slots to be abstracted')
     argp.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
+    argp.add_argument('-m', '--multi-ref', help='Multiple reference mode: relexicalize all possible references', action='store_true')
     args = argp.parse_args()
     convert(args)
