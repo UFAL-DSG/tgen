@@ -300,17 +300,25 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
         log_info('Reading t-trees from ' + ttree_file + '...')
-        ttree_doc = read_ttrees(ttree_file)
-        if self.use_tokens:
-            trees = tokens_from_doc(ttree_doc, self.language, self.selector)
+        if ttree_file.endswith('.txt'):
+            if not self.use_tokens:
+                raise ValueError("Cannot read trees from a .txt file (%s)!" % ttree_file)
+            trees = read_tokens(ttree_file)
         else:
-            trees = trees_from_doc(ttree_doc, self.language, self.selector)
+            ttree_doc = read_ttrees(ttree_file)
+            if self.use_tokens:
+                trees = tokens_from_doc(ttree_doc, self.language, self.selector)
+            else:
+                trees = trees_from_doc(ttree_doc, self.language, self.selector)
         # read contexts, combine them with corresponding DAs for easier handling
         if self.use_context:
             if context_file is None:
                 raise ValueError('Expected context utterances file name!')
             log_info('Reading context utterances from %s...' % context_file)
-            contexts = tokens_from_doc(read_ttrees(context_file), self.language, self.selector)
+            if context_file.endswith('.txt'):
+                contexts = read_tokens(context_file)
+            else:
+                contexts = tokens_from_doc(read_ttrees(context_file), self.language, self.selector)
             das = [(context, da) for context, da in zip(contexts, das)]
 
         # make training data smaller if necessary

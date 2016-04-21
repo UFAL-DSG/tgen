@@ -50,15 +50,16 @@ import sys
 from getopt import getopt
 import platform
 import os
+from argparse import ArgumentParser
 
 from pytreex.core.util import file_stream
 from pytreex.core.document import Document
 
 from flect.config import Config
 
-from tgen.logf import log_info, set_debug_stream, log_debug
+from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
 from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
-    trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc
+    trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import ASearchPlanner, SamplingPlanner
@@ -429,91 +430,109 @@ def asearch_gen(args):
 def seq2seq_gen(args):
     """Sequence-to-sequence generation"""
 
-    opts, files = getopt(args, 'e:d:w:r:t:b:c:')
-    eval_file = None
-    fname_ttrees_out = None
-    ref_selector = ''
-    target_selector = ''
-    beam_size_override = None
-    fname_contexts = None
+    ap = ArgumentParser()
 
-    for opt, arg in opts:
-        if opt == '-e':
-            eval_file = arg
-        elif opt == '-r':
-            ref_selector = arg
-        elif opt == '-t':
-            target_selector = arg
-        elif opt == '-d':
-            set_debug_stream(file_stream(arg, mode='w'))
-        elif opt == '-w':
-            fname_ttrees_out = arg
-        elif opt == '-b':
-            beam_size_override = int(arg)
-        elif opt == '-c':
-            fname_contexts = arg
+    ap.add_argument('-e', '--eval-file', type=str, help='A ttree/text file for evaluation')
+    ap.add_argument('-r', '--ref-selector', type=str, default='',
+                    help='Selector for reference trees in the evaluation file')
+    ap.add_argument('-t', '--target-selector', type=str, default='',
+                    help='Target selector for generated trees in the output file')
+    ap.add_argument('-d', '--debug-logfile', type=str, help='Debug output file name')
+    ap.add_argument('-w', '--output-file', type=str, help='Output tree/text file')
+    ap.add_argument('-b', '--beam-size', type=int,
+                    help='Override beam size for beam search decoding')
+    ap.add_argument('-c', '--context-file', type=str,
+                    help='Input ttree/text file with context utterances')
 
-    if len(files) != 2:
-        sys.exit('Invalid arguments.\n' + __doc__)
-    fname_seq2seq_model, fname_da_test = files
+    ap.add_argument('seq2seq_model_file', type=str, help='Trained Seq2Seq generator model')
+    ap.add_argument('da_test_file', type=str, help='Input DAs for generation')
 
-    tgen = Seq2SeqBase.load_from_file(fname_seq2seq_model)
-    if beam_size_override:
-        tgen.beam_size = beam_size_override
+    args = ap.parse_args(args)
 
-    log_info('Generating...')
-    das = read_das(fname_da_test)
-    if fname_contexts:
-        contexts = tokens_from_doc(read_ttrees(fname_contexts), tgen.language, tgen.selector)
-        das = [(context, da) for context, da in zip(contexts, das)]
+    if args.debug_logfile:
+        set_debug_stream(file_stream(args.debug_logfile, mode='w'))
 
-    if eval_file is None:
+    # load the generator
+    tgen = Seq2SeqBase.load_from_file(args.seq2seq_model_file)
+    if args.beam_size is not None:
+        tgen.beam_size = args.beam_size
+
+    # read input files
+    das = read_das(args.da_test_file)
+    if args.context_file:
+        if not tgen.use_context:
+            log_warn('Generator is not trained to use context, ignoring context input file.')
+        else:
+            if args.context_file.endswith('.txt'):
+                contexts = read_tokens(args.context_file)
+            else:
+                contexts = tokens_from_doc(read_ttrees(args.context_file),
+                                           tgen.language, tgen.selector)
+            das = [(context, da) for context, da in zip(contexts, das)]
+
+    if args.eval_file is None or args.eval_file.endswith('.txt'):
         gen_doc = Document()
     else:
-        eval_doc = read_ttrees(eval_file)
-        if ref_selector == target_selector:
+        eval_doc = read_ttrees(args.eval_file)
+        if args.ref_selector == args.target_selector:
             gen_doc = Document()
         else:
             gen_doc = eval_doc
 
-    tgen.selector = target_selector
+    # generate
+    log_info('Generating...')
+    tgen.selector = args.target_selector  # override target selector for generation
+    for num, da in enumerate(das, start=1):
+        log_debug("\n\nTREE No. %03d" % num)
+        tgen.generate_tree(da, gen_doc)
 
-    # generate and evaluate
-    if eval_file is not None:
-        for num, da in enumerate(das, start=1):
-            log_debug("\n\nTREE No. %03d" % num)
-            tgen.generate_tree(da, gen_doc)
-
+    # evaluate
+    if args.eval_file is not None:
+        # evaluate the generated tokens (F1 and BLEU scores)
+        if args.eval_file.endswith('.txt'):
+            eval_tokens(read_tokens(args.eval_file),
+                        tokens_from_doc(gen_doc, tgen.language, args.target_selector))
         # evaluate the generated trees against golden trees
-        eval_ttrees = ttrees_from_doc(eval_doc, tgen.language, ref_selector)
-        gen_ttrees = ttrees_from_doc(gen_doc, tgen.language, target_selector)
+        else:
+            eval_trees(das,
+                       ttrees_from_doc(eval_doc, tgen.language, args.ref_selector),
+                       ttrees_from_doc(gen_doc, tgen.language, args.target_selector),
+                       eval_doc, tgen.language, tgen.selector)
 
-        log_info('Evaluating...')
-        evaler = Evaluator()
-        for eval_bundle, eval_ttree, gen_ttree, da in zip(eval_doc.bundles, eval_ttrees, gen_ttrees, das):
-            # add some stats about the tree directly into the output file
-            add_bundle_text(eval_bundle, tgen.language, tgen.selector + 'Xscore',
-                            "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
-
-            # collect overall stats
-            # TODO maybe add cost ??
-            evaler.append(eval_ttree, gen_ttree)
-        # print overall stats
-        log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
-        log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
-        log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.tree_size_stats())
-        log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
-        log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
-                 evaler.common_subtree_stats())
-    # just generate
-    else:
-        for da in das:
-            tgen.generate_tree(da, gen_doc)
-
-    # write output
-    if fname_ttrees_out is not None:
+    # write output .yaml.gz or .txt
+    if args.output_file is not None:
         log_info('Writing output...')
-        write_ttrees(gen_doc, fname_ttrees_out)
+        if args.output_file.endswith('.txt'):
+            write_tokens(gen_doc, tgen.language, args.target_selector, args.output_file)
+        else:
+            write_ttrees(gen_doc, args.output_file)
+
+
+def eval_trees(das, eval_ttrees, gen_ttrees, eval_doc, language, selector):
+    """Evaluate generated trees and print out statistics."""
+
+    log_info('Evaluating...')
+    evaler = Evaluator()
+    for eval_bundle, eval_ttree, gen_ttree, da in zip(eval_doc.bundles, eval_ttrees, gen_ttrees, das):
+        # add some stats about the tree directly into the output file
+        add_bundle_text(eval_bundle, language, selector + 'Xscore',
+                        "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
+
+        # collect overall stats
+        # TODO maybe add cost ??
+        evaler.append(eval_ttree, gen_ttree)
+    # print overall stats
+    log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
+    log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
+    log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.tree_size_stats())
+    log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
+    log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
+             evaler.common_subtree_stats())
+
+
+def eval_tokens(eval_tokens, gen_tokens):
+    # TODO TODO TODO
+    raise NotImplementedError()
 
 
 def rerank_cl_eval(args):

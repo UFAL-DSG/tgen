@@ -7,12 +7,35 @@ Various utility functions.
 
 from __future__ import unicode_literals
 import cPickle as pickle
+import codecs
+import gzip
+from io import IOBase
+from codecs import StreamReader, StreamWriter
 
-from pytreex.core.util import file_stream
 from alex.components.slu.da import DialogueAct
-from pytreex.block.read.yaml import YAML as YAMLReader
-from pytreex.block.write.yaml import YAML as YAMLWriter
 from tree import TreeData
+
+
+def file_stream(filename, mode='r', encoding='UTF-8'):
+    """\
+    Given a file stream or a file name, return the corresponding stream,
+    handling GZip. Depending on mode, open an input or output stream.
+    (A copy from pytreex.core.util to remove dependency)
+    """
+    # open file
+    if isinstance(filename, (file, IOBase, StreamReader, StreamWriter)):
+        fh = filename
+    elif filename.endswith('.gz'):
+        fh = gzip.open(filename, mode)
+    else:
+        fh = open(filename, mode)
+    # support encodings
+    if encoding is not None:
+        if mode.startswith('r'):
+            fh = codecs.getreader(encoding)(fh)
+        else:
+            fh = codecs.getwriter(encoding)(fh)
+    return fh
 
 
 def read_das(da_file):
@@ -28,6 +51,7 @@ def read_das(da_file):
 
 def read_ttrees(ttree_file):
     """Read t-trees from a YAML/Pickle file."""
+    from pytreex.block.read.yaml import YAML as YAMLReader
     if 'pickle' in ttree_file:
         # if pickled, read just the pickle
         fh = file_stream(ttree_file, mode='rb', encoding=None)
@@ -47,9 +71,23 @@ def read_ttrees(ttree_file):
 
 def write_ttrees(ttree_doc, fname):
     """Write a t-tree Document object to a YAML file."""
+    from pytreex.block.write.yaml import YAML as YAMLWriter
     writer = YAMLWriter(scenario=None, args={'to': fname})
     writer.process_document(ttree_doc)
 
+
+def read_tokens(tok_file):
+    """Read sentences (one per line) from a file and return them as a list of tokens
+    (forms with undefined POS tags)."""
+    # TODO apply Morphodita here
+    tokens = []
+    with file_stream(tok_file) as fh:
+        for line in fh:
+            tokens.push([(form, None) for form in line.strip().split(' ')])
+
+def write_tokens(doc, language, selector, tok_file):
+    # TODO TODO TODO
+    raise NotImplementedError()
 
 def chunk_list(l, n):
     """ Yield successive n-sized chunks from l."""
