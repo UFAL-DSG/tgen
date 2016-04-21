@@ -412,10 +412,10 @@ def asearch_gen(args):
         # print overall stats
         log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
         log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
-        log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.tree_size_stats())
+        log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.size_stats())
         log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
         log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
-                 evaler.common_subtree_stats())
+                 evaler.common_substruct_stats())
     # just generate
     else:
         for da in das:
@@ -524,15 +524,29 @@ def eval_trees(das, eval_ttrees, gen_ttrees, eval_doc, language, selector):
     # print overall stats
     log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
     log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
-    log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.tree_size_stats())
+    log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.size_stats())
     log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
     log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
-             evaler.common_subtree_stats())
+             evaler.common_substruct_stats())
 
 
 def eval_tokens(eval_tokens, gen_tokens):
-    # TODO TODO TODO
-    raise NotImplementedError()
+    """Evaluate generated tokens and print out statistics."""
+
+    evaluator = BLEUMeasure()
+    for pred_sent, gold_sents in zip(gen_tokens, eval_tokens):
+        evaluator.append(pred_sent, gold_sents)
+    log_info("BLEU score: %.4f" % (evaluator.bleu() * 100))
+
+    evaluator = Evaluator()
+    for pred_sent, gold_sents in zip(gen_tokens, eval_tokens):
+        for gold_sent in gold_sents:  # effectively an average over all gold paraphrases
+            evaluator.append(gold_sent, pred_sent)
+
+    log_info("TOKEN precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.TOKEN))
+    log_info("Sentence length stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.size_stats())
+    log_info("Common subphrase stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
+             evaler.common_substruct_stats())
 
 
 def rerank_cl_eval(args):

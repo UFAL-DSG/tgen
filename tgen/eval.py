@@ -9,27 +9,35 @@ from __future__ import unicode_literals
 from collections import defaultdict
 from enum import Enum
 from tgen.logf import log_debug
+from tgen.logf import log_warn
 from tgen.tree import TreeData, TreeNode
 import numpy as np
-from pytreex.core.node import T
+
+try:
+    from pytreex.core.node import T
+except ImportError:
+    log_warn('Pytreex modules not available, will not be able to evaluate trees.')
 
 
-EvalTypes = Enum(b'EvalTypes', b'NODE DEP')
-EvalTypes.__doc__ = """Evaluation flavors (node-only, dependency)"""
+EvalTypes = Enum(b'EvalTypes', b'TOKEN NODE DEP')
+EvalTypes.__doc__ = """Evaluation flavors (tokens, tree node-only, tree dependency)"""
 
 
-def collect_counts(ttree, eval_type=EvalTypes.NODE):
+def collect_counts(sent, eval_type=EvalTypes.NODE):
     """Collects counts of different node/dependency types in the given t-tree.
 
-    @param ttree: the tree to collect counts from
-    @param eval_type: if set to 'node' (default), count nodes (formemes, lemmas, dependency \
-        direction), if set to 'dep', count dependencies (including parent's formeme, lemma, \
-        dependency direction).
+    @param sent: the tree/sentence to collect counts from
+    @param eval_type: if set to EvalTypes.NODE (default), count nodes (formemes, lemmas, dependency \
+        direction), if set to EvalTypes.DEP, count dependencies (including parent's formeme, lemma, \
+        dependency direction), if set to EvalTypes.TOKEN, count just word forms (in list of tokens).
     @rtype: defaultdict
     """
     counts = defaultdict(int)
-    for node in ttree.get_descendants():
-        if eval_type == EvalTypes.NODE:
+    nodes = sent if isinstance(sent, list) else sent.get_descendants()
+    for node in nodes:
+        if eval_type == EvalTypes.TOKEN:
+            node_id = node[0]  # for tokens, use form only (ignore tag)
+        elif eval_type == EvalTypes.NODE:
             node_id = (node.formeme, node.t_lemma, node > node.parent)
         else:
             parent = node.parent
@@ -39,41 +47,40 @@ def collect_counts(ttree, eval_type=EvalTypes.NODE):
     return counts
 
 
-def corr_pred_gold(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
-    """Given a golden tree and a predicted tree, this counts correctly
-    predicted nodes (true positives), all predicted nodes (true + false
-    positives), and all golden nodes (true positives + false negatives).
+def corr_pred_gold(gold, pred, eval_type=EvalTypes.NODE):
+    """Given a golden tree/sentence and a predicted tree/sentence, this counts correctly
+    predicted nodes/tokens (true positives), all predicted nodes/tokens (true + false
+    positives), and all golden nodes/tokens (true positives + false negatives).
 
-    @param gold_ttree: a golden t-tree
-    @param pred_ttree: a predicted t-tree
-    @param eval_type: reserved for future use
+    @param gold: a golden t-tree/sentence
+    @param pred: a predicted t-tree/sentence
+    @param eval_type: type of matching (see EvalTypes)
     @rtype: tuple
-    @return: numbers of correctly predicted, total predicted, and total golden nodes
+    @return: numbers of correctly predicted, total predicted, and total golden nodes/tokens
     """
-    gold_counts = collect_counts(gold_ttree, eval_type)
-    pred_counts = collect_counts(pred_ttree, eval_type)
-    correct, predicted = 0, 0
+    gold_counts = collect_counts(gold, eval_type)
+    pred_counts = collect_counts(pred, eval_type)
+    ccount, pcount = 0, 0
     for node_id, node_count in pred_counts.iteritems():
-        predicted += node_count
-        correct += min(node_count, gold_counts[node_id])
-    gold = sum(node_count for node_count in gold_counts.itervalues())
-    return correct, predicted, gold
+        pcount += node_count
+        ccount += min(node_count, gold_counts[node_id])
+    gcount = sum(node_count for node_count in gold_counts.itervalues())
+    return ccount, pcount, gcount
 
 
-def precision(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
-    # # correct / # predicted
-    correct, predicted, _ = corr_pred_gold(gold_ttree, pred_ttree, eval_type)
-    return correct / float(predicted)
+def precision(gold, pred, eval_type=EvalTypes.NODE):
+    ccount, pcount, _ = corr_pred_gold(gold, pred, eval_type)
+    return ccount / float(pcount)
 
 
-def recall(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
+def recall(gold, pred, eval_type=EvalTypes.NODE):
     # # correct / # gold
-    correct, _, gold = corr_pred_gold(gold_ttree, pred_ttree, eval_type)
-    return correct / float(gold)
+    ccount, _, gcount = corr_pred_gold(gold, pred, eval_type)
+    return ccount / float(gcount)
 
 
-def f1(gold_ttree, pred_ttree, eval_type=EvalTypes.NODE):
-    return f1_from_counts(corr_pred_gold(gold_ttree, pred_ttree, eval_type))
+def f1(gold, pred, eval_type=EvalTypes.NODE):
+    return f1_from_counts(corr_pred_gold(gold, pred, eval_type))
 
 
 def f1_from_counts(correct, predicted, gold):
@@ -84,9 +91,9 @@ def p_r_f1_from_counts(correct, predicted, gold):
     """Return precision, recall, and F1 given counts of true positives (correct),
     total predicted nodes, and total gold nodes.
 
-    @param correct: true positives (correctly predicted nodes)
-    @param predicted: true + false positives (all predicted nodes)
-    @param gold: true positives + false negatives (all golden nodes)
+    @param correct: true positives (correctly predicted nodes/tokens)
+    @param predicted: true + false positives (all predicted nodes/tokens)
+    @param gold: true positives + false negatives (all golden nodes/tokens)
     @rtype: tuple
     @return: precision, recall, F1
     """
@@ -110,6 +117,23 @@ def common_subtree_size(a, b):
     return a.common_subtree_size(b)
 
 
+def max_common_subphrase_length(a, b):
+    """Return the length of the longest common subphrase of a and b; where a and b are
+    lists of tokens (form+tag)."""
+    longest = 0
+    for sp_a in xrange(len(a)):
+        for sp_b in xrange(len(b)):
+            pos_a = sp_a
+            pos_b = sp_b
+            # disregard tags for comparison
+            while pos_a < len(a) and pos_b < len(b) and a[pos_a[0]] == b[pos_b[0]]:
+                pos_a += 1
+                pos_b += 1
+            if pos_a - sp_a > longest:
+                longest = pos_a - sp_a
+    return longest
+
+
 class Stats:
     """A set of important statistic values, with simple access and printing."""
 
@@ -129,7 +153,7 @@ class Stats:
 class Evaluator(object):
     """A fancy object-oriented interface to computing node F-scores.
 
-    Accumulates scores over trees using append(), then can return
+    Accumulates scores over trees/sentences using append(), then can return
     a total score using f1(), precision(), recall(), and p_r_f1()."""
 
     def __init__(self):
@@ -140,24 +164,34 @@ class Evaluator(object):
         self.correct = {eval_type: 0 for eval_type in EvalTypes}
         self.predicted = {eval_type: 0 for eval_type in EvalTypes}
         self.gold = {eval_type: 0 for eval_type in EvalTypes}
-        self.tree_sizes = []
+        self.sizes = []
         self.scores = []
 
-    def append(self, gold_tree, pred_tree, gold_tree_score=0.0, pred_tree_score=0.0):
-        """Add a pair of golden and predicted tree to the current statistics.
-        @param gold_tree: a T or TreeNode object representing the golden tree
-        @param pred_tree: a T or TreeNode object representing the predicted tree
+    def append(self, gold, pred, gold_score=0.0, pred_score=0.0):
+        """Add a pair of golden and predicted tree/sentence to the current statistics.
+
+        @param gold: a T or TreeNode object representing the golden tree, or list of golden tokens
+        @param pred: a T or TreeNode object representing the predicted tree, or list of predicted \
+            tokens
         """
-        for eval_type in EvalTypes:
-            correct, predicted, gold = corr_pred_gold(gold_tree, pred_tree, eval_type)
-            self.correct[eval_type] += correct
-            self.predicted[eval_type] += predicted
-            self.gold[eval_type] += gold
-        gold_tree_size = len(gold_tree.get_descendants())
-        pred_tree_size = len(pred_tree.get_descendants())
-        css = common_subtree_size(gold_tree, pred_tree)
-        self.tree_sizes.append((gold_tree_size, pred_tree_size, css))
-        self.scores.append((gold_tree_score, pred_tree_score))
+        if isinstance(gold, list):  # tokens
+            eval_types = [EvalTypes.TOKEN]
+            gold_len = len(gold)
+            pred_len = len(pred)
+            css = max_common_subphrase_length(gold, pred)
+        else:  # trees
+            eval_types = [EvalTypes.NODE, EvalTypes.DEP]
+            gold_len = len(gold.get_descendants())
+            pred_len = len(pred.get_descendants())
+            css = common_subtree_size(gold, pred)
+        self.sizes.append((gold_len, pred_len, css))
+
+        for eval_type in eval_types:
+            ccount, pcount, gcount = corr_pred_gold(gold, pred, eval_type)
+            self.correct[eval_type] += ccount
+            self.predicted[eval_type] += pcount
+            self.gold[eval_type] += gcount
+        self.scores.append((gold_score, pred_score))
 
     def merge(self, other):
         """Merge in statistics from another Evaluator object."""
@@ -165,7 +199,7 @@ class Evaluator(object):
             self.correct[eval_type] += other.correct[eval_type]
             self.predicted[eval_type] += other.predicted[eval_type]
             self.gold[eval_type] += other.gold[eval_type]
-        self.tree_sizes.extend(other.tree_sizes)
+        self.sizes.extend(other.sizes)
         self.scores.extend(other.scores)
 
     def f1(self, eval_type=EvalTypes.NODE):
@@ -182,28 +216,29 @@ class Evaluator(object):
                                   self.predicted[eval_type],
                                   self.gold[eval_type])
 
-    def tree_size_stats(self):
-        """Return current tree size statistics.
+    def size_stats(self):
+        """Return current tree/sentence size statistics.
         @rtype: a 3-tuple of Stats objects
-        @return: statistics for golden trees, predicted trees, and differences
+        @return: statistics for golden trees/sentences, predicted trees/sentences, and differences
         """
-        return (Stats([inst[0] for inst in self.tree_sizes]),
-                Stats([inst[1] for inst in self.tree_sizes]),
-                Stats([inst[0] - inst[1] for inst in self.tree_sizes]))
+        return (Stats([inst[0] for inst in self.sizes]),
+                Stats([inst[1] for inst in self.sizes]),
+                Stats([inst[0] - inst[1] for inst in self.sizes]))
 
-    def common_subtree_stats(self):
-        """Return common subtree size statistics.
+    def common_substruct_stats(self):
+        """Return common subtree/subphrase size statistics.
         @rtype: a 3-tuple of Stats objects
-        @return: statistics for common subtree size + sizes of what's missing to full gold/predicted tree
+        @return: statistics for common subtree/subphrase size + sizes of what's missing to full \
+            gold/predicted tree/sentence
         """
-        return (Stats([inst[2] for inst in self.tree_sizes]),
-                Stats([inst[0] - inst[2] for inst in self.tree_sizes]),
-                Stats([inst[1] - inst[2] for inst in self.tree_sizes]))
+        return (Stats([inst[2] for inst in self.sizes]),
+                Stats([inst[0] - inst[2] for inst in self.sizes]),
+                Stats([inst[1] - inst[2] for inst in self.sizes]))
 
     def score_stats(self):
-        """Return tree score statistics.
+        """Return tree/sentence score statistics.
         @rtype: a 3-tuple of Stats objects
-        @return: statistics for golden trees, predicted trees, and differences
+        @return: statistics for golden trees/sentences, predicted trees/sentences, and differences
         """
         return (Stats([inst[0] for inst in self.scores]),
                 Stats([inst[1] for inst in self.scores]),

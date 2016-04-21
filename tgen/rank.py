@@ -263,9 +263,9 @@ class BasePerceptronRanker(Ranker):
         log_info(' * Gold tree BEST: %.4f, on CLOSE: %.4f, on ANY list: %.4f' %
                  self.lists_analyzer.stats())
         log_info(' * Tree size stats:\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s' %
-                 self.evaluator.tree_size_stats())
+                 self.evaluator.size_stats())
         log_info(' * Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s' %
-                 self.evaluator.common_subtree_stats())
+                 self.evaluator.common_substruct_stats())
         log_info(' * Score stats\n -- GOLD: %s\n -- PRED: %s\n -- DIFF: %s'
                  % self.evaluator.score_stats())
         log_info(' * Duration: %s' % str(pass_duration))
