@@ -11,6 +11,7 @@ import codecs
 import gzip
 from io import IOBase
 from codecs import StreamReader, StreamWriter
+import re
 
 from alex.components.slu.da import DialogueAct
 from tree import TreeData
@@ -76,18 +77,78 @@ def write_ttrees(ttree_doc, fname):
     writer.process_document(ttree_doc)
 
 
-def read_tokens(tok_file):
+def read_tokens(tok_file, ref_mode=False):
     """Read sentences (one per line) from a file and return them as a list of tokens
     (forms with undefined POS tags)."""
-    # TODO apply Morphodita here
     tokens = []
+    empty_lines = False
+    # read all lines from the file
     with file_stream(tok_file) as fh:
         for line in fh:
-            tokens.push([(form, None) for form in line.strip().split(' ')])
+            line = line.strip().split(' ')
+            if not line:
+                empty_lines = True
+            # TODO apply Morphodita here ?
+            tokens.push([(form, None) for form in line])
+
+    # empty lines separate references from each other: regroup references by empty lines
+    if ref_mode and empty_lines:
+        refs = []
+        cur_ref = []
+        for toks in tokens:
+            if not toks:
+                refs.push(cur_ref)
+                cur_ref = []
+            cur_ref.push(toks)
+        if cur_ref:
+            refs.push(cur_ref)
+        tokens = refs
+    return tokens
+
+def lexicalization_from_doc(abstr_file):
+    """Read lexicalization from a file with "abstraction instructions" (telling which tokens are
+    delexicalized to what). This just remembers the slots and values and returns them in a dict
+    for each line (slot -> list of values)."""
+    abstrs = []
+    with file_stream(abstr_file) as fh:
+        for line in fh:
+            line_abstrs = {}
+            for svp in line.strip().split("\t"):
+                m = re.match('([^=]*)=(.*):[0-9]+-[0-9]+$', svp)
+                slot = m.group(1)
+                value = re.sub(r'^[\'"]', '', m.group(2))
+                value = re.sub(r'[\'"]#?$', '', value)
+                value = re.sub(r'"#? and "', ' and ', value)
+                value = re.sub(r'_', ' ', value)
+
+                line_abstrs[slot] = line_abstrs.get(slot, [])
+                line_abstrs[slot].append(value)
+
+            abstrs.append(line_abstrs)
+    return abstrs
+
+
+def lexicalize_tokens(doc, language, selector, lexicalization):
+    """Given lexicalization dictionaries, this lexicalizes the nodes the generated trees."""
+    for bundle, lex_dict in doc.bundles, lexicalization:
+        ttree = bundle.get_zone(language, selector).ttree
+        for tnode in ttree:
+            if tnode.t_lemma.startswith('X-'):
+                slot = tnode.t_lemma[2:]
+                if slot in lex_dict:
+                    value = lex_dict[slot][0]
+                    tnode.t_lemma = value  # lexicalize
+                    lex_dict[slot] = lex_dict[slot][1:] + value  # cycle the values
+
 
 def write_tokens(doc, language, selector, tok_file):
-    # TODO TODO TODO
-    raise NotImplementedError()
+    """Write all sentences from a document into a text file."""
+    with file_streem(tok_file, 'w') as fh:
+        for bundle in doc.bundles:
+            ttree = bundle.get_zone(language, selector).ttree
+            toks = [tnode.t_lemma for tnode in ttree.get_descendants(ordered=True)]
+            # TODO some nice detokenization etc.
+            print >> fh, ' '.join(toks)
 
 def chunk_list(l, n):
     """ Yield successive n-sized chunks from l."""

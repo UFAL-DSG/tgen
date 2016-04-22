@@ -60,22 +60,28 @@ CLASSIF_CONFIG = config/classif.py
 TRAIN_PORTION = 1.0
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
+TRAIN_TOKS = data/$(TRAINING_SET)/train-text.txt
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
 TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
 GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
 TEST_REF = data/$(TRAINING_SET)/devel-das.sgm
 TEST_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
+TEST_TOKS = data/$(TRAINING_SET)/devel-text.txt
+TEST_REFTOKS = data/$(TRAINING_SET)/devel-ref.txt
 TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
 TEST_CONC = data/$(TRAINING_SET)/devel-conc.sgm
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
   TEST_REF = data/$(TRAINING_SET)/test-das.sgm
+  TEST_REFTOKS = data/$(TRAINING_SET)/devel-ref.txt
   TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
   TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
+  TEST_TOKS = data/$(TRAINING_SET)/text-text.txt
 endif
 SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
+
 
 XS_INSTEAD = 0
 EVAL_SELECTOR =
@@ -272,15 +278,20 @@ seq2seq_train: RUN_NAME := seq2seq_train
 seq2seq_train: RUN_TYPE := seq2seq
 seq2seq_train: prepare_dir
 seq2seq_train:
-	# copy needed files (to ensure replication)
+	# copy needed files (to ensure replication), then run the experiment
 	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
-	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
-	# run the experiment
+	if [[ -n "$(TOKS)" ]]; then \
+		cp $(TRAIN_TOKS) $(TRY_DIR)/train-text.txt; \
+		TRAIN_DATA=$(TRY_DIR)/train-text.txt ; \
+	else \
+		cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz; \
+		TRAIN_DATA=$(TRY_DIR)/train-text.pickle.gz ; \
+	fi; \
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" \
-		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
+		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt '$$TRAIN_DATA' \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
 asearch_gen: RUN_NAME := asearch_gen
@@ -311,8 +322,13 @@ seq2seq_gen_cv:
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
-	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
+	if [[ -n "$(TOKS)" ]]; then \
+		cp $(TEST_REFTOKS) $(TRY_DIR)/test-ref.txt ; \
+		cp $(TEST_TOKS) $(TRY_DIR)/test-text.txt ; \
+	else \
+		cp $(TEST_REF) $(TRY_DIR)/test-das.sgm ; \
+		cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz ; \
+	fi
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
@@ -330,20 +346,30 @@ seq2seq_gen_process: GEN_CONFIG :=
 seq2seq_gen_process: gen_process
 
 gen_process:
-	# run
-	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
-		$(SELECTOR_CONFIG) \
-		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
-		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
-		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
-			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv da_file=$(TRY_DIR)/test-das.txt \
-			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
-			$(SURFACE_SCEN) Write::Treex \
-			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
-			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=SfxRest sys_id=TGEN add_header=tstset; \
-		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
-		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
+	# run just the generator, or generator + Treex + mteval.
+	if [[ -n "$(TOKS)" ]]; then \
+		$(QSUBMIT) '$(ACTIVATE); \
+		    $(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-ref.txt $(DEBUG_LOG_GEN) \
+		    $(SELECTOR_CONFIG) \
+		    -a $(TRY_DIR)/test-abstr.txt \
+		    -w $(TRY_DIR)/out-toks.txt $(GEN_CONFIG) \
+		    $(GEN_MODEL) $(TRY_DIR)/test-das.txt;' \
+		    2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt ; \
+	else \
+		$(QSUBMIT) '$(ACTIVATE); \
+		    $(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
+		    $(SELECTOR_CONFIG) \
+		    -w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
+		    $(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
+		    treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
+			    T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv da_file=$(TRY_DIR)/test-das.txt \
+			    Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) \
+			    $(SURFACE_SCEN) Write::Treex \
+			    Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
+			    Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=SfxRest sys_id=TGEN add_header=tstset; \
+		    $(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
+		    2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt ; \
+	fi
 
 rerun-%:
 	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))

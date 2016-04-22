@@ -59,7 +59,8 @@ from flect.config import Config
 
 from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
 from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
-    trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens
+    trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens, \
+    lexicalization_from_doc, lexicalize_tokens
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import ASearchPlanner, SamplingPlanner
@@ -69,6 +70,7 @@ from tgen.tree import TreeData
 from tgen.parallel_percrank_train import ParallelRanker
 from tgen.debug import exc_info_hook
 from tgen.rnd import rnd
+from tgen.bleu import BLEUMeasure
 from tgen.seq2seq import Seq2SeqBase, Seq2SeqGen
 from tgen.parallel_seq2seq_train import ParallelSeq2SeqTraining
 from tgen.tfclassif import RerankingClassifier
@@ -433,6 +435,8 @@ def seq2seq_gen(args):
     ap = ArgumentParser()
 
     ap.add_argument('-e', '--eval-file', type=str, help='A ttree/text file for evaluation')
+    ap.add_argument('-a', '--abstr-file', type=str,
+                    help='Lexicalization file (a.k.a. abstraction instsructions, for tokens only)')
     ap.add_argument('-r', '--ref-selector', type=str, default='',
                     help='Selector for reference trees in the evaluation file')
     ap.add_argument('-t', '--target-selector', type=str, default='',
@@ -471,7 +475,7 @@ def seq2seq_gen(args):
             das = [(context, da) for context, da in zip(contexts, das)]
 
     if args.eval_file is None or args.eval_file.endswith('.txt'):
-        gen_doc = Document()
+        gen_doc = Document()  # TODO remove dependency on Pytreex here
     else:
         eval_doc = read_ttrees(args.eval_file)
         if args.ref_selector == args.target_selector:
@@ -490,7 +494,9 @@ def seq2seq_gen(args):
     if args.eval_file is not None:
         # evaluate the generated tokens (F1 and BLEU scores)
         if args.eval_file.endswith('.txt'):
-            eval_tokens(read_tokens(args.eval_file),
+            lexicalize_tokens(gen_doc, tgen.language, args.target_selector,
+                              lexicalization_from_doc(args.abstr_file))
+            eval_tokens(read_tokens(args.eval_file, ref_mode=True),
                         tokens_from_doc(gen_doc, tgen.language, args.target_selector))
         # evaluate the generated trees against golden trees
         else:
@@ -530,7 +536,7 @@ def eval_trees(das, eval_ttrees, gen_ttrees, eval_doc, language, selector):
              evaler.common_substruct_stats())
 
 
-def eval_tokens(eval_tokens, gen_tokens):
+def eval_tokens(eval_tokens, gen_tokens, lexicalization):
     """Evaluate generated tokens and print out statistics."""
 
     evaluator = BLEUMeasure()
@@ -543,10 +549,10 @@ def eval_tokens(eval_tokens, gen_tokens):
         for gold_sent in gold_sents:  # effectively an average over all gold paraphrases
             evaluator.append(gold_sent, pred_sent)
 
-    log_info("TOKEN precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.TOKEN))
-    log_info("Sentence length stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.size_stats())
+    log_info("TOKEN precision: %.4f, Recall: %.4f, F1: %.4f" % evaluator.p_r_f1(EvalTypes.TOKEN))
+    log_info("Sentence length stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaluator.size_stats())
     log_info("Common subphrase stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
-             evaler.common_substruct_stats())
+             evaluator.common_substruct_stats())
 
 
 def rerank_cl_eval(args):
