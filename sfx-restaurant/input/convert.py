@@ -177,7 +177,7 @@ def find_substr_approx(needle, haystack):
                 h += 1
 
 
-def abstract_sent(da, conc, abst_slots):
+def abstract_sent(da, conc, abst_slots, slot_names):
     """Abstract the given slots in the given sentence (replace them with X).
 
     @param da: concrete DA
@@ -223,7 +223,10 @@ def abstract_sent(da, conc, abst_slots):
         if abst.slot not in abst_slots or dai.value == 'dont_care':
             continue
         # replace the text
-        toks[abst.start - shift:abst.end - shift] = ['X']
+        if slot_names:
+            toks[abst.start - shift:abst.end - shift] = ['X-' + abst.slot]
+        else:
+            toks[abst.start - shift:abst.end - shift] = ['X']
         # update abstraction instruction indexes
         shift_add = abst.end - abst.start - 1
         abst.start -= shift
@@ -278,7 +281,7 @@ def convert(args):
             for turn in dialogue['dial']:
                 da = parse_da(turn['S']['dact'])
                 conc = postprocess_sent(turn['S']['ref'])
-                text, da, abst = abstract_sent(da, conc, slots_to_abstract)
+                text, da, abst = abstract_sent(da, conc, slots_to_abstract, args.slot_names)
 
                 text = fix_capitalization(text)
                 conc = fix_capitalization(conc)
@@ -372,5 +375,6 @@ if  __name__ == '__main__':
     argp.add_argument('-a', '--abstract', help='Comma-separated list of slots to be abstracted')
     argp.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
     argp.add_argument('-m', '--multi-ref', help='Multiple reference mode: relexicalize all possible references', action='store_true')
+    argp.add_argument('-n', '--slot-names', help='Include slot names in delexicalized texts', action='store_true')
     args = argp.parse_args()
     convert(args)
