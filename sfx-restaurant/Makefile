@@ -322,16 +322,16 @@ seq2seq_gen_cv:
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
 	if [[ -n "$(TOKS)" ]]; then \
 		cp $(TEST_REFTOKS) $(TRY_DIR)/test-ref.txt ; \
 		cp $(TEST_TOKS) $(TRY_DIR)/test-text.txt ; \
 	else \
 		cp $(TEST_REF) $(TRY_DIR)/test-das.sgm ; \
 		cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz ; \
+	        cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv ; \
+	        cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm ; \
 	fi
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
 
 asearch_gen_process: RUN_NAME := asearch_gen
 asearch_gen_process: GEN_MODEL := $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz
