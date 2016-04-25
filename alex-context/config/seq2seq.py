@@ -18,6 +18,7 @@ config = {
           'dropout_keep_prob': 1,
           'use_dec_cost': False,
           'use_context': True,
+          'use_div_token': True,
           #'average_models': True,
           #'average_models_top_k': 3,
 

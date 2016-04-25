@@ -215,11 +215,14 @@ class ContextDAEmbeddingSeq2SeqExtract(DAEmbeddingSeq2SeqExtract):
     """This encodes both context user utterance and input DA into a combined embedding (list of IDs)"""
 
     UNK_TOKEN = 3
+    DIV_TOKEN = 4
+    MIN_VALID = 5
 
     def __init__(self, cfg={}):
         super(ContextDAEmbeddingSeq2SeqExtract, self).__init__(cfg)
         self.dict_token = {'UNK_TOKEN': self.UNK_TOKEN}
         self.max_context_len = cfg.get('max_context_len', 30)
+        self.use_div_token = cfg.get('use_div_token', False)
 
     def init_dict(self, train_data, dict_ord=None):
         """Initialize dictionaries for context tokens and input DAs."""
@@ -246,10 +249,13 @@ class ContextDAEmbeddingSeq2SeqExtract(DAEmbeddingSeq2SeqExtract):
 
         padding = [self.UNK_TOKEN] * (max_context_len - len(context))
 
+        if hasattr(self, 'use_div_token') and self.use_div_token:
+            return padding + context_emb + [self.DIV_TOKEN] + da_emb
         return padding + context_emb + da_emb
 
     def get_embeddings_shape(self):
-        return [self.max_context_len + 3 * self.max_da_len]
+        return [self.max_context_len + 3 * self.max_da_len +
+                1 if (hasattr(self, 'use_div_token') and self.use_div_token) else 0]
 
 
 class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
