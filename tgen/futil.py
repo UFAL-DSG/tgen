@@ -89,7 +89,7 @@ def read_tokens(tok_file, ref_mode=False):
             if not line:
                 empty_lines = True
             # TODO apply Morphodita here ?
-            tokens.push([(form, None) for form in line])
+            tokens.append([(form, None) for form in line])
 
     # empty lines separate references from each other: regroup references by empty lines
     if ref_mode and empty_lines:

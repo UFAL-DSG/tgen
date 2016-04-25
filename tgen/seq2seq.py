@@ -21,7 +21,8 @@ from tensorflow.models.rnn import rnn_cell
 from pytreex.core.util import file_stream
 
 from tgen.logf import log_info, log_debug, log_warn
-from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list
+from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list, \
+    read_tokens
 from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtract, \
     TreeEmbeddingSeq2SeqExtract, ContextDAEmbeddingSeq2SeqExtract
 from tgen.rnd import rnd
