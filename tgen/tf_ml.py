@@ -66,23 +66,43 @@ class TFModel(object):
                 self.session.run(op)
 
 
-def embedding_attention_seq2seq_bidi(encoder_inputs, decoder_inputs, cell,
-                                     num_encoder_symbols, num_decoder_symbols,
-                                     num_heads=1, output_projection=None,
-                                     feed_previous=False, dtype=dtypes.float32,
-                                     scope=None):
-    """TODO copy from TF library, not used yet. Adapt for scheduled sampling."""
+def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
+                                        num_encoder_symbols, num_decoder_symbols,
+                                        num_heads=2, output_projection=None,
+                                        feed_previous=False, dtype=dtypes.float32,
+                                        scope=None):
+    """TODO"""
 
-    with vs.variable_scope(scope or "embedding_attention_seq2seq"):
+    with vs.variable_scope(scope or "embedding_attention_seq2seq_context"):
+
+        import pudb; pudb.set_trace()
+
+        # split context + real inputs
+        context_inputs = encoder_inputs[0:len(encoder_inputs)/2]
+        encoder_inputs = encoder_inputs[len(encoder_inputs)/2:]
+
         # Encoder.
         encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols)
-        encoder_outputs, encoder_states = rnn.rnn(
-                encoder_cell, encoder_inputs, dtype=dtype)
+        with vs.variable_scope("context_rnn") as scope:
+            context_outputs, context_states = rnn.rnn(
+                    encoder_cell, context_inputs, dtype=dtype, scope=scope)
+        with vs.variable_scope("input_rnn") as scope:
+            encoder_outputs, encoder_states = rnn.rnn(
+                    encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
+
+        # concatenate outputs & states
+        encoder_outputs = [array_ops.concat(1, [co, eo], name="context+encoder-output")
+                           for co, eo in zip(context_outputs, encoder_outputs)]
+        encoder_states = [array_ops.concat(1, [cs, es], name="context+encoder-state")
+                          for cs, es in zip(context_states, encoder_states)]
 
         # First calculate a concatenation of encoder outputs to put attention on.
         top_states = [array_ops.reshape(e, [-1, 1, cell.output_size])
                       for e in encoder_outputs]
         attention_states = array_ops.concat(1, top_states)
+
+        # TODO this will work for BasicLSTMCell and GRUCell, but not for others
+        cell = type(cell)(num_units=(cell.input_size * 2))
 
         # Decoder.
         output_size = None
