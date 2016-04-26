@@ -75,13 +75,11 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
 
     with vs.variable_scope(scope or "embedding_attention_seq2seq_context"):
 
-        import pudb; pudb.set_trace()
-
-        # split context + real inputs
+        # split context and real inputs into separate vectors
         context_inputs = encoder_inputs[0:len(encoder_inputs)/2]
         encoder_inputs = encoder_inputs[len(encoder_inputs)/2:]
 
-        # Encoder.
+        # build separate encoders
         encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols)
         with vs.variable_scope("context_rnn") as scope:
             context_outputs, context_states = rnn.rnn(
@@ -91,16 +89,17 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
                     encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
 
         # concatenate outputs & states
-        encoder_outputs = [array_ops.concat(1, [co, eo], name="context+encoder-output")
+        encoder_outputs = [array_ops.concat(1, [co, eo], name="context-and-encoder-output")
                            for co, eo in zip(context_outputs, encoder_outputs)]
-        encoder_states = [array_ops.concat(1, [cs, es], name="context+encoder-state")
+        encoder_states = [array_ops.concat(1, [cs, es], name="context-and-encoder-state")
                           for cs, es in zip(context_states, encoder_states)]
 
-        # First calculate a concatenation of encoder outputs to put attention on.
-        top_states = [array_ops.reshape(e, [-1, 1, cell.output_size])
+        # calculate a concatenation of encoder outputs to put attention on.
+        top_states = [array_ops.reshape(e, [-1, 1, cell.output_size * 2])
                       for e in encoder_outputs]
         attention_states = array_ops.concat(1, top_states)
 
+        # change the decoder cell to accommodate wider input
         # TODO this will work for BasicLSTMCell and GRUCell, but not for others
         cell = type(cell)(num_units=(cell.input_size * 2))
 
