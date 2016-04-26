@@ -31,7 +31,7 @@ from tgen.tree import TreeData, TreeNode
 from tgen.eval import Evaluator
 from tgen.bleu import BLEUMeasure
 from tgen.tfclassif import RerankingClassifier
-from tgen.tf_ml import TFModel
+from tgen.tf_ml import TFModel, embedding_attention_seq2seq_context
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -232,8 +232,12 @@ class Seq2SeqBase(SentencePlanner):
         log_debug("GENERATE TREE FOR DA: " + unicode(da))
         tree = self.process_das([da])[0]
         log_debug("RESULT: %s" % unicode(tree))
-        # if requested, append the result to the document
-        if gen_doc:
+        # if requested, append the result to the "document"
+        # just lists (generated tokens only, disregarding syntax; keep None for POS tags)
+        if isinstance(gen_doc, list):
+            gen_doc.append([(n.t_lemma, None) for n in tree.nodes])
+        # full Pytreex documents (full trees)
+        elif gen_doc:
             zone = self.get_target_zone(gen_doc)
             zone.ttree = tree.create_ttree()
             zone.sentence = unicode(da)
@@ -490,6 +494,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             rnn_func = embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
                 rnn_func = embedding_attention_seq2seq
+            elif self.nn_type == 'emb_attention_seq2seq_context':
+                rnn_func = embedding_attention_seq2seq_context
 
             # for training: feed_previous == False, using dropout if available
             # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps

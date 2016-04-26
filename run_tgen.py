@@ -475,7 +475,7 @@ def seq2seq_gen(args):
             das = [(context, da) for context, da in zip(contexts, das)]
 
     if args.eval_file is None or args.eval_file.endswith('.txt'):
-        gen_doc = Document()  # TODO remove dependency on Pytreex here
+        gen_doc = []
     else:
         eval_doc = read_ttrees(args.eval_file)
         if args.ref_selector == args.target_selector:
@@ -494,10 +494,8 @@ def seq2seq_gen(args):
     if args.eval_file is not None:
         # evaluate the generated tokens (F1 and BLEU scores)
         if args.eval_file.endswith('.txt'):
-            lexicalize_tokens(gen_doc, tgen.language, args.target_selector,
-                              lexicalization_from_doc(args.abstr_file))
-            eval_tokens(read_tokens(args.eval_file, ref_mode=True),
-                        tokens_from_doc(gen_doc, tgen.language, args.target_selector))
+            lexicalize_tokens(gen_doc, lexicalization_from_doc(args.abstr_file))
+            eval_tokens(read_tokens(args.eval_file, ref_mode=True), gen_doc)
         # evaluate the generated trees against golden trees
         else:
             eval_trees(das,

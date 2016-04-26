@@ -113,7 +113,7 @@ def lexicalization_from_doc(abstr_file):
     with file_stream(abstr_file) as fh:
         for line in fh:
             line_abstrs = {}
-            for svp in line.strip().split("\t"):
+            for svp in filter(bool, line.strip().split("\t")):
                 m = re.match('([^=]*)=(.*):[0-9]+-[0-9]+$', svp)
                 slot = m.group(1)
                 value = re.sub(r'^[\'"]', '', m.group(2))
@@ -128,17 +128,16 @@ def lexicalization_from_doc(abstr_file):
     return abstrs
 
 
-def lexicalize_tokens(doc, language, selector, lexicalization):
+def lexicalize_tokens(gen_doc, lexicalization):
     """Given lexicalization dictionaries, this lexicalizes the nodes the generated trees."""
-    for bundle, lex_dict in doc.bundles, lexicalization:
-        ttree = bundle.get_zone(language, selector).ttree
-        for tnode in ttree:
-            if tnode.t_lemma.startswith('X-'):
-                slot = tnode.t_lemma[2:]
+    for sent, lex_dict in zip(gen_doc, lexicalization):
+        for pos, tok in enumerate(sent):
+            if tok.startswith('X-'):
+                slot = tok[2:]
                 if slot in lex_dict:
                     value = lex_dict[slot][0]
-                    tnode.t_lemma = value  # lexicalize
-                    lex_dict[slot] = lex_dict[slot][1:] + value  # cycle the values
+                    sent[pos] = value  # lexicalize (replace placeholder in sentence)
+                    lex_dict[slot] = lex_dict[slot][1:] + [value]  # cycle the values
 
 
 def write_tokens(doc, language, selector, tok_file):
