@@ -39,9 +39,10 @@ while ( my $line = <$fh> ) {
     $line =~ s/(?<!NIST score) 0\.([0-9]{2})/ $1./g;
 
     # Node precision, recall, F1-measure
-    if ( $line =~ /(Node precision|NODE scores)/i ) {
+    if ( $line =~ /(Node precision|NODE scores|Token precision)/i ) {
         $line =~ s/.*Node p/P/i;
         $line =~ s/.*NODE scores //;
+        $line =~ s/.*Token p/P/i;
         $line =~ s/F1//;
         $line =~ s/[a-z]//gi;
         $line =~ s/^\s+//;
@@ -66,6 +67,15 @@ while ( my $line = <$fh> ) {
         $line =~ s/^\s+//;
         my ( $n, $b ) = split( /\s+/, $line );
         $bleu = rg( 3, 6, $n ) . "NIST $n" . rg( 40, 65, $b ) . "  BLEU $b\e[0m";
+    }
+
+    # just BLEU (for tokens setting)
+    elsif ( $line =~ /BLEU score / ){
+        $line =~ s/^.*BLEU score//;
+        $line =~ s/\s+//g;
+        my $b = sprintf "%.2f", $line;
+        # leave spaces instead of NIST
+        $bleu = "             " . rg( 40, 80, $b ) . "BLEU $b\e[0m";
     }
 }
 
