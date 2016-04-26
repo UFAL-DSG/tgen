@@ -52,13 +52,10 @@ import platform
 import os
 from argparse import ArgumentParser
 
-from pytreex.core.util import file_stream
-from pytreex.core.document import Document
-
 from flect.config import Config
 
 from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
-from tgen.futil import read_das, read_ttrees, chunk_list, add_bundle_text, \
+from tgen.futil import file_stream, read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens, \
     lexicalization_from_doc, lexicalize_tokens
 from tgen.candgen import RandomCandidateGenerator
@@ -279,6 +276,7 @@ def seq2seq_train(args):
 
 
 def sample_gen(args):
+    from pytreex.core.document import Document
     opts, files = getopt(args, 'r:n:o:w:')
     num_to_generate = 1
     oracle_eval_file = None
@@ -338,6 +336,7 @@ def sample_gen(args):
 
 def asearch_gen(args):
     """A*search generation"""
+    from pytreex.core.document import Document
 
     opts, files = getopt(args, 'e:d:w:c:s:')
     eval_file = None
@@ -474,9 +473,10 @@ def seq2seq_gen(args):
                                            tgen.language, tgen.selector)
             das = [(context, da) for context, da in zip(contexts, das)]
 
-    if args.eval_file is None or args.eval_file.endswith('.txt'):
+    if args.eval_file is None or args.eval_file.endswith('.txt'):  # just tokens
         gen_doc = []
-    else:
+    else:  # Trees: depending on PyTreex
+        from pytreex.core.document import Document
         eval_doc = read_ttrees(args.eval_file)
         if args.ref_selector == args.target_selector:
             gen_doc = Document()
