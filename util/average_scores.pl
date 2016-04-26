@@ -13,7 +13,7 @@ use autodie;
 use File::Basename;
 use File::stat;
 
-my @patterns = ( 'BEST', 'NODE', 'DEP', 'NIST score ' );
+my @patterns = ( 'BEST', 'NODE', 'DEP', 'BLEU score\b', 'TOKEN', );
 my %data;
 my %lines;
 

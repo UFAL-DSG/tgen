@@ -235,7 +235,8 @@ class Seq2SeqBase(SentencePlanner):
         # if requested, append the result to the "document"
         # just lists (generated tokens only, disregarding syntax; keep None for POS tags)
         if isinstance(gen_doc, list):
-            gen_doc.append([(n.t_lemma, None) for n in tree.nodes])
+            # ignore tree technical root, take just "lemmas"
+            gen_doc.append([(n.t_lemma, None) for n in tree.nodes[1:]])
         # full Pytreex documents (full trees)
         elif gen_doc:
             zone = self.get_target_zone(gen_doc)

@@ -507,7 +507,7 @@ def seq2seq_gen(args):
     if args.output_file is not None:
         log_info('Writing output...')
         if args.output_file.endswith('.txt'):
-            write_tokens(gen_doc, tgen.language, args.target_selector, args.output_file)
+            write_tokens(gen_doc, args.output_file)
         else:
             write_ttrees(gen_doc, args.output_file)
 
@@ -534,7 +534,7 @@ def eval_trees(das, eval_ttrees, gen_ttrees, eval_doc, language, selector):
              evaler.common_substruct_stats())
 
 
-def eval_tokens(eval_tokens, gen_tokens, lexicalization):
+def eval_tokens(eval_tokens, gen_tokens):
     """Evaluate generated tokens and print out statistics."""
 
     evaluator = BLEUMeasure()

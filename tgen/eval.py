@@ -126,7 +126,7 @@ def max_common_subphrase_length(a, b):
             pos_a = sp_a
             pos_b = sp_b
             # disregard tags for comparison
-            while pos_a < len(a) and pos_b < len(b) and a[pos_a[0]] == b[pos_b[0]]:
+            while pos_a < len(a) and pos_b < len(b) and a[pos_a][0] == b[pos_b][0]:
                 pos_a += 1
                 pos_b += 1
             if pos_a - sp_a > longest:

@@ -85,7 +85,9 @@ def read_tokens(tok_file, ref_mode=False):
     # read all lines from the file
     with file_stream(tok_file) as fh:
         for line in fh:
-            line = line.strip().split(' ')
+            # split to tokens + ingore consecutive spaces (no empty tokens)
+            # empty line results in empty list
+            line = filter(bool, line.strip().split(' '))
             if not line:
                 empty_lines = True
             # TODO apply Morphodita here ?
@@ -96,14 +98,15 @@ def read_tokens(tok_file, ref_mode=False):
         refs = []
         cur_ref = []
         for toks in tokens:
-            if not toks:
-                refs.push(cur_ref)
+            if not toks:  # empty line separates references
+                refs.append(cur_ref)
                 cur_ref = []
-            cur_ref.push(toks)
+            cur_ref.append(toks)
         if cur_ref:
-            refs.push(cur_ref)
+            refs.append(cur_ref)
         tokens = refs
     return tokens
+
 
 def lexicalization_from_doc(abstr_file):
     """Read lexicalization from a file with "abstraction instructions" (telling which tokens are
@@ -130,24 +133,29 @@ def lexicalization_from_doc(abstr_file):
 
 def lexicalize_tokens(gen_doc, lexicalization):
     """Given lexicalization dictionaries, this lexicalizes the nodes the generated trees."""
-    for sent, lex_dict in zip(gen_doc, lexicalization):
-        for pos, tok in enumerate(sent):
+    for idx, (sent, lex_dict) in enumerate(zip(gen_doc, lexicalization)):
+        lex_sent = []
+        for (tok, pos_tag) in sent:
             if tok.startswith('X-'):
                 slot = tok[2:]
-                if slot in lex_dict:
+                if slot in lex_dict:  # lexicalize (replace placeholder with tokens from new value)
                     value = lex_dict[slot][0]
-                    sent[pos] = value  # lexicalize (replace placeholder in sentence)
+                    for val_tok in value.split(' '):
+                        lex_sent.append((val_tok, pos_tag))
                     lex_dict[slot] = lex_dict[slot][1:] + [value]  # cycle the values
+            else:
+                lex_sent.append((tok, pos_tag))
+        gen_doc[idx] = lex_sent
 
 
-def write_tokens(doc, language, selector, tok_file):
+def write_tokens(doc, tok_file):
     """Write all sentences from a document into a text file."""
-    with file_streem(tok_file, 'w') as fh:
-        for bundle in doc.bundles:
-            ttree = bundle.get_zone(language, selector).ttree
-            toks = [tnode.t_lemma for tnode in ttree.get_descendants(ordered=True)]
+    with file_stream(tok_file, 'w') as fh:
+        for sent in doc:
+            toks = [tok for (tok, _) in sent]
             # TODO some nice detokenization etc.
             print >> fh, ' '.join(toks)
+
 
 def chunk_list(l, n):
     """ Yield successive n-sized chunks from l."""
