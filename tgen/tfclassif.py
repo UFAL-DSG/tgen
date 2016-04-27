@@ -297,6 +297,10 @@ class RerankingClassifier(TFModel):
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
 
+        # ignore contexts, if they are contained in the DAs
+        if isinstance(self.train_das[0], tuple):
+            self.train_das = [da for (context, da) in self.train_das]
+
         # add empty tree + empty DA to training data
         # (i.e. forbid the network to keep any of its outputs "always-on")
         train_size += 1
