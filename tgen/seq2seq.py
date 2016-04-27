@@ -206,7 +206,7 @@ class Seq2SeqBase(SentencePlanner):
             best_path = paths[0]
 
         # return just the best path (as token IDs)
-        return best_path.dec_inputs
+        return np.array(best_path.dec_inputs)
 
     def _init_beam_search(self, enc_inputs):
         raise NotImplementedError()
