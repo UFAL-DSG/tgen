@@ -59,7 +59,10 @@ class Seq2SeqBase(SentencePlanner):
         # extractors)
         self.cfg = cfg
 
+        # decoding options
         self.beam_size = cfg.get('beam_size', 1)
+        self.sample_top_k = cfg.get('sample_top_k', 1)
+        self.length_normalized_decoding = cfg.get('length_normalized_decoding', False)
 
         self.classif_filter = None
         if 'classif_filter' in cfg:
@@ -102,7 +105,7 @@ class Seq2SeqBase(SentencePlanner):
         """Run greedy decoding with the given encoder inputs; optionally use given gold trees
         as decoder inputs for cost computation."""
 
-        # decoder inputs (either fake, or true but used just for cost computation)
+        # prepare decoder inputs (either fake, or true but used just for cost computation)
         if gold_trees is None:
             empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
             dec_inputs = cut_batch_into_steps([empty_tree_emb for _ in enc_inputs[0]])
@@ -152,14 +155,6 @@ class Seq2SeqBase(SentencePlanner):
 
             return ret
 
-        def __cmp__(self, other):
-            """Comparing the paths according to their logprob."""
-            if self.logprob < other.logprob:
-                return -1
-            if self.logprob > other.logprob:
-                return 1
-            return 0
-
     def _beam_search(self, enc_inputs, da):
         """Run beam search decoding."""
 
@@ -187,7 +182,10 @@ class Seq2SeqBase(SentencePlanner):
                 out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
                 new_paths.extend(path.expand(self.beam_size, out_probs, st))
 
-            paths = sorted(new_paths, reverse=True)[:self.beam_size]
+            cmp_func = (lambda p, q: cmp(p.logprob / len(p), q.logprob / len(p))
+                        if self.length_normalized_decoding
+                        else lambda p, q: cmp(p.logprob, q.logprob))
+            paths = sorted(new_paths, cmp=cmp_func, reverse=True)[:self.beam_size]
 
             if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
                 break  # stop decoding if we have reached the end in all paths
@@ -201,8 +199,14 @@ class Seq2SeqBase(SentencePlanner):
         if self.classif_filter:
             paths = self._rerank_paths(paths, da)
 
+        # select the "best" path -- either the best, or one in top k
+        if self.sample_top_k > 1:
+            best_path = self._sample_path(paths[:self.select_top_k])
+        else:
+            best_path = paths[0]
+
         # return just the best path (as token IDs)
-        return np.array(paths[0].dec_inputs)
+        return best_path.dec_inputs
 
     def _init_beam_search(self, enc_inputs):
         raise NotImplementedError()
@@ -218,9 +222,35 @@ class Seq2SeqBase(SentencePlanner):
         self.classif_filter.init_run(da)
         fits = self.classif_filter.dist_to_cur_da(trees)
         # add distances to logprob so that non-fitting will be heavily penalized
+        # adjust paths for length (if set to do so)
         for path, fit in zip(paths, fits):
+            if self.length_normalized_decoding:
+                path.logprob /= len(path)
             path.logprob -= self.misfit_penalty * fit
-        return sorted(paths, reverse=True)
+        return sorted(paths, cmp=lambda p, q: cmp(p.logprob, q.logprob), reverse=True)
+
+    def _sample_path(self, paths):
+        """Sample one path from the top k paths, based on their probabilities."""
+
+        # convert the logprobs to a probability distribution, proportionate to their sizes
+        logprobs = [p.logprob for p in paths]
+        max_logprob = max(logprobs)
+        probs = [math.exp(l - max_logprob) for l in logprobs]  # discount to avoid underflow, result is unnormalized
+        sum_prob = sum(probs)
+        probs = [p / sum_prob for p in probs]  # normalized
+
+        # select the path based on a draw from the uniform distribution
+        draw = rnd.random()
+        cum = 0.0  # building cumulative distribution function on-the-fly
+        selected = -1
+        for idx, prob in enumerate(probs):
+            high = cum + prob
+            if cum <= draw and draw < high:  # the draw has hit this index in the CDF
+                selected = idx
+                break
+            cum = high
+
+        return paths[selected]
 
     def generate_tree(self, da, gen_doc=None):
         """Generate one tree, saving it into the document provided (if applicable).
