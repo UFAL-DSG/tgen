@@ -155,6 +155,10 @@ class Seq2SeqBase(SentencePlanner):
 
             return ret
 
+        def __len__(self):
+            """Return decoding path length (number of decoder input tokens)."""
+            return len(self.dec_inputs)
+
     def _beam_search(self, enc_inputs, da):
         """Run beam search decoding."""
 
@@ -201,7 +205,7 @@ class Seq2SeqBase(SentencePlanner):
 
         # select the "best" path -- either the best, or one in top k
         if self.sample_top_k > 1:
-            best_path = self._sample_path(paths[:self.select_top_k])
+            best_path = self._sample_path(paths[:self.sample_top_k])
         else:
             best_path = paths[0]
 
