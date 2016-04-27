@@ -12,9 +12,9 @@ use File::stat;
 use File::Slurp;
 use Getopt::Long;
 
-my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d] [-c CV] [-r] file1.log file2.log [...]\n";
+my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d] [-c CV] [-r] [-k] file1.log file2.log [...]\n";
 
-my ( $training_set, $jobs, $debug, $cv, $rands, $portion ) = ( '', '', 0, '', 0, 1.0 );
+my ( $training_set, $jobs, $debug, $cv, $rands, $portion, $toks ) = ( '', '', 0, '', 0, 1.0 );
 GetOptions(
     'training_set|training|t=s' => \$training_set,
     'jobs|j=s'                  => \$jobs,
@@ -22,6 +22,7 @@ GetOptions(
     'cv_runs|cv|c=s'            => \$cv,
     'rands|r'                   => \$rands,
     'train_portion|portion|p=f' => \$portion,
+    'toks|k'                    => \$toks,
 ) or die($USAGE);
 die($USAGE) if ( !@ARGV );
 
@@ -79,7 +80,8 @@ $training_data = ' + 1/2' if ( $training_set =~ /^training1/ );
 if ( $portion < 1.0 ) {
     $training_data .= '*' . sprintf( "%.2g", $portion );
 }
-$training_data .= ' aall'        if ( $training_set =~ /^training[12]aall/ );
+$training_data .= ' aall'        if ( $training_set =~ /^training[12_]aall/ );
+$training_data .= ' toks'        if ( $training_set =~ /^training[12_]toks/ or $toks );
 $training_data .= ' + dc'        if ( $training_set =~ /^training[12]_dc/ );
 $training_data .= ' + rc'        if ( $training_set =~ /^training[12]_rc/ );
 $training_data .= ' + sc'        if ( $training_set =~ /^training[12]_sc/ );
@@ -129,19 +131,34 @@ elsif ( $mode eq 'seq2seq' ){
 
     $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
-    if ( ( $config_data =~ /'dropout_keep_prob'\s*:\s*(0\.[0-9]*)/ ) ){
+    if ( $config_data =~ /'dropout_keep_prob'\s*:\s*(0\.[0-9]*)/ ){
         $nn_shape .= '-D' . ( $config_data =~ /'dropout_keep_prob'\s*:\s*(0\.[0-9]*)/ )[0];
     }
-    if ( ( $config_data =~ /'beam_size'\s*:\s*([0-9]*)/ ) ){
+    if ( $config_data =~ /'beam_size'\s*:\s*([0-9]*)/ ){
         $nn_shape .= '-B' . ( $config_data =~ /'beam_size'\s*:\s*([0-9]*)/ )[0];
     }
     $nn_shape .= ' ' . ( ( $config_data =~ /'cell_type'\s*:\s*'([^']*)'/ )[0] // 'lstm' );
 
-    $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq'/ );
+    $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq(_context)?'/ );
     $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
     $nn_shape .= ' +adgr'  if ( $config_data =~ /'optimizer_type'\s*:\s*'adagrad'/ );
     $nn_shape .= ' +dc'  if ( $config_data =~ /'use_dec_cost'\s*:\s*True/ );
     $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ );
+
+    if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq_context'/ ){
+        $nn_shape .= ' +C-sepenc';
+    }
+    elsif ( $config_data =~ /'use_context'\s*:\s*True/ and $config_data =~ /'div_token'\s*:\s*True/){
+        $nn_shape .= ' +C-divtok';
+    }
+    elsif ( $config_data =~ /'use_context'\s*:\s*True/ ){
+        $nn_shape .= ' +C-basic';
+    }
+
+    $nn_shape .= ' +lnd'  if ( $config_data =~ /'length_normalized_decoding'\s*:\s*True/ );
+    if ( $config_data =~ /'sample_top_k'\s*:\s*([0-9]*)/ and $1 > 1 ){
+        $nn_shape .= ' +samp' . ( $config_data =~ /'sample_top_k'\s*:\s*([0-9]*)/ )[0];
+    }
 
     if ( $config_data =~ /'average_models'\s*:\s*True/ ){
         $nn_shape .= ' +am';
