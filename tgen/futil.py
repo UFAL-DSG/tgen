@@ -18,8 +18,7 @@ from tree import TreeData
 
 
 def file_stream(filename, mode='r', encoding='UTF-8'):
-    """\
-    Given a file stream or a file name, return the corresponding stream,
+    """Given a file stream or a file name, return the corresponding stream,
     handling GZip. Depending on mode, open an input or output stream.
     (A copy from pytreex.core.util to remove dependency)
     """
