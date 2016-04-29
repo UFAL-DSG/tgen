@@ -148,7 +148,7 @@ elsif ( $mode eq 'seq2seq' ){
     if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq_context'/ ){
         $nn_shape .= ' +C-sepenc';
     }
-    elsif ( $config_data =~ /'use_context'\s*:\s*True/ and $config_data =~ /'div_token'\s*:\s*True/){
+    elsif ( $config_data =~ /'use_context'\s*:\s*True/ and $config_data =~ /'use_div_token'\s*:\s*True/){
         $nn_shape .= ' +C-divtok';
     }
     elsif ( $config_data =~ /'use_context'\s*:\s*True/ ){
