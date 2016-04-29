@@ -241,6 +241,8 @@ class RerankingClassifier(TFModel):
 
     def init_run(self, da):
         """Remember the current DA for subsequent runs of `dist_to_cur_da`."""
+        if isinstance(da, tuple):  # if DA is actually context + DA, ignore context
+            da = da[1]
         self.cur_da = da
         da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
         self.cur_da_bin = da_bin != 0
@@ -252,6 +254,8 @@ class RerankingClassifier(TFModel):
         @param trees: list of trees to measure the distance
         @return: list of Hamming distances for each tree
         """
+        if isinstance(da, tuple):  # if DA is actually context + DA, ignore context
+            da = da[1]
         da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
         da_bin = da_bin != 0
         covered = self.classify(trees)
