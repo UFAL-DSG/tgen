@@ -27,7 +27,9 @@ config = {
           'improve_interval': 50,
           'top_k': 10,
           'bleu_validation_weight': 1,
-          #'beam_size': 100,
+          'beam_size': 1, # 20,
+          'sample_top_k': 1,
+          'length_normalized_decoding': False,
           'alpha_decay': 0, # 0.03
 
           #'classif_filter': {
