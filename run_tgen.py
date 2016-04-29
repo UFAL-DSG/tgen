@@ -57,7 +57,7 @@ from flect.config import Config
 from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
 from tgen.futil import file_stream, read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens, \
-    lexicalization_from_doc, lexicalize_tokens
+    lexicalization_from_doc, lexicalize_tokens, postprocess_tokens
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import ASearchPlanner, SamplingPlanner
@@ -495,7 +495,7 @@ def seq2seq_gen(args):
         # evaluate the generated tokens (F1 and BLEU scores)
         if args.eval_file.endswith('.txt'):
             lexicalize_tokens(gen_doc, lexicalization_from_doc(args.abstr_file))
-            eval_tokens(read_tokens(args.eval_file, ref_mode=True), gen_doc)
+            eval_tokens(das, read_tokens(args.eval_file, ref_mode=True), gen_doc)
         # evaluate the generated trees against golden trees
         else:
             eval_trees(das,
@@ -534,8 +534,11 @@ def eval_trees(das, eval_ttrees, gen_ttrees, eval_doc, language, selector):
              evaler.common_substruct_stats())
 
 
-def eval_tokens(eval_tokens, gen_tokens):
+def eval_tokens(das, eval_tokens, gen_tokens):
     """Evaluate generated tokens and print out statistics."""
+
+    postprocess_tokens(eval_tokens, das)
+    postprocess_tokens(gen_tokens, das)
 
     evaluator = BLEUMeasure()
     for pred_sent, gold_sents in zip(gen_tokens, eval_tokens):

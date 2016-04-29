@@ -100,7 +100,8 @@ def read_tokens(tok_file, ref_mode=False):
             if not toks:  # empty line separates references
                 refs.append(cur_ref)
                 cur_ref = []
-            cur_ref.append(toks)
+            else:
+                cur_ref.append(toks)
         if cur_ref:
             refs.append(cur_ref)
         tokens = refs
@@ -202,3 +203,30 @@ def add_bundle_text(bundle, language, selector, text):
     """Given a document bundle, add sentence text to the given language and selector."""
     zone = bundle.get_or_create_zone(language, selector)
     zone.sentence = (zone.sentence + ' ' if zone.sentence is not None else '') + text
+
+
+def postprocess_tokens(tokens, das):
+    """Postprocessing for BLEU measurements and token outputs: special morphological tokens (-s,
+    -ly) are removed, final punctuation added where needed."""
+
+    def postprocess_sent(sent, final_punct):
+        """Postprocess a single sentence (called for multiple references)."""
+        # merge plurals and adverbial "-ly"
+        for idx, (tok, pos) in enumerate(sent):
+            if tok == '-ly' or tok == '-s':
+                if tok == '-s' and idx > 0 and sent[idx-1][0] == 'child':  # irregular plural
+                    tok = '-ren'
+                if idx > 0:
+                    sent[idx-1] = (sent[idx-1][0] + tok[1:], sent[idx-1][1])
+                del sent[idx]
+        # add final punctuation, if not present
+        if sent[-1][0] not in ['?', '!', '.']:
+            sent.append((final_punct, None))
+
+    for sent, da in zip(tokens, das):
+        final_punct = '?' if da[0].dat[0] == '?' else '.' # '?' for '?request...'
+        if isinstance(sent, list):
+            for sent_var in sent:  # multiple references
+                postprocess_sent(sent_var, final_punct)
+        else:
+            postprocess_sent(sent, final_punct)
