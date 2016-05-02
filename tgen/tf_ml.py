@@ -68,7 +68,7 @@ class TFModel(object):
 
 def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
                                         num_encoder_symbols, num_decoder_symbols,
-                                        num_heads=2, output_projection=None,
+                                        num_heads=1, output_projection=None,
                                         feed_previous=False, dtype=dtypes.float32,
                                         scope=None):
     """TODO"""
