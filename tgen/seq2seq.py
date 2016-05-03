@@ -126,12 +126,14 @@ class Seq2SeqBase(SentencePlanner):
     class DecodingPath(object):
         """A decoding path to be used in beam search."""
 
-        __slots__ = ['dec_inputs', 'dec_states', 'logprob']
+        __slots__ = ['stop_token_id', 'dec_inputs', 'dec_states', 'logprob', '_length']
 
-        def __init__(self, dec_inputs=[], dec_states=[], logprob=0.0):
+        def __init__(self, stop_token_id, dec_inputs=[], dec_states=[], logprob=0.0, length=-1):
+            self.stop_token_id = stop_token_id
             self.dec_inputs = list(dec_inputs)
             self.dec_states = list(dec_states)
             self.logprob = logprob
+            self._length = length if length >= 0 else len(dec_inputs)
 
         def expand(self, max_variants, dec_out_probs, dec_state):
             """Expand the path with all possible outputs, updating the log probabilities.
@@ -148,7 +150,11 @@ class Seq2SeqBase(SentencePlanner):
             top_n_idx = np.argpartition(-dec_out_probs, max_variants)[:max_variants]
 
             for idx in top_n_idx:
-                expanded = Seq2SeqGen.DecodingPath(self.dec_inputs, self.dec_states, self.logprob)
+                expanded = Seq2SeqGen.DecodingPath(self.stop_token_id,
+                                                   self.dec_inputs, self.dec_states, self.logprob,
+                                                   len(self))
+                if len(self) == len(self.dec_inputs) and idx != self.stop_token_id:
+                    expanded._length += 1
                 expanded.logprob += np.log(dec_out_probs[idx])
                 expanded.dec_inputs.append(np.array(idx, ndmin=1))
                 expanded.dec_states.append(dec_state)
@@ -158,7 +164,7 @@ class Seq2SeqBase(SentencePlanner):
 
         def __len__(self):
             """Return decoding path length (number of decoder input tokens)."""
-            return len(self.dec_inputs)
+            return self._length
 
     def _beam_search(self, enc_inputs, da):
         """Run beam search decoding."""
@@ -176,7 +182,7 @@ class Seq2SeqBase(SentencePlanner):
         empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
         dec_inputs = cut_batch_into_steps([empty_tree_emb])
 
-        paths = [self.DecodingPath(dec_inputs=[dec_inputs[0]])]
+        paths = [self.DecodingPath(stop_token_id=self.tree_embs.STOP, dec_inputs=[dec_inputs[0]])]
 
         # beam search steps
         for step in xrange(len(dec_inputs)):
