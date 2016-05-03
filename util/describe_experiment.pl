@@ -154,6 +154,9 @@ elsif ( $mode eq 'seq2seq' ){
     elsif ( $config_data =~ /'use_context'\s*:\s*True/ ){
         $nn_shape .= ' +C-basic';
     }
+    if ( $config_data =~ /'context_bleu_weight'\s*:\s*([0-9.e-]*)/ ){
+        $nn_shape .= ' +CB-' . ( $config_data =~ /'context_bleu_weight'\s*:\s*([0-9.e-]*)/ )[0];
+    }
 
     $nn_shape .= ' +lnd'  if ( $config_data =~ /'length_normalized_decoding'\s*:\s*True/ );
     if ( $config_data =~ /'sample_top_k'\s*:\s*([0-9]*)/ and $1 > 1 ){
