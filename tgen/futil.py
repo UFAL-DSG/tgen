@@ -225,7 +225,7 @@ def postprocess_tokens(tokens, das):
 
     for sent, da in zip(tokens, das):
         final_punct = '?' if da[0].dat[0] == '?' else '.' # '?' for '?request...'
-        if isinstance(sent, list):
+        if isinstance(sent[0], list):
             for sent_var in sent:  # multiple references
                 postprocess_sent(sent_var, final_punct)
         else:
