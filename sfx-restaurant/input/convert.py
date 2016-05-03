@@ -151,15 +151,17 @@ def find_substr_approx(needle, haystack):
     stops = set(['and', 'or', 'in', 'of', 'the', 'to', ','])
     h = 0
     n = 0
+    match_start = 0
     while True:
         n_orig = n  # remember that we skipped some stop words at beginning of needle
                     # (since we check needle position before moving on in haystack)
+        # skip stop words (ignore stop words around haystack position)
         while n < len(needle) and needle[n] in stops:
             n += 1
-        while h < len(haystack) and haystack[h] in stops:
+        while n > 0 and n < len(needle) and h < len(haystack) and haystack[h] in stops:
             h += 1
         if n >= len(needle):
-            return h - n, h
+            return match_start, h
         if h >= len(haystack):
             return None
         # fuzzy match: one may be substring of the other, with up to 2 chars difference
@@ -175,6 +177,7 @@ def find_substr_approx(needle, haystack):
                 n = 0
             else:
                 h += 1
+                match_start = h
 
 
 def abstract_sent(da, conc, abst_slots, slot_names):
@@ -220,7 +223,7 @@ def abstract_sent(da, conc, abst_slots, slot_names):
     shift = 0
     for abst in absts:
         # select only those that should actually be abstracted on the output
-        if abst.slot not in abst_slots or dai.value == 'dont_care':
+        if abst.slot not in abst_slots or abst.value == 'dont_care':
             continue
         # replace the text
         if slot_names:
@@ -243,8 +246,6 @@ def relexicalize(texts, cur_abst):
     for text, abst in texts:
         abst.sort(key=lambda a: a.slot)
         cur_abst.sort(key=lambda a: a.slot)
-        if len(abst) != len(cur_abst):
-            import pudb; pudb.set_trace()
         assert len(abst) == len(cur_abst)
         toks = text.split(' ')
         for a, c in zip(abst, cur_abst):
