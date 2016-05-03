@@ -63,6 +63,7 @@ class Seq2SeqBase(SentencePlanner):
         self.beam_size = cfg.get('beam_size', 1)
         self.sample_top_k = cfg.get('sample_top_k', 1)
         self.length_normalized_decoding = cfg.get('length_normalized_decoding', False)
+        self.context_bleu_weight = cfg.get('context_bleu_weight', 0.0)
 
         self.classif_filter = None
         if 'classif_filter' in cfg:
@@ -186,9 +187,9 @@ class Seq2SeqBase(SentencePlanner):
                 out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
                 new_paths.extend(path.expand(self.beam_size, out_probs, st))
 
-            cmp_func = (lambda p, q: cmp(p.logprob / len(p), q.logprob / len(p))
+            cmp_func = ((lambda p, q: cmp(p.logprob / len(p), q.logprob / len(q)))
                         if self.length_normalized_decoding
-                        else lambda p, q: cmp(p.logprob, q.logprob))
+                        else (lambda p, q: cmp(p.logprob, q.logprob)))
             paths = sorted(new_paths, cmp=cmp_func, reverse=True)[:self.beam_size]
 
             if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
@@ -200,7 +201,7 @@ class Seq2SeqBase(SentencePlanner):
                                  for p in paths]) + "\n")
 
         # rerank paths by their distance to the input DA
-        if self.classif_filter:
+        if self.classif_filter or self.context_bleu_weight:
             paths = self._rerank_paths(paths, da)
 
         # select the "best" path -- either the best, or one in top k
@@ -219,18 +220,32 @@ class Seq2SeqBase(SentencePlanner):
         raise NotImplementedError()
 
     def _rerank_paths(self, paths, da):
-        """Rerank the n-best decoded paths according to the reranking classifier."""
+        """Rerank the n-best decoded paths according to the reranking classifier and/or
+        BLEU against context."""
 
         trees = [self.tree_embs.ids_to_tree(np.array(path.dec_inputs).transpose()[0])
                  for path in paths]
-        self.classif_filter.init_run(da)
-        fits = self.classif_filter.dist_to_cur_da(trees)
+
+        # rerank using BLEU against context if set to do so
+        if self.context_bleu_weight:
+            bm = BLEUMeasure()
+            for path, tree in zip(paths, trees):
+                bm.reset()
+                bm.append([(n.t_lemma, None) for n in tree.nodes[1:]], [da[0]])
+                path.logprob += self.context_bleu_weight * bm.bleu()
+
         # add distances to logprob so that non-fitting will be heavily penalized
+        if self.classif_filter:
+            self.classif_filter.init_run(da)
+            fits = self.classif_filter.dist_to_cur_da(trees)
+            for path, fit in zip(paths, fits):
+                path.logprob -= self.misfit_penalty * fit
+
         # adjust paths for length (if set to do so)
-        for path, fit in zip(paths, fits):
-            if self.length_normalized_decoding:
+        if self.length_normalized_decoding:
+            for path in paths:
                 path.logprob /= len(path)
-            path.logprob -= self.misfit_penalty * fit
+
         return sorted(paths, cmp=lambda p, q: cmp(p.logprob, q.logprob), reverse=True)
 
     def _sample_path(self, paths):

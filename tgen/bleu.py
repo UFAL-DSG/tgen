@@ -86,7 +86,8 @@ class BLEUMeasure(object):
         if isinstance(sent, TreeData):
             return zip(*[sent.nodes[i:] for i in range(n)])
         # with tokens (list of pairs form+tag)
-        forms = [form for (form, _) in sent]  # ignore tags, use just forms
+        if isinstance(sent[0], tuple):
+            forms = [form for (form, _) in sent]  # ignore tags, use just forms
         return zip(*[forms[i:] for i in range(n)])
 
     def bleu(self):
