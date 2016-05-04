@@ -158,7 +158,10 @@ elsif ( $mode eq 'seq2seq' ){
         $nn_shape .= ' +CB-' . ( $config_data =~ /'context_bleu_weight'\s*:\s*([0-9.e-]*)/ )[0];
     }
 
-    $nn_shape .= ' +lnd'  if ( $config_data =~ /'length_normalized_decoding'\s*:\s*True/ );
+
+    if ( $config_data =~ /'length_norm_weight'\s*:\s*([0-9.e-]*)/ ){
+        $nn_shape .= ' +LN-' . ( $config_data =~ /'length_norm_weight'\s*:\s*([0-9.e-]*)/ )[0];
+    }
     if ( $config_data =~ /'sample_top_k'\s*:\s*([0-9]*)/ and $1 > 1 ){
         $nn_shape .= ' +samp' . ( $config_data =~ /'sample_top_k'\s*:\s*([0-9]*)/ )[0];
     }

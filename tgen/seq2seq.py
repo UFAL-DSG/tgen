@@ -62,7 +62,7 @@ class Seq2SeqBase(SentencePlanner):
         # decoding options
         self.beam_size = cfg.get('beam_size', 1)
         self.sample_top_k = cfg.get('sample_top_k', 1)
-        self.length_normalized_decoding = cfg.get('length_normalized_decoding', False)
+        self.length_norm_weight = cfg.get('length_norm_weight', 0.0)
         self.context_bleu_weight = cfg.get('context_bleu_weight', 0.0)
 
         self.classif_filter = None
@@ -193,9 +193,8 @@ class Seq2SeqBase(SentencePlanner):
                 out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
                 new_paths.extend(path.expand(self.beam_size, out_probs, st))
 
-            cmp_func = ((lambda p, q: cmp(p.logprob / len(p), q.logprob / len(q)))
-                        if self.length_normalized_decoding
-                        else (lambda p, q: cmp(p.logprob, q.logprob)))
+            cmp_func = lambda p, q: cmp(p.logprob / (len(p) ** self.length_norm_weight),
+                                        q.logprob / (len(q) ** self.length_norm_weight))
             paths = sorted(new_paths, cmp=cmp_func, reverse=True)[:self.beam_size]
 
             if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
@@ -248,9 +247,9 @@ class Seq2SeqBase(SentencePlanner):
                 path.logprob -= self.misfit_penalty * fit
 
         # adjust paths for length (if set to do so)
-        if self.length_normalized_decoding:
+        if self.length_norm_weight:
             for path in paths:
-                path.logprob /= len(path)
+                path.logprob /= len(path) ** self.length_norm_weight
 
         return sorted(paths, cmp=lambda p, q: cmp(p.logprob, q.logprob), reverse=True)
 
