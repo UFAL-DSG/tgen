@@ -154,12 +154,11 @@ elsif ( $mode eq 'seq2seq' ){
     elsif ( $config_data =~ /'use_context'\s*:\s*True/ ){
         $nn_shape .= ' +C-basic';
     }
-    if ( $config_data =~ /'context_bleu_weight'\s*:\s*([0-9.e-]*)/ ){
+    if ( $config_data =~ /'context_bleu_weight'\s*:\s*([0-9.e-]*)/ and $1 != 0 ){
         $nn_shape .= ' +CB-' . ( $config_data =~ /'context_bleu_weight'\s*:\s*([0-9.e-]*)/ )[0];
     }
 
-
-    if ( $config_data =~ /'length_norm_weight'\s*:\s*([0-9.e-]*)/ ){
+    if ( $config_data =~ /'length_norm_weight'\s*:\s*([0-9.e-]*)/ and $1 != 0 ){
         $nn_shape .= ' +LN-' . ( $config_data =~ /'length_norm_weight'\s*:\s*([0-9.e-]*)/ )[0];
     }
     if ( $config_data =~ /'sample_top_k'\s*:\s*([0-9]*)/ and $1 > 1 ){
