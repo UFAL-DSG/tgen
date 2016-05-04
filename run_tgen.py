@@ -463,7 +463,7 @@ def seq2seq_gen(args):
     # read input files
     das = read_das(args.da_test_file)
     if args.context_file:
-        if not tgen.use_context:
+        if not tgen.use_context and not tgen.context_bleu_weight:
             log_warn('Generator is not trained to use context, ignoring context input file.')
         else:
             if args.context_file.endswith('.txt'):
