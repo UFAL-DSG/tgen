@@ -189,6 +189,9 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
     def get_embeddings(self, da, pad=True):
         """Get the embeddings (list of IDs for triples of da type - slot - value) for the given DA.
         """
+        # handle DAs with contexts (ignore contexts)
+        if isinstance(da, tuple):
+            da = da[1]  # (context, da) -> da
         # list the IDs of act types, slots, values
         da_emb_idxs = []
         sorted_da = da
