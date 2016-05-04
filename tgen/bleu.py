@@ -85,10 +85,10 @@ class BLEUMeasure(object):
         # with sents
         if isinstance(sent, TreeData):
             return zip(*[sent.nodes[i:] for i in range(n)])
-        # with tokens (list of pairs form+tag)
+        # with tokens (as lists of pairs form+tag, or plain forms only)
         if sent and isinstance(sent[0], tuple):
-            forms = [form for (form, _) in sent]  # ignore tags, use just forms
-        return zip(*[forms[i:] for i in range(n)])
+            sent = [form for (form, _) in sent]  # ignore tags, use just forms
+        return zip(*[sent[i:] for i in range(n)])
 
     def bleu(self):
         """Return the current BLEU score, according to the accumulated counts."""
