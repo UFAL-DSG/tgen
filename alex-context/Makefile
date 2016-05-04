@@ -340,7 +340,7 @@ gen_process:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
 		$(SELECTOR_CONFIG) \
-		-c $(TRY_DIR)/train-context.pickle.gz \
+		-c $(TRY_DIR)/test-context.pickle.gz \
 		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
