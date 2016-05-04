@@ -96,7 +96,8 @@ class BLEUMeasure(object):
         # brevity penalty
         bp = 1.0
         if (self.cand_lens[0] <= self.ref_len):
-            bp = math.exp(1.0 - self.ref_len / float(self.cand_lens[0]))
+            bp = math.exp(1.0 - self.ref_len /
+                          (float(self.cand_lens[0]) if self.cand_lens[0] else 1e-5))
 
         # n-gram precision is smoothed a bit: 0 hits for a given n-gram count are
         # changed to 1e-5 to make BLEU defined everywhere
