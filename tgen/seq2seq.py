@@ -194,8 +194,11 @@ class Seq2SeqBase(SentencePlanner):
                 out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
                 new_paths.extend(path.expand(self.beam_size, out_probs, st))
 
-            cmp_func = lambda p, q: cmp(p.logprob / (len(p) ** self.length_norm_weight),
-                                        q.logprob / (len(q) ** self.length_norm_weight))
+            def cmp_func(p, q):
+                """Length-weighted comparison of two paths' logprobs."""
+                return cmp(p.logprob / (len(p) ** self.length_norm_weight),
+                           q.logprob / (len(q) ** self.length_norm_weight))
+
             paths = sorted(new_paths, cmp=cmp_func, reverse=True)[:self.beam_size]
 
             if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
