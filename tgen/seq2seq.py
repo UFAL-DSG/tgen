@@ -243,11 +243,18 @@ class Seq2SeqBase(SentencePlanner):
 
         # rerank using BLEU against context if set to do so
         if self.context_bleu_weight:
-            bm = BLEUMeasure()
+            bm = BLEUMeasure(max_ngram=2)
+            bleus = []
             for path, tree in zip(paths, trees):
                 bm.reset()
                 bm.append([(n.t_lemma, None) for n in tree.nodes[1:]], [da[0]])
-                path.logprob += self.context_bleu_weight * bm.bleu()
+                bleu = bm.bleu()
+                bleus.append(bleu)
+                path.logprob += self.context_bleu_weight * bleu
+
+            log_debug(("BLEU for context: %s\n\n" % " ".join([form for form, _ in da[0]])) +
+                      "\n".join([("%.5f\t" % b) + " ".join([n.t_lemma for n in t.nodes[1:]])
+                                 for b, t in zip(bleus, trees)]))
 
         # add distances to logprob so that non-fitting will be heavily penalized
         if self.classif_filter:
@@ -255,6 +262,10 @@ class Seq2SeqBase(SentencePlanner):
             fits = self.classif_filter.dist_to_cur_da(trees)
             for path, fit in zip(paths, fits):
                 path.logprob -= self.misfit_penalty * fit
+
+            log_debug(("Misfits for DA: %s\n\n" % str(da)) +
+                      "\n".join([("%.5f\t" % fit) + " ".join([n.t_lemma for n in tree.nodes[1:]])
+                                 for fit, tree in zip(fits, trees)]))
 
         # adjust paths for length (if set to do so)
         if self.length_norm_weight:
