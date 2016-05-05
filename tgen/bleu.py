@@ -22,16 +22,15 @@ class BLEUMeasure(object):
     for a particular n-gram count, or when the predicted sentence is empty.
     """
 
-    MAX_NGRAM = 4
-
-    def __init__(self):
+    def __init__(self, max_ngram=4):
+        self.max_ngram=max_ngram
         self.reset()
 
     def reset(self):
         """Reset all counters."""
         self.ref_len = 0
-        self.cand_lens = [0] * self.MAX_NGRAM
-        self.hits = [0] * self.MAX_NGRAM
+        self.cand_lens = [0] * self.max_ngram
+        self.hits = [0] * self.max_ngram
 
     def append(self, pred_sent, ref_sents):
         """Append a sentence for measurements, increase counters.
@@ -40,7 +39,7 @@ class BLEUMeasure(object):
         @param ref_sents: the corresponding reference sentences (list/tuple of trees/tokens)
         """
 
-        for i in xrange(self.MAX_NGRAM):
+        for i in xrange(self.max_ngram):
             self.hits[i] += self.compute_hits(i+1, pred_sent, ref_sents)
             self.cand_lens[i] += len(pred_sent) - i
 
@@ -101,7 +100,7 @@ class BLEUMeasure(object):
 
         # n-gram precision is smoothed a bit: 0 hits for a given n-gram count are
         # changed to 1e-5 to make BLEU defined everywhere
-        prec_avg = sum(1.0 / self.MAX_NGRAM *
+        prec_avg = sum(1.0 / self.max_ngram *
                        math.log((n_hits if n_hits != 0 else 1e-5) / float(max(n_lens, 1.0)))
                        for n_hits, n_lens in zip(self.hits, self.cand_lens))
 
