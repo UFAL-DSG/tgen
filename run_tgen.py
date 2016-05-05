@@ -473,6 +473,7 @@ def seq2seq_gen(args):
                                            tgen.language, tgen.selector)
             das = [(context, da) for context, da in zip(contexts, das)]
 
+    # prepare evaluation
     if args.eval_file is None or args.eval_file.endswith('.txt'):  # just tokens
         gen_doc = []
     else:  # Trees: depending on PyTreex
@@ -483,6 +484,9 @@ def seq2seq_gen(args):
         else:
             gen_doc = eval_doc
 
+    if args.eval_file:
+        tgen.init_slot_err_stats()
+
     # generate
     log_info('Generating...')
     tgen.selector = args.target_selector  # override target selector for generation
@@ -492,6 +496,7 @@ def seq2seq_gen(args):
 
     # evaluate
     if args.eval_file is not None:
+        log_info(tgen.get_slot_err_stats())
         # evaluate the generated tokens (F1 and BLEU scores)
         if args.eval_file.endswith('.txt'):
             lexicalize_tokens(gen_doc, lexicalization_from_doc(args.abstr_file))

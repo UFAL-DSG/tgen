@@ -297,3 +297,33 @@ class ASearchListsAnalyzer(object):
         return (self.gold_best / tot,
                 self.gold_on_close / tot,
                 (self.gold_on_close + self.gold_on_open) / tot)
+
+
+class SlotErrAnalyzer(object):
+    """Analyze slot error (as in Wen 2015 EMNLP paper), accumulator object."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        """Zero all statistics."""
+        self.missing = 0
+        self.superfluous = 0
+        self.total = 0
+
+    def append(self, da, sent):
+        """Include statistics from the given sentence (assuming tokens, not trees)."""
+        if sent and isinstance(sent[0], tuple):
+            sent = [form for form, pos in sent]  # ignore POS
+        if isinstance(da, tuple):
+            da = da[1]  # ignore contexts
+
+        slots_in_da = set([dai.value for dai in da if dai.value and dai.value.startswith('X-')])
+        slots_in_sent = set([tok for tok in sent if tok.startswith('X-')])
+        self.total += len(slots_in_da)
+        self.missing += len(slots_in_da - slots_in_sent)
+        self.superfluous += len(slots_in_sent - slots_in_da)
+
+    def slot_error(self):
+        """Return the currently accumulated slot error."""
+        return (self.missing + self.supefluous) / float(self.total)

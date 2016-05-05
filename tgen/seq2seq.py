@@ -28,7 +28,7 @@ from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtr
 from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
 from tgen.tree import TreeData, TreeNode
-from tgen.eval import Evaluator
+from tgen.eval import Evaluator, SlotErrAnalyzer
 from tgen.bleu import BLEUMeasure
 from tgen.tfclassif import RerankingClassifier
 from tgen.tf_ml import TFModel, embedding_attention_seq2seq_context
@@ -64,6 +64,7 @@ class Seq2SeqBase(SentencePlanner):
         self.sample_top_k = cfg.get('sample_top_k', 1)
         self.length_norm_weight = cfg.get('length_norm_weight', 0.0)
         self.context_bleu_weight = cfg.get('context_bleu_weight', 0.0)
+        self.slot_err_stats = None
 
         self.classif_filter = None
         if 'classif_filter' in cfg:
@@ -209,6 +210,12 @@ class Seq2SeqBase(SentencePlanner):
         if self.classif_filter or self.context_bleu_weight:
             paths = self._rerank_paths(paths, da)
 
+        # measure slot error on the top k paths
+        if self.slot_err_stats:
+            for path in paths[:self.sample_top_k]:
+                self.slot_err_stats.append(
+                        da, self.tree_embs.ids_to_strings([inp[0] for inp in path.dec_inputs]))
+
         # select the "best" path -- either the best, or one in top k
         if self.sample_top_k > 1:
             best_path = self._sample_path(paths[:self.sample_top_k])
@@ -298,6 +305,16 @@ class Seq2SeqBase(SentencePlanner):
             zone.sentence = unicode(da)
         # return the result
         return tree
+
+    def init_slot_err_stats(self):
+        """Initialize slot error statistics accumulator."""
+        self.slot_err_stats = SlotErrAnalyzer()
+
+    def get_slot_err_stats(self):
+        """Return current slot error statistics, as a string."""
+        return ("Slot error: %.2f (M: %d, S: %d, T: %d)" %
+                (self.slot_err_stats.slot_error(), self.slot_err_stats.missing,
+                 self.slot_err_stats.superfluous, self.slot_err_stats.total))
 
     @staticmethod
     def load_from_file(model_fname):
