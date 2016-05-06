@@ -228,51 +228,49 @@ def percrank_train(args):
 
 def seq2seq_train(args):
 
-    train_size = 1.0
-    parallel = False
-    jobs_number = 0
-    work_dir = None
-    experiment_id = None
-    fname_contexts = None
+    ap = ArgumentParser()
 
-    opts, files = getopt(args, 'd:s:r:j:w:e:c:')
+    ap.add_argument('-s', '--train-size', type=float,
+                    help='Portion of the training data to use (default: 1.0)', default=1.0)
+    ap.add_argument('-d', '--debug-logfile', type=str, help='Debug output file name')
+    ap.add_argument('-j', '--jobs', type=int, help='Number of parallel jobs to use')
+    ap.add_argument('-w', '--work-dir', type=str, help='Main working for parallel jobs')
+    ap.add_argument('-e', '--experiment-id', type=str,
+                    help='Experiment ID for parallel jobs (used as job name prefix)')
+    ap.add_argument('-r', '--random-seed', type=str,
+                    help='Initial random seed (used as string).')
+    ap.add_argument('-c', '--context-file', type=str,
+                    help='Input ttree/text file with context utterances')
 
-    for opt, arg in opts:
-        if opt == '-d':
-            set_debug_stream(file_stream(arg, mode='w'))
-        if opt == '-s':
-            train_size = float(arg)
-        elif opt == '-j':
-            parallel = True
-            jobs_number = int(arg)
-        elif opt == '-w':
-            work_dir = arg
-        elif opt == '-e':
-            experiment_id = arg
-        elif opt == '-r' and arg:
-            rnd.seed(arg)
-        elif opt == '-c':
-            fname_contexts = arg
+    ap.add_argument('seq2seq_config_file', type=str, help='Seq2Seq generator configuration file')
+    ap.add_argument('da_train_file', type=str, help='Input training DAs')
+    ap.add_argument('tree_train_file', type=str, help='Input training trees/sentences')
+    ap.add_argument('seq2seq_model_file', type=str,
+                    help='File name where to save the trained Seq2Seq generator model')
 
-    if len(files) != 4:
-        sys.exit(__doc__)
+    args = ap.parse_args(args)
 
-    fname_gen_config, fname_train_das, fname_train_ttrees, fname_gen_model = files
+    if args.debug_logfile:
+        set_debug_stream(file_stream(args.debug_logfile, mode='w'))
+    if args.random_seed:
+        rnd.seed(rnd.seed(args.random_seed))
+
     log_info('Training sequence-to-sequence generator...')
 
-    config = Config(fname_gen_config)
-    if parallel:
-        config['jobs_number'] = jobs_number
-        if work_dir is None:
-            work_dir, _ = os.path.split(fname_gen_config)
-        generator = ParallelSeq2SeqTraining(config, work_dir, experiment_id)
+    config = Config(args.seq2seq_config_file)
+    if args.jobs:
+        config['jobs_number'] = args.jobs
+        if not args.work_dir:
+            work_dir, _ = os.path.split(args.seq2seq_config_file)
+        generator = ParallelSeq2SeqTraining(config, args.work_dir or work_dir, args.experiment_id)
     else:
         generator = Seq2SeqGen(config)
 
-    generator.train(fname_train_das, fname_train_ttrees,
-                    data_portion=train_size, context_file=fname_contexts)
+    generator.train(args.da_train_file, args.tree_train_file,
+                    data_portion=args.train_size, context_file=args.context_file)
+
     sys.setrecursionlimit(100000)
-    generator.save_to_file(fname_gen_model)
+    generator.save_to_file(args.seq2seq_model_file)
 
 
 def sample_gen(args):
