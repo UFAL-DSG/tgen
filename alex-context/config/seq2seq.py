@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 
 config = {
-          'alpha': 1e-3,
+          'alpha': 5e-4,
           'randomize': True,
           'num_hidden_units': 128,
           'emb_size': 50,
