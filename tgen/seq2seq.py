@@ -581,6 +581,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             rnn_func = embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
                 rnn_func = embedding_attention_seq2seq
+            elif self.nn_type == 'emb_attention2_seq2seq':
+                rnn_func = partial(embedding_attention_seq2seq, att_heads=2)
             elif self.nn_type == 'emb_attention_seq2seq_context':
                 rnn_func = embedding_attention_seq2seq_context
             elif self.nn_type == 'emb_attention2_seq2seq_context':
