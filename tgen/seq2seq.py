@@ -13,6 +13,7 @@ import math
 import tempfile
 import shutil
 import os
+from functools import partial
 
 from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, embedding_attention_seq2seq, \
     sequence_loss
@@ -582,6 +583,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 rnn_func = embedding_attention_seq2seq
             elif self.nn_type == 'emb_attention_seq2seq_context':
                 rnn_func = embedding_attention_seq2seq_context
+            elif self.nn_type == 'emb_attention2_seq2seq_context':
+                rnn_func = partial(embedding_attention_seq2seq_context, att_heads=2)
 
             # for training: feed_previous == False, using dropout if available
             # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps

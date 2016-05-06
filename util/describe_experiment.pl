@@ -140,12 +140,13 @@ elsif ( $mode eq 'seq2seq' ){
     $nn_shape .= ' ' . ( ( $config_data =~ /'cell_type'\s*:\s*'([^']*)'/ )[0] // 'lstm' );
 
     $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq(_context)?'/ );
+    $nn_shape .= ' +att2'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention2_seq2seq_context'/ );
     $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
     $nn_shape .= ' +adgr'  if ( $config_data =~ /'optimizer_type'\s*:\s*'adagrad'/ );
     $nn_shape .= ' +dc'  if ( $config_data =~ /'use_dec_cost'\s*:\s*True/ );
     $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ );
 
-    if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq_context'/ ){
+    if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention2?_seq2seq_context'/ ){
         $nn_shape .= ' +C-sepenc';
     }
     elsif ( $config_data =~ /'use_context'\s*:\s*True/ and $config_data =~ /'use_div_token'\s*:\s*True/){
