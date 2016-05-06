@@ -71,7 +71,8 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
                                         num_heads=1, output_projection=None,
                                         feed_previous=False, dtype=dtypes.float32,
                                         scope=None):
-    """TODO"""
+    """A seq2seq architecture with two encoders, one for context, one for input DA. The decoder
+    uses twice the cell size. Code adapted from TensorFlow examples."""
 
     with vs.variable_scope(scope or "embedding_attention_seq2seq_context"):
 
