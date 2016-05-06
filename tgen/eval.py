@@ -326,4 +326,4 @@ class SlotErrAnalyzer(object):
 
     def slot_error(self):
         """Return the currently accumulated slot error."""
-        return (self.missing + self.supefluous) / float(self.total)
+        return (self.missing + self.superfluous) / float(self.total)
