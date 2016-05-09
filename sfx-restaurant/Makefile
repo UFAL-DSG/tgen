@@ -78,7 +78,10 @@ ifdef EVAL_TEST
   TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
   TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
-  TEST_TOKS = data/$(TRAINING_SET)/text-text.txt
+  TEST_TOKS = data/$(TRAINING_SET)/test-text.txt
+  VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
+  VALID_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
+  VALID_TOKS = data/$(TRAINING_SET)/devel-text.txt
 endif
 SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
 
@@ -288,9 +291,19 @@ seq2seq_train:
 		cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz; \
 		TRAIN_DATA=$(TRY_DIR)/train-text.pickle.gz ; \
 	fi; \
+	if [[ -n "$(EVAL_TEST)" ]]; then \
+		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
+		if [[ -n "$(TOKS)" ]]; then \
+		    cp $(VALID_TOKS) $(TRY_DIR)/devel-text.txt ; \
+		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.txt\""; \
+		else \
+		    cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
+		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz\""; \
+		fi ; \
+	fi ; \
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
-		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" \
+		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" '"$$VALID_DATA_SPEC"' \
 		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt '$$TRAIN_DATA' \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
