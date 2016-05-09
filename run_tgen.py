@@ -241,6 +241,8 @@ def seq2seq_train(args):
                     help='Initial random seed (used as string).')
     ap.add_argument('-c', '--context-file', type=str,
                     help='Input ttree/text file with context utterances')
+    ap.add_argument('-v', '--valid-data', type=str,
+                    help='Validation data paths (2-3 comma-separated files: DAs, trees/sentences, contexts)')
 
     ap.add_argument('seq2seq_config_file', type=str, help='Seq2Seq generator configuration file')
     ap.add_argument('da_train_file', type=str, help='Input training DAs')
@@ -267,7 +269,8 @@ def seq2seq_train(args):
         generator = Seq2SeqGen(config)
 
     generator.train(args.da_train_file, args.tree_train_file,
-                    data_portion=args.train_size, context_file=args.context_file)
+                    data_portion=args.train_size, context_file=args.context_file,
+                    validation_files=args.valid_data)
 
     sys.setrecursionlimit(100000)
     generator.save_to_file(args.seq2seq_model_file)

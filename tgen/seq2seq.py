@@ -381,49 +381,35 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         self.use_context = cfg.get('use_context', False)
 
-    def _init_training(self, das_file, ttree_file, data_portion, context_file):
+    def _init_training(self, das_file, ttree_file, data_portion, context_file, validation_files):
         """Load training data, prepare batches, build the NN.
 
         @param das_file: training DAs (file path)
         @param ttree_file: training t-trees (file path)
         @param data_portion: portion of the data to be actually used for training
+        @param context_file: training contexts (file path)
+        @param validation_files: validation file paths (or None)
         """
-        # read input
+        # read training data
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
-        log_info('Reading t-trees from ' + ttree_file + '...')
-        if ttree_file.endswith('.txt'):
-            if not self.use_tokens:
-                raise ValueError("Cannot read trees from a .txt file (%s)!" % ttree_file)
-            trees = read_tokens(ttree_file)
-        else:
-            ttree_doc = read_ttrees(ttree_file)
-            if self.use_tokens:
-                trees = tokens_from_doc(ttree_doc, self.language, self.selector)
-            else:
-                trees = trees_from_doc(ttree_doc, self.language, self.selector)
-        # read contexts, combine them with corresponding DAs for easier handling
+        trees = self._load_trees(ttree_file)
         if self.use_context:
-            if context_file is None:
-                raise ValueError('Expected context utterances file name!')
-            log_info('Reading context utterances from %s...' % context_file)
-            if context_file.endswith('.txt'):
-                contexts = read_tokens(context_file)
-            else:
-                contexts = tokens_from_doc(read_ttrees(context_file), self.language, self.selector)
-            das = [(context, da) for context, da in zip(contexts, das)]
+            das = self._load_contexts(das, context_file)
 
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(trees)))
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
 
-        # save part of the training data for validation:
-        if self.validation_size > 0:
+        # load separate validation data files...
+        if validation_files:
+            self._load_valid_data(validation_files)
+        # ... or save part of the training data for validation:
+        elif self.validation_size > 0:
             self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
-
         log_info('Using %d training, %d validation instances.' %
-                 (len(self.train_das), self.validation_size))
+                 (len(self.train_das), len(self.valid_das)))
 
         # initialize embeddings
         if self.use_context:
@@ -471,6 +457,71 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # initialize the NN variables
         self.session.run(tf.initialize_all_variables())
 
+    def _load_trees(self, ttree_file):
+        """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
+        log_info('Reading t-trees/sentences from ' + ttree_file + '...')
+        if ttree_file.endswith('.txt'):
+            if not self.use_tokens:
+                raise ValueError("Cannot read trees from a .txt file (%s)!" % ttree_file)
+            return read_tokens(ttree_file)
+        else:
+            ttree_doc = read_ttrees(ttree_file)
+            if self.use_tokens:
+                return tokens_from_doc(ttree_doc, self.language, self.selector)
+            else:
+                return trees_from_doc(ttree_doc, self.language, self.selector)
+
+    def _load_contexts(self, das, context_file):
+        """Load input context utterances from a .yaml.gz/.pickle.gz/.txt file and add them to the
+        given DAs (each returned item is then a tuple of context + DA)."""
+        # read contexts, combine them with corresponding DAs for easier handling
+        if context_file is None:
+            raise ValueError('Expected context utterances file name!')
+        log_info('Reading context utterances from %s...' % context_file)
+        if context_file.endswith('.txt'):
+            contexts = read_tokens(context_file)
+        else:
+            contexts = tokens_from_doc(read_ttrees(context_file), self.language, self.selector)
+        return [(context, da) for context, da in zip(contexts, das)]
+
+    def _load_valid_data(self, valid_data_paths):
+        """Load validation data from separate files (comma-separated list of files with DAs, trees,
+        and optionally contexts is expected)."""
+        # parse validation data file specification
+        valid_data_paths = valid_data_paths.split(',')
+        if len(valid_data_paths) == 3:  # with contexts (this does not determine if they're used)
+            valid_das_file, valid_trees_file, valid_context_file = valid_data_paths
+        else:
+            valid_das_file, valid_trees_file = valid_data_paths
+
+        # load the validation data
+        log_info('Reading DAs from ' + valid_das_file + '...')
+        self.valid_das = read_das(valid_das_file)
+        self.valid_trees = self._load_trees(valid_trees_file)
+        if self.use_context:
+            self.valid_das = self._load_contexts(self.valid_das, valid_context_file)
+
+        # reorder validation data for multiple references (see also _cut_valid_data)
+        valid_size = len(self.valid_trees)
+        if self.multiple_refs:
+            num_refs, refs_stored = self._check_multiple_ref_type(valid_size)
+
+            # serial: different instances next to each other, then synonymous in the same order
+            if refs_stored == 'serial':
+                valid_tree_chunks = [chunk for chunk in
+                                     chunk_list(self.valid_trees, valid_size / num_refs)]
+                self.valid_trees = [[chunk[i] for chunk in valid_tree_chunks]
+                                    for i in xrange(valid_size / num_refs)]
+                self.valid_das = self.valid_das[0:valid_size / num_refs]
+            # parallel: synonymous instances next to each other
+            elif refs_stored == 'parallel':
+                self.valid_trees = [chunk for chunk in chunk_list(self.valid_trees, num_refs)]
+                self.valid_das = self.valid_das[::num_refs]
+
+        # no multiple references; make lists of size 1 to simplify working with the data
+        else:
+            self.valid_trees = [[tree] for tree in self.valid_trees]
+
     def _tokens_to_flat_trees(self, sents):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
         trees (each token has a node right under the root, lemma is the token, formeme is 'x').
@@ -481,18 +532,22 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """
         return [self.tree_embs.ids_to_tree(self.tree_embs.get_embeddings(sent)) for sent in sents]
 
+    def _check_multiple_ref_type(self, data_size):
+        """Parse multiple references setting from the configuration file and check if the data size
+        is compatible with it."""
+        num_refs, refs_stored = self.multiple_refs.split(',')
+        num_refs = int(num_refs)
+        if data_size % num_refs != 0:
+            raise Exception('Data length must be divisible by the number of references!')
+        return num_refs, refs_stored
+
     def _cut_valid_data(self):
-        """Put aside part of the training set  for validation.
-        """
+        """Put aside part of the training set for validation."""
         train_size = len(self.train_trees)
 
         # we have multiple references
         if self.multiple_refs:
-            num_refs, refs_stored = self.multiple_refs.split(',')
-            num_refs = int(num_refs)
-            if train_size % num_refs != 0:
-                raise Exception('Training data length must be divisible by the number ' +
-                                'of validation references!')
+            num_refs, refs_stored = self._check_multiple_ref_type(train_size)
 
             # data stored "serially" (all different instances next to each other, then again in the
             # same order)
@@ -582,11 +637,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             if self.nn_type == 'emb_attention_seq2seq':
                 rnn_func = embedding_attention_seq2seq
             elif self.nn_type == 'emb_attention2_seq2seq':
-                rnn_func = partial(embedding_attention_seq2seq, att_heads=2)
+                rnn_func = partial(embedding_attention_seq2seq, num_heads=2)
             elif self.nn_type == 'emb_attention_seq2seq_context':
                 rnn_func = embedding_attention_seq2seq_context
             elif self.nn_type == 'emb_attention2_seq2seq_context':
-                rnn_func = partial(embedding_attention_seq2seq_context, att_heads=2)
+                rnn_func = partial(embedding_attention_seq2seq_context, num_heads=2)
 
             # for training: feed_previous == False, using dropout if available
             # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps
@@ -702,17 +757,20 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         return iter_no > self.min_passes and iter_no > self.top_k_change + self.improve_interval
 
-    def train(self, das_file, ttree_file, data_portion=1.0, context_file=None):
+    def train(self, das_file, ttree_file, data_portion=1.0,
+              context_file=None, validation_files=None):
         """
         The main training process – initialize and perform a specified number of
         training passes, validating every couple iterations.
 
         @param das_file: training data file with DAs
-        @param ttree_file: training data file with t-trees
+        @param ttree_file: training data file with output t-trees/sentences
         @param data_portion: portion of training data to be actually used, defaults to 1.0
+        @param context_file: path to training file with contexts (trees/sentences)
+        @param validation_files: paths to validation data (DAs, trees/sentences, possibly contexts)
         """
         # load and prepare data and initialize the neural network
-        self._init_training(das_file, ttree_file, data_portion, context_file)
+        self._init_training(das_file, ttree_file, data_portion, context_file, validation_files)
 
         # do the training passes
         for iter_no in xrange(1, self.passes + 1):
