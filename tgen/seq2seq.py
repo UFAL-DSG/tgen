@@ -372,6 +372,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
         self.multiple_refs = cfg.get('multiple_refs', False)  # multiple references for validation
+        self.ref_selectors = cfg.get('ref_selectors', None)  # selectors of validation trees (if in separate file)
         self.max_cores = cfg.get('max_cores')
         self.use_tokens = cfg.get('use_tokens', False)
         self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
@@ -457,7 +458,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # initialize the NN variables
         self.session.run(tf.initialize_all_variables())
 
-    def _load_trees(self, ttree_file):
+    def _load_trees(self, ttree_file, selector=None):
         """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
         log_info('Reading t-trees/sentences from ' + ttree_file + '...')
         if ttree_file.endswith('.txt'):
@@ -466,10 +467,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             return read_tokens(ttree_file)
         else:
             ttree_doc = read_ttrees(ttree_file)
+            if selector is None:
+                selector = self.selector
             if self.use_tokens:
-                return tokens_from_doc(ttree_doc, self.language, self.selector)
+                return tokens_from_doc(ttree_doc, self.language, selector)
             else:
-                return trees_from_doc(ttree_doc, self.language, self.selector)
+                return trees_from_doc(ttree_doc, self.language, selector)
 
     def _load_contexts(self, das, context_file):
         """Load input context utterances from a .yaml.gz/.pickle.gz/.txt file and add them to the
@@ -497,7 +500,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # load the validation data
         log_info('Reading DAs from ' + valid_das_file + '...')
         self.valid_das = read_das(valid_das_file)
-        self.valid_trees = self._load_trees(valid_trees_file)
+        self.valid_trees = self._load_trees(valid_trees_file, selector=self.ref_selectors)
         if self.use_context:
             self.valid_das = self._load_contexts(self.valid_das, valid_context_file)
 
@@ -512,11 +515,13 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                                      chunk_list(self.valid_trees, valid_size / num_refs)]
                 self.valid_trees = [[chunk[i] for chunk in valid_tree_chunks]
                                     for i in xrange(valid_size / num_refs)]
-                self.valid_das = self.valid_das[0:valid_size / num_refs]
+                if len(self.valid_das) > len(self.valid_trees):
+                    self.valid_das = self.valid_das[0:valid_size / num_refs]
             # parallel: synonymous instances next to each other
             elif refs_stored == 'parallel':
                 self.valid_trees = [chunk for chunk in chunk_list(self.valid_trees, num_refs)]
-                self.valid_das = self.valid_das[::num_refs]
+                if len(self.valid_das) > len(self.valid_trees):
+                    self.valid_das = self.valid_das[::num_refs]
 
         # no multiple references; make lists of size 1 to simplify working with the data
         else:

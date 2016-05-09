@@ -165,14 +165,18 @@ def chunk_list(l, n):
 
 def ttrees_from_doc(ttree_doc, language, selector):
     """Given a Treex document full of t-trees, return just the array of t-trees."""
-    return map(lambda bundle: bundle.get_zone(language, selector).ttree,
-               ttree_doc.bundles)
+    selectors = selector.split(',')
+    return [bundle.get_zone(language, sel).ttree
+            for bundle in ttree_doc.bundles
+            for sel in selectors]
 
 
 def trees_from_doc(ttree_doc, language, selector):
     """Given a Treex document full of t-trees, return TreeData objects for each of them."""
-    return map(lambda bundle: TreeData.from_ttree(bundle.get_zone(language, selector).ttree),
-               ttree_doc.bundles)
+    selectors = selector.split(',')
+    return [TreeData.from_ttree(bundle.get_zone(language, sel).ttree)
+            for bundle in ttree_doc.bundles
+            for sel in selectors]
 
 
 def sentences_from_doc(ttree_doc, language, selector):
@@ -183,7 +187,10 @@ def sentences_from_doc(ttree_doc, language, selector):
 def tokens_from_doc(ttree_doc, language, selector):
     """Given a Treex document, return a list of lists of tokens (word forms + tags) in the given
     language and selector."""
-    atrees = map(lambda bundle: bundle.get_zone(language, selector).atree, ttree_doc.bundles)
+    selectors = selector.split(',')
+    atrees = [bundle.get_zone(language, sel).atree
+              for bundle in ttree_doc.bundles
+              for sel in selectors]
     sents = []
     for atree in atrees:
         anodes = atree.get_descendants(ordered=True)
@@ -224,7 +231,7 @@ def postprocess_tokens(tokens, das):
             sent.append((final_punct, None))
 
     for sent, da in zip(tokens, das):
-        final_punct = '?' if da[0].dat[0] == '?' else '.' # '?' for '?request...'
+        final_punct = '?' if da[0].dat[0] == '?' else '.'  # '?' for '?request...'
         if isinstance(sent[0], list):
             for sent_var in sent:  # multiple references
                 postprocess_sent(sent_var, final_punct)
