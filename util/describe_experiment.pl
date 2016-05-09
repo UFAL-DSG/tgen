@@ -12,9 +12,9 @@ use File::stat;
 use File::Slurp;
 use Getopt::Long;
 
-my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-j JOBS] [-d] [-c CV] [-r] [-k] file1.log file2.log [...]\n";
+my $USAGE = "Usage: ./$0 [-t TRAINING_SET] [-e] [-j JOBS] [-d] [-c CV] [-r] [-k] file1.log file2.log [...]\n";
 
-my ( $training_set, $jobs, $debug, $cv, $rands, $portion, $toks ) = ( '', '', 0, '', 0, 1.0 );
+my ( $eval_data, $training_set, $jobs, $debug, $cv, $rands, $portion, $toks ) = ( 0, '', '', 0, '', 0, 1.0 );
 GetOptions(
     'training_set|training|t=s' => \$training_set,
     'jobs|j=s'                  => \$jobs,
@@ -23,11 +23,12 @@ GetOptions(
     'rands|r'                   => \$rands,
     'train_portion|portion|p=f' => \$portion,
     'toks|k'                    => \$toks,
+    'eval_data|eval|e'          => \$eval_data,
 ) or die($USAGE);
 die($USAGE) if ( !@ARGV );
 
 # Gather the settings from the command arguments and config files
-my ( $iters, $training_data, $gadgets, $run_setting, $nn_shape ) = ( '', '', '', '', '' );
+my ( $data_set, $iters, $training_data, $gadgets, $run_setting, $nn_shape ) = ( '', '', '', '', '', '' );
 my $config_data = read_file( $ARGV[0] );
 
 # remove commented-out lines
@@ -42,6 +43,11 @@ if ( $ARGV[0] =~ /seq2seq/ ){
     # remove classification filter data so that they do not influence reading other settings
     $classif_filter_data = ( $config_data =~ /'classif_filter'\s*:\s*{([^}]*)}/s )[0];
     $config_data =~ s/'classif_filter'\s*:\s*{[^}]*}//s;
+}
+
+# data set (devel -- default, eval -- mark)
+if ($eval_data){
+    $data_set = "\e[1;31mE\e[0m ";
 }
 
 # iterations
@@ -214,4 +220,4 @@ $run_setting =~ s/^ //;
 $run_setting =~ s/ +/,/g;
 
 # Print the output.
-print "$iters$training_data$gadgets$nn_shape ($run_setting)";
+print "$data_set$iters$training_data$gadgets$nn_shape ($run_setting)";
