@@ -8,9 +8,16 @@ use warnings;
 use autodie;
 use File::Basename;
 use File::stat;
+use Getopt::Long;
 
+my $USAGE = "Usage: ./$0 [--bleu-range=40:60] [--nist-range=3:6] file1.log file2.log [...]\n";
 
-die("Usage: ./$0 file1.log file2.log [...]\n") if ( !@ARGV );
+my ( $bleu_range, $nist_range ) = ( '40:80', '3:6' );
+GetOptions(
+    'bleu-range|bleu|b=s' => \$bleu_range,
+    'nist-range|nist|n=s' => \$nist_range,
+) or die($USAGE);
+die($USAGE) if ( !@ARGV );
 
 
 # Filter ARGV and get just the last log file
@@ -66,7 +73,7 @@ while ( my $line = <$fh> ) {
         $line =~ s/[a-z]//gi;
         $line =~ s/^\s+//;
         my ( $n, $b ) = split( /\s+/, $line );
-        $bleu = rg( 3, 6, $n ) . "NIST $n" . rg( 40, 65, $b ) . "  BLEU $b\e[0m";
+        $bleu = rg( split( /:/, $nist_range ), $n ) . "NIST $n" . rg( split( /:/, $bleu_range ), $b ) . "  BLEU $b\e[0m";
     }
 
     # just BLEU (for tokens setting)
@@ -75,7 +82,7 @@ while ( my $line = <$fh> ) {
         $line =~ s/\s+//g;
         my $b = sprintf "%.2f", $line;
         # leave spaces instead of NIST
-        $bleu = "             " . rg( 40, 80, $b ) . "BLEU $b\e[0m";
+        $bleu = "             " . rg( split( /:/, $bleu_range ), $b ) . "BLEU $b\e[0m";
     }
 }
 

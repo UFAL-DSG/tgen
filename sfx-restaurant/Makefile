@@ -22,7 +22,7 @@ ifdef DEBUG_GEN
 endif
 MTEVAL = ../util/mteval-v11b.pl
 AVERAGE_SCORES = ../util/average_scores.pl
-GREP_SCORES = ../util/grep_scores.pl
+GREP_SCORES = ../util/grep_scores.pl --bleu-range=73:78.5
 DESC_EXP = ../util/describe_experiment.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
