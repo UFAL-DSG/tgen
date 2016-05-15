@@ -14,11 +14,11 @@ else
   ACTIVATE = echo -n
 endif
 ifdef DEBUG
-  DEBUG_LOG_TRAIN = -d $(TRY_DIR)/percrank.debug-log.txt.gz
-  DEBUG_LOG_GEN = -d $(TRY_DIR)/asearch.debug-log.txt
+  DEBUG_LOG_TRAIN = -d $(TRY_DIR)/train.debug-log.txt.gz
+  DEBUG_LOG_GEN = -d $(TRY_DIR)/gen.debug-log.txt
 endif
 ifdef DEBUG_GEN
-  DEBUG_LOG_GEN = -d $(TRY_DIR)/asearch.debug-log.txt
+  DEBUG_LOG_GEN = -d $(TRY_DIR)/gen.debug-log.txt
 endif
 MTEVAL = ../util/mteval-v11b.pl
 AVERAGE_SCORES = ../util/average_scores.pl
@@ -51,9 +51,6 @@ endif
 
 # Input data file defaults
 
-CANDGEN_MODEL = model/$(TRAINING_SET)/candgen.pickle.gz
-#PERCRANK_MODEL = model/percrank.pickle.gz
-PERCRANK_CONFIG = config/percrank.py
 SEQ2SEQ_CONFIG = config/seq2seq.py
 ASEARCH_CONFIG = config/asearch.py
 CLASSIF_CONFIG = config/classif.py
@@ -98,42 +95,17 @@ make desc [NUM_EXP=20] [REFRESH=1]
 * Change NUM_EXP if you need to see more than 20 latest results.
 * Refresh scores to obtain new results by setting REFRESH=1 (makes it slower).
 
-make percrank_train [J=XX] D='Description'
-* Run a new percrank training experiment
-  - set TRAIN_PORTION to a fraction of the training
-    data to be used
-  - set J/JOBS to the number of parallel jobs to be used
-    in a parallel training setup
-
-make asearch_gen D='Description'
-* Run A*search generation
-  (set PERCRANK_MODEL to the model you want to use).
-
-make asearch_gen-XXX
-* Directly test the model trained from experiment number
-  XXX.
-
-make rerun-XXX
-* Re-run experiment number XXX.
-  - Will find the last log file and select the experiment type
-    accordingly.
-
-make norm_log LOGFILE=path/to/debug.log
-* Normalize debug log files for diffing (stripping dates)
-  - Set LOG_CUTOFF to adjust the number of lines where the logs
-    will be cut off.
-
-make cv_run J=[XX] D='Description'
-* Run a 10-fold cross-validation experiment where percrank
-  training is directly followed by A*search generation.
-  - set SEEDS=1 to use 5 different random seeds for each CV run.
+make seq2seq_cv_run J=[XX] D='Description'
+* Run an experiment where seq2seq
+  training is directly followed by testing generation.
+  - set RANDS=1 to use 5 different random seeds (and average the results)
   - set EVAL_TEST=1 to evaluate on test data instead of development data
 
-make cv_score-XXX
-* Retrieve a cross-validation run score.
+make score-XXX
+* Retrieve a score for run without RANDS.
 
-make compare_output TRY_DIR=runs/XXX/cvXX
-* Compare the output of the given run to gold standard
+make cv_score-XXX
+* Retrieve a score for run with RANDS.
 ---
 
 Use QP='--console' if you want the job to run interactively instead
@@ -172,10 +144,6 @@ desc:
 		echo >> $$file/$(SCOREFILE); \
 		cat $$file/$(SCOREFILE); \
 	done
-
-train_desc:
-	make desc SCOREFILE=TRAIN_SCORE LOGFILES='$$$$file/percrank_train.log.txt' NUM_EXP=$(NUM_EXP) REFRESH=$(REFRESH)
-
 
 printvars:
 	$(foreach V, $(sort $(.VARIABLES)), $(if $(filter-out environment% default automatic, $(origin $V)), $(info $V=$($V) ($(value $V)))))
@@ -221,13 +189,8 @@ cv_run:
 		SEEDS=(""); \
 	fi; \
 	for SEED in "$${SEEDS[@]}"; do \
-		if [[ "$(RUN_TYPE)" == "seq2seq" ]]; then \
-			TRAIN_RUN=seq2seq_train ; \
-			TEST_RUN=seq2seq_gen_cv ; \
-		else \
-			TRAIN_RUN=percrank_train ; \
-			TEST_RUN=asearch_gen_cv  ; \
-		fi; \
+		TRAIN_RUN=seq2seq_train ; \
+		TEST_RUN=seq2seq_gen_cv ; \
 		make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
 		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
@@ -248,32 +211,6 @@ score-%:
 
 score:
 	$(AVERAGE_SCORES) $(TRY_DIR)/T.*.*_gen.o* | tee $(TRY_DIR)/gen.log.txt
-
-
-cv_train_stats-%:
-	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
-	$(eval TRY_NUM := $*)
-	make cv_train_stats TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM)
-
-cv_train_stats:
-	$(AVERAGE_SCORES) $(TRY_DIR)/*/T.*.percrank_train.o* | tee $(TRY_DIR)/percrank_train.log.txt
-
-
-percrank_train: RUN_NAME := percrank_train
-percrank_train: RUN_TYPE := asearch
-percrank_train: prepare_dir
-percrank_train:
-	# copy needed files (to ensure replication)
-	cp $(CANDGEN_MODEL) $(TRY_DIR)/candgen.pickle.gz
-	cp $(PERCRANK_CONFIG) $(TRY_DIR)/percrank_config.py
-	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
-	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
-	# run the experiment
-	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) percrank_train $(DEBUG_LOG_TRAIN) -c $(TRY_DIR)/candgen.pickle.gz  \
-		-s $(TRAIN_PORTION) $(PARALLEL) -e "T.$(TRY_NUM)" -r "$(SEED)" \
-		$(TRY_DIR)/percrank_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
-		$(TRY_DIR)/percrank.pickle.gz' 2>&1 | tee $(TRY_DIR)/percrank_train.log.txt
 
 seq2seq_train: RUN_NAME := seq2seq_train
 seq2seq_train: RUN_TYPE := seq2seq
@@ -297,28 +234,6 @@ seq2seq_train:
 		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
-asearch_gen: RUN_NAME := asearch_gen
-asearch_gen: prepare_dir
-asearch_gen:
-	cp $(CANDGEN_MODEL) $(TRY_DIR)/candgen.pickle.gz
-	cp $(PERCRANK_MODEL) $(TRY_DIR)/percrank.pickle.gz
-	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
-	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
-
-asearch_gen_cv:
-asearch_gen_cv:
-	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
-	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
-
-asearch_gen-%:
-	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
-	$(eval TRY_NUM := $*)
-	cp $(ASEARCH_CONFIG) $(TRY_DIR)/asearch_config.py
-	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make asearch_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
-
 seq2seq_gen_cv:
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
 	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
@@ -331,12 +246,6 @@ prepare_test_data:
 	cp $(TEST_CONTEXT) $(TRY_DIR)/test-context.pickle.gz
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
-
-asearch_gen_process: RUN_NAME := asearch_gen
-asearch_gen_process: GEN_MODEL := $(TRY_DIR)/candgen.pickle.gz $(TRY_DIR)/percrank.pickle.gz
-asearch_gen_process: SELECTOR_CONFIG := -s "$(EVAL_SELECTOR)"
-asearch_gen_process: GEN_CONFIG := -c $(TRY_DIR)/asearch_config.py
-asearch_gen_process: gen_process
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
@@ -361,55 +270,10 @@ gen_process:
 		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
-rerun-%:
-	$(eval TRY_DIR := $(shell ls -d $(RUNS_DIR)/$**))
-	$(eval TRY_NUM := $*)
-	$(eval RUN_NAME := $(shell ls -t $(TRY_DIR)/T.* | head -n 1 | sed 's/.*\/T\.[0-9]\+\.//;s/\..*//;'))
-	# select last log file, extract command from it and run it
-	if find $(TRY_DIR)/cv* -type d >/dev/null 2>&1 | grep -qz .; then \
-		for DIR in `find $(TRY_DIR)/cv* -type d`; do \
-			make rerun TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) RUN_NAME=percrank_train 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
-			JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-			if `ls $$DIR/T.*.asearch_gen.* >/dev/null 2>&1`; then \
-				make rerun TRY_NUM=$(TRY_NUM) TRY_DIR=$$DIR RUN_NAME=asearch_gen QP="$(QP)" QHOLD="--hold $$JOB_NUM" ; \
-			else \
-				make asearch_gen_cv TRY_DIR=$$DIR TRY_NUM=$(TRY_NUM) CV_NUM=`basename $$DIR | sed 's/s.$$//'` QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
-			fi ; \
-		done ; \
-	else \
-		make rerun TRY_DIR=$(TRY_DIR) RUN_NAME=$(RUN_NAME) TRY_NUM=$(TRY_NUM) ; \
-	fi
-
-# Use only through rerun-XXX (TRY_DIR, RUN_NAME must be set)
+# Rerun an experiment (TRY_DIR, TRY_NUM, RUN_NAME must be set!)
 rerun:
 	LAST_LOGFILE=`ls -t $(TRY_DIR)/T.*.$(RUN_NAME).* | head -n 1` ; \
 	COMMAND=`cat $$LAST_LOGFILE | sed '1,/^== Directory/d;/^== Hard res/,$$d;s/^== Command:\s*//;'` ; \
 	echo "Rerunning command: $$COMMAND"; \
 	$(QSUBMIT) "$$COMMAND" 2>&1 | tee -a $(TRY_DIR)/$(RUN_NAME).log.txt ;
 
-
-norm_log:
-	if [[ -z "$(LOGFILE)" ]]; then \
-		echo "LOGFILE must be set." ; \
-		exit 1; \
-	fi; \
-	cat $(LOGFILE) | head -n $(LOG_CUTOFF) | sed -r 's/^[A-Za-z]{3} [A-Za-z]{3} [0-9: ]{16} //' > $(LOGFILE).norm ; \
-
-candgen_train: TRY_DIR := model/$(TRAINING_SET)
-candgen_train:
-	mkdir -p $(TRY_DIR)
-	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
-	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
-	echo -e "Training set: $(TRAINING_SET)\nParams: $(CANDGEN_PARAMS)" > $(TRY_DIR)/PARAMS
-	PARAMS="$(CANDGEN_PARAMS)" ; \
-	if [[ -n `echo $$PARAMS | grep -- '-t'` ]]; then \
-		CL_CONFIG=`echo "$$PARAMS" | sed 's/.*-t //'`; \
-		PARAMS=`echo "$$PARAMS" | sed 's/-t .*/-t /'`"$$CL_CONFIG" ; \
-		cp $$CL_CONFIG $(TRY_DIR)/classif_config.py; \
-	fi; \
-	../run_tgen.py candgen_train $$PARAMS $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz $(TRY_DIR)/candgen.pickle.gz 2>&1 | tee $(TRY_DIR)/training.log
-
-compare_output:
-	cat $(TRY_DIR)/test-conc.sgm | sed 's/<\/doc>/***/;s/<[^>]*>//g;s/ \././g;/^$$/d;4,24s/^/* /;28,$$s/^/+ /;' | awk '{print tolower($$0)}' > $(TRY_DIR)/test-conc.txt
-	cat $(TRY_DIR)/out-text.sgm | sed 's/<\/doc>/***/;s/<[^>]*>//g;s/ \././g;/^$$/d;4,24s/^/* /;' | awk '{print tolower($$0)}' > $(TRY_DIR)/out-text.txt
-	vimdiff $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-text.txt
