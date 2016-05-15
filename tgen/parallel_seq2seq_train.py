@@ -89,7 +89,7 @@ class ParallelSeq2SeqTraining(object):
         # this is needed for saving the model
         self.model_temp_path = None
 
-    def train(self, das_file, ttree_file, data_portion=1.0, context_file=None):
+    def train(self, das_file, ttree_file, data_portion=1.0, context_file=None, validation_files=None):
         """Run parallel perceptron training, start and manage workers."""
         # initialize the ranker instance
         log_info('Initializing...')
@@ -130,13 +130,17 @@ class ParallelSeq2SeqTraining(object):
                     log_debug('Assigning request %d' % cur_assign)
                     sc = self.free_services.popleft()
                     log_info('Assigning request %d to %s:%d' % (cur_assign, sc.host, sc.port))
+                    if validation_files is not None:
+                        validation_files = ','.join([os.path.relpath(f, self.work_dir)
+                                                     for f in validation_files.split(',')])
                     train_func = async(sc.conn.root.train)
                     req = train_func(rnd_seeds[cur_assign],
                                      os.path.relpath(das_file, self.work_dir),
                                      os.path.relpath(ttree_file, self.work_dir),
                                      data_portion,
                                      os.path.relpath(context_file, self.work_dir)
-                                     if context_file else None)
+                                     if context_file else None,
+                                     validation_files)
                     self.pending_requests.add((sc, cur_assign, req))
                     cur_assign += 1
                     log_debug('Assigned %d' % cur_assign)
@@ -149,7 +153,7 @@ class ParallelSeq2SeqTraining(object):
                                               for cost, sc in results))
 
             self.model_temp_path = os.path.join(self.work_dir, self.TEMPFILE_NAME)
-            results.sort(key=lambda res:res[0])
+            results.sort(key=lambda res: res[0])
             # average the computed models
             if self.average_models:
                 log_info('Creating ensemble models...')
@@ -278,6 +282,7 @@ class ParallelSeq2SeqTraining(object):
         ensemble.build_ensemble(models, rerank_settings, rerank_params)
         return ensemble
 
+
 class Seq2SeqTrainingService(Service):
     """RPyC Worker class for a job training a Seq2Seq generator."""
 
@@ -293,14 +298,14 @@ class Seq2SeqTrainingService(Service):
         self.seq2seq = Seq2SeqGen(cfg)
         log_info('Training initialized. Time taken: %f secs.' % (time.time() - tstart))
 
-    def exposed_train(self, rnd_seed, das_file, ttree_file, data_portion, context_file):
+    def exposed_train(self, rnd_seed, das_file, ttree_file, data_portion, context_file, validation_files):
         """Run the whole training.
         """
         rnd.seed(rnd_seed)
         log_info('Random seed: %f' % rnd_seed)
         tstart = time.time()
         log_info('Starting training...')
-        self.seq2seq.train(das_file, ttree_file, data_portion, context_file)
+        self.seq2seq.train(das_file, ttree_file, data_portion, context_file, validation_files)
         log_info('Training finished -- time taken: %f secs.' % (time.time() - tstart))
         top_cost = self.seq2seq.top_k_costs[0]
         log_info('Best cost: %f' % top_cost)
