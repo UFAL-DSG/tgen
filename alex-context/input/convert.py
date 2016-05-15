@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 
 
 import json
-import sys
 import re
 import argparse
 
@@ -87,13 +86,14 @@ def parse_da(da_text):
 
     return da
 
+
 def tokenize(text):
     """Tokenize the text (i.e., insert spaces around all tokens)"""
     toks = re.sub(r'([?.!;,:-]+)(?![0-9])', r' \1 ', text)  # enforce space around all punct
 
     # most common contractions
-    toks = re.sub(r'([\'’´])(s|m|d|ll|re|ve)\s', r' \1\2 ', toks) # I'm, I've etc.
-    toks = re.sub(r'(n[\'’´]t\s)', r' \1 ', toks) # do n't
+    toks = re.sub(r'([\'’´])(s|m|d|ll|re|ve)\s', r' \1\2 ', toks)  # I'm, I've etc.
+    toks = re.sub(r'(n[\'’´]t\s)', r' \1 ', toks)  # do n't
 
     # other contractions, as implemented in Treex
     toks = re.sub(r' ([Cc])annot\s', r' \1an not ', toks)
@@ -142,6 +142,21 @@ def convert_abstr_da(abstr_da):
     return abstr_da
 
 
+def write_part(file_name, data, part_size, repeat=1):
+    """Write part of the dataset to a file (if the data instances are lists, unroll them, if not,
+    repeat each instance `repeat` times). Delete the written instances from the `data` list
+    at the end."""
+    with open(file_name, 'w') as fh:
+        for inst in data[0:part_size]:
+            if isinstance(inst, list):
+                for inst_part in inst:
+                    fh.write(unicode(inst_part).encode('utf-8') + "\n")
+            else:
+                for _ in xrange(repeat):
+                    fh.write(unicode(inst).encode('utf-8') + "\n")
+    del data[0:part_size]
+
+
 def convert(args):
     """Main function – read in the JSON data and output TGEN-specific files."""
 
@@ -151,15 +166,16 @@ def convert(args):
     concs = []  # concrete sentences
     texts = []  # abstracted sentences
     absts = []  # abstraction descriptions
-    contexts = []
+    contexts = []  # abstracted contexts
+    conc_contexts = []  # lexicalized contexts
 
     # process the input data and store it in memory
     with open(args.in_file, 'r') as fh:
         data = json.load(fh, encoding='UTF-8')
         for item in data:
-            # todo handle contexts somehow
             da = convert_abstr_da(parse_da(item['response_da']))
             context = convert_abstractions(item['context_utt'])
+            context_l = item['context_utt_l']
             conc_da = parse_da(item['response_da_l'])
             concs_ = [tokenize(s) for s in item['response_nl_l']]
             absts_ = []
@@ -171,6 +187,7 @@ def convert(args):
 
             das.append(da)
             contexts.append(context)
+            conc_contexts.append(context_l)
             concs.append(concs_)
             absts.append(absts_)
             texts.append(texts_)
@@ -195,54 +212,33 @@ def convert(args):
     else:
         # use just one part -- containing all the data
         data_sizes = [items]
-        out_names = [out_name]
+        out_names = [args.out_name]
 
     # write all data parts
     for part_size, part_name in zip(data_sizes, out_names):
-        with open(part_name + '-das.txt', 'w') as fh:
-            for da in das[0:part_size]:
-                # repeat DAs for synonymous paraphrases, unless for test data in multi-ref mode
-                repeat_num = len(concs[0])
-                if args.multi_ref and part_name in ['devel', 'test', 'dtest', 'etest']:
-                    repeat_num = 1
-                for _ in xrange(repeat_num):
-                    fh.write(unicode(da).encode('utf-8') + "\n")
-            del das[0:part_size]
 
-        with open(part_name + '-context.txt', 'w') as fh:
-            for context in contexts[0:part_size]:
-                # same with contexts -- repeat for synonymous paraphrases if not in multi-ref mode
-                repeat_num = len(concs[0])
-                if args.multi_ref and part_name in ['devel', 'test', 'dtest', 'etest']:
-                    repeat_num = 1
-                for _ in xrange(repeat_num):
-                    fh.write(context.encode('utf-8') + "\n")
-            del contexts[0:part_size]
+        repeat_num = len(concs[0])
+        if args.multi_ref and part_name in ['devel', 'test', 'dtest', 'etest']:
+            repeat_num = 1
 
-        with open(part_name + '-conc.txt', 'w') as fh:
-            for concs_ in concs[0:part_size]:
-                for conc in concs_:
-                    fh.write(conc.encode('utf-8') + "\n")
-            del concs[0:part_size]
+        # repeat DAs and contexts for synonymous paraphrases, unless for test data in multi-ref mode
+        write_part(part_name + '-das.txt', das, part_size, repeat_num)
+        write_part(part_name + '-context.txt', contexts, part_size, repeat_num)
+        write_part(part_name + '-conc_context.txt', conc_contexts, part_size, repeat_num)
 
-        with open(part_name + '-abst.txt', 'w') as fh:
-            for absts_ in absts[0:part_size]:
-                for abst in absts_:
-                    fh.write("\t".join([unicode(a) for a in abst]).encode('utf-8') + "\n")
-            del absts[0:part_size]
-
-        with open(part_name + '-text.txt', 'w') as fh:
-            for texts_ in texts[0:part_size]:
-                for text in texts_:
-                    fh.write(text.encode('utf-8') + "\n")
-            del texts[0:part_size]
+        # write all other just once (here, each instance is a list, it will be unrolled)
+        write_part(part_name + '-conc.txt', concs, part_size)
+        write_part(part_name + '-abst.txt', absts, part_size)
+        write_part(part_name + '-text.txt', texts, part_size)
 
 
-if  __name__ == '__main__':
+if __name__ == '__main__':
     argp = argparse.ArgumentParser()
     argp.add_argument('in_file', help='Input JSON file')
     argp.add_argument('out_name', help='Output files name prefix(es - when used with -s, comma-separated)')
     argp.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
-    argp.add_argument('-m', '--multi-ref', help='Multiple reference mode; i.e. do not repeat DA in devel and test parts', action='store_true')
+    argp.add_argument('-m', '--multi-ref',
+                      help='Multiple reference mode; i.e. do not repeat DA in devel and test parts',
+                      action='store_true')
     args = argp.parse_args()
     convert(args)
