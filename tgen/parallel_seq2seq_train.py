@@ -73,6 +73,7 @@ class ParallelSeq2SeqTraining(object):
         self.jobs_number = cfg.get('jobs_number', 10)
         self.job_memory = cfg.get('job_memory', 8)
         self.port = cfg.get('port', self.DEFAULT_PORT)
+        self.queue_settings = cfg.get('queue_settings')
         self.host = socket.getfqdn()
         self.poll_interval = cfg.get('poll_interval', 1)
         self.average_models = cfg.get('average_models', False)
@@ -106,7 +107,7 @@ class ParallelSeq2SeqTraining(object):
                             (self.host, self.port, debug_logfile)),
                       name=self.experiment_id + ("PRT%02d-%s-%d" % (j, host_short, self.port)),
                       work_dir=self.work_dir)
-            job.submit(self.job_memory)
+            job.submit(memory=self.job_memory, queue=self.queue_settings)
             self.jobs.append(job)
 
         # run the training passes

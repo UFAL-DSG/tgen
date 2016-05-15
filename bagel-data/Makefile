@@ -7,7 +7,8 @@ SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
 #QP = -q *@a*,*@c*,*@f*,*@hyp*,*@i*,*@l*,*@o*,*@p*,*@t*# avoid Hydra and Belzebub
-QP = --exclude-comp hyperion5
+#QP = --exclude-comp hyperion5
+QP = --queue troja-all.q
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
