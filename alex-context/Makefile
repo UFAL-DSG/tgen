@@ -21,6 +21,7 @@ ifdef DEBUG_GEN
   DEBUG_LOG_GEN = -d $(TRY_DIR)/gen.debug-log.txt
 endif
 MTEVAL = ../util/mteval-v11b.pl
+POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=62:70 --nist-range=6:8
 DESC_EXP = ../util/describe_experiment.pl
@@ -267,6 +268,7 @@ gen_process:
 			$(SURFACE_SCEN) Write::Treex \
 			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
 			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=AlexContext sys_id=TGEN add_header=tstset; \
+		$(POSTPROCESS) $(TRY_DIR)/out-text.sgm; \
 		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
