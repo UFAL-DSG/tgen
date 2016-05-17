@@ -89,7 +89,12 @@ while ( my $line = <$fh> ) {
 close($fh);
 
 # Print the output
-print "$pr   $lists   $bleu\e[0m";
+if ($lists){
+    print "$pr  $lists  $bleu\e[0m";
+}
+else {
+    print "$pr  $bleu\e[0m";
+}
 
 #
 # Subs
