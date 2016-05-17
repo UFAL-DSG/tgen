@@ -65,6 +65,7 @@ class Seq2SeqBase(SentencePlanner):
         self.sample_top_k = cfg.get('sample_top_k', 1)
         self.length_norm_weight = cfg.get('length_norm_weight', 0.0)
         self.context_bleu_weight = cfg.get('context_bleu_weight', 0.0)
+        self.context_bleu_metric = cfg.get('context_bleu_metric', 'bleu')
         self.slot_err_stats = None
 
         self.classif_filter = None
@@ -249,7 +250,9 @@ class Seq2SeqBase(SentencePlanner):
             for path, tree in zip(paths, trees):
                 bm.reset()
                 bm.append([(n.t_lemma, None) for n in tree.nodes[1:]], [da[0]])
-                bleu = bm.bleu()
+                bleu = (bm.ngram_precision()
+                        if self.context_bleu_metric == 'ngram_prec'
+                        else bm.bleu())
                 bleus.append(bleu)
                 path.logprob += self.context_bleu_weight * bleu
 
@@ -265,7 +268,8 @@ class Seq2SeqBase(SentencePlanner):
                 path.logprob -= self.misfit_penalty * fit
 
             log_debug(("Misfits for DA: %s\n\n" % str(da)) +
-                      "\n".join([("%.5f\t" % fit) + " ".join([n.t_lemma for n in tree.nodes[1:]])
+                      "\n".join([("%.5f\t" % fit) +
+                                 " ".join([unicode(n.t_lemma) for n in tree.nodes[1:]])
                                  for fit, tree in zip(fits, trees)]))
 
         # adjust paths for length (if set to do so)

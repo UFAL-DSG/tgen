@@ -92,11 +92,18 @@ class BLEUMeasure(object):
     def bleu(self):
         """Return the current BLEU score, according to the accumulated counts."""
 
-        # brevity penalty
+        # brevity penalty (smoothed a bit: if candidate length is 0, we change it to 1e-5
+        # to avoid division by zero)
         bp = 1.0
         if (self.cand_lens[0] <= self.ref_len):
             bp = math.exp(1.0 - self.ref_len /
                           (float(self.cand_lens[0]) if self.cand_lens[0] else 1e-5))
+
+        return bp * self.ngram_precision()
+
+    def ngram_precision(self):
+        """Return the current n-gram precision (harmonic mean of n-gram precisions up to max_ngram)
+        according to the accumulated counts."""
 
         # n-gram precision is smoothed a bit: 0 hits for a given n-gram count are
         # changed to 1e-5 to make BLEU defined everywhere
@@ -104,4 +111,5 @@ class BLEUMeasure(object):
                        math.log((n_hits if n_hits != 0 else 1e-5) / float(max(n_lens, 1.0)))
                        for n_hits, n_lens in zip(self.hits, self.cand_lens))
 
-        return bp * math.exp(prec_avg)
+        return math.exp(prec_avg)
+
