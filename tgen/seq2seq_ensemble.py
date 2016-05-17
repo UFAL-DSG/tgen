@@ -66,7 +66,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         # for simplicity, this is implemented exacly like a beam search, but with a path sized one
         empty_tree_emb = self.tree_embs.get_embeddings(TreeData())
         dec_inputs = cut_batch_into_steps([empty_tree_emb])
-        path = self.DecodingPath(dec_inputs=[dec_inputs[0]])
+        path = self.DecodingPath(stop_token_id=self.tree_embs.STOP, dec_inputs=[dec_inputs[0]])
 
         for step in xrange(len(dec_inputs)):
             out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
