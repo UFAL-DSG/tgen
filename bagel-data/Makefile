@@ -166,7 +166,7 @@ desc:
 			cat $$file/$(SCOREFILE) ; \
 			continue ; \
 		fi ; \
-		echo -ne $$file ":\t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/$(SCOREFILE);  \
+		echo -ne $$file ":\t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_.*/  /;' > $$file/$(SCOREFILE);  \
 		$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
 		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
