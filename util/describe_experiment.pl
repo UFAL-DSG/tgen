@@ -135,6 +135,8 @@ if ( $mode eq 'percrank' ){
 }
 elsif ( $mode eq 'seq2seq' ){
 
+    $nn_shape .= ' +lc'  if ( $config_data =~ /'embeddings_lowercase'\s*:\s*True/ );
+
     $nn_shape .= ' E' . ( ( $config_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
     $nn_shape .= '-N' . ( ( $config_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
     if ( $config_data =~ /'dropout_keep_prob'\s*:\s*(0\.[0-9]*)/ ){
