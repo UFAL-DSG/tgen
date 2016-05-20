@@ -23,7 +23,7 @@ config = {
           'use_dec_cost': False,
           'average_models': False,
           'average_models_top_k': 1,
-          'queue_settings': 'troja-all.q',
+          'queue_settings': 'troja-all.q', # SGE queue setting (CUNI-specific)
 
           'validation_size': 10,
           'validation_freq': 1,
@@ -33,8 +33,8 @@ config = {
           'improve_interval': 100,
           'top_k': 10,
           'bleu_validation_weight': 1,
-          'beam_size': 10,
-          'alpha_decay': 0,  0.03
+          'beam_size': 100,
+          'alpha_decay': 0,
 
           'classif_filter': {  # embedding settings will be copied here
               'language': 'en',
