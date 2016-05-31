@@ -4,3 +4,6 @@ data
 model
 logs
 runs
+*.backup
+bootstrap
+tmp
