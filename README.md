@@ -1,22 +1,29 @@
 TGen
 ====
 
-*Natural language generator for spoken dialogue systems with a statistical sentence planner*
+*A statistical natural language generator for spoken dialogue systems*
 
-TGen is a natural language generator, composed of:
-- a statistical sentence planner based on A*-style search, with a candidate plan generator and a perceptron ranker
-- a rule-based surface realizer using the existing [Treex NLP toolkit](http://ufal.cz/treex)
+TGen is a statistical natural language generator, with two different algorithms supported:
 
-TGen can be trained from pairs of source meaning representations (dialogue acts) and target sentences.
-More details can be found in our [ACL 2015 paper](http://www.aclweb.org/anthology/P/P15/P15-1044.pdf).
+1. A statistical sentence planner based on A*-style search, with a candidate plan generator and a perceptron ranker
+2. A sequence-to-sequence (seq2seq) recurrent neural network architecture based on the [TensorFlow](https://www.tensorflow.org/) toolkit
+
+Both algoritms can be trained from pairs of source meaning representations (dialogue acts) and target sentences.
+The newer seq2seq approach is preferrable: it yields higher performance in terms of both speed and quality.
+
+Both algorithms support generating sentence plans (deep syntax trees), which are subsequently converted to text using the existing the surface realizer from [Treex NLP toolkit](http://ufal.cz/treex).
+The seq2seq algorithm also supports direct string generation.
+
+For more details on the algorithms, please refer to our papers:
+* For A*-search based generation, see our [ACL 2015 paper](http://www.aclweb.org/anthology/P/P15/P15-1044.pdf).
+* For seq2seq generation, see our ACL 2016 paper (to appear).
 
 Notice
 ------
 
-TGen is currently highly experimental and not very well tested. Use at your own risk.
-
-To get the version used in our ACL 2015 paper, see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015). The current master version has
-new experimental features using neural networks (not stable and worse performance than perceptron).
+* TGen is highly experimental and only tested on a few datasets. Use at your own risk.
+* To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
+* To get the version used in our ACL 2016 paper (seq2seq approach for generating sentence plans or strings), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
 
 Dependencies
 ------------
@@ -47,20 +54,23 @@ Parallel training on the cluster is using [SGE](https://arc.liv.ac.uk/trac/SGE)'
 Citing TGen
 -----------
 
-Please cite [this paper](http://www.aclweb.org/anthology/P/P15/P15-1044.pdf) when using parts of TGen in your work:
+If you use or refer to the seq2seq generation in TGen, please cite this paper:
 
-Ondřej Dušek and Filip Jurčíček (2015): Training a Natural Language Generator From Unaligned Data. In _Proceedings of the 53rd Annual Meeting of the Association for Computational Linguistics and the 7th International Joint Conference on Natural Language Processing_, pages 451–461, Beijing, China.
+* Ondřej Dušek and Filip Jurčíček (2016): Sequence-to-Sequence Generation for Spoken Dialogue via Deep Syntax Trees and Strings. In _Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics_, Berlin, Germany. To appear.
+
+If you use or refer to the A*-search generation in TGen, please cite [this paper](http://www.aclweb.org/anthology/P/P15/P15-1044.pdf):
+
+* Ondřej Dušek and Filip Jurčíček (2015): Training a Natural Language Generator From Unaligned Data. In _Proceedings of the 53rd Annual Meeting of the Association for Computational Linguistics and the 7th International Joint Conference on Natural Language Processing_, pages 451–461, Beijing, China.
 
 License
 -------
 Author: [Ondřej Dušek](http://ufal.cz/ondrej-dusek)
 
-Copyright © 2014-2015 Institute of Formal and Applied Linguistics, Charles University in Prague.
+Copyright © 2014-2016 Institute of Formal and Applied Linguistics, Charles University in Prague.
 
 Licensed under the Apache License, Version 2.0.
 
 Acknowledgements
 ----------------
 
-Work on this project was funded by the Ministry of Education, Youth and Sports of the Czech Republic under the grant agreement LK11221 and core research funding, SVV project 260 104, and GAUK grant 2058214 of Charles University in Prague. It used language resources stored and distributed by the LINDAT/CLARIN project of the Ministry of Education, Youth and Sports of the Czech Republic (project LM2010013).
-
+Work on this project was funded by the Ministry of Education, Youth and Sports of the Czech Republic under the grant agreement LK11221 and core research funding, SVV projects 260 104 and 260 333, and GAUK grant 2058214 of Charles University in Prague. It used language resources stored and distributed by the LINDAT/CLARIN project of the Ministry of Education, Youth and Sports of the Czech Republic (projects LM201001 and LM2015071).
