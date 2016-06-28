@@ -312,7 +312,7 @@ def convert(args):
     else:
         # use just one part -- containing all the data
         data_sizes = [turns]
-        out_names = [out_name]
+        out_names = [args.out_name]
 
     # write all data parts
     for part_size, part_name in zip(data_sizes, out_names):
