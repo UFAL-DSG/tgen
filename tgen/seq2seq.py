@@ -15,10 +15,6 @@ import shutil
 import os
 from functools import partial
 
-from tensorflow.models.rnn.seq2seq import embedding_rnn_seq2seq, embedding_attention_seq2seq, \
-    sequence_loss
-from tensorflow.models.rnn import rnn_cell
-
 from pytreex.core.util import file_stream
 
 from tgen.logf import log_info, log_debug, log_warn
@@ -632,21 +628,21 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # prepare cells
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
-            self.cell = rnn_cell.GRUCell(self.emb_size)
+            self.cell = tf.nn.rnn_cell.GRUCell(self.emb_size)
         else:
-            self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
+            self.cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
 
         if self.cell_type.endswith('/2'):
-            self.cell = rnn_cell.MultiRNNCell([self.cell] * 2)
+            self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
 
-            rnn_func = embedding_rnn_seq2seq
+            rnn_func = tf.nn.seq2seq.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
-                rnn_func = embedding_attention_seq2seq
+                rnn_func = tf.nn.seq2seq.embedding_attention_seq2seq
             elif self.nn_type == 'emb_attention2_seq2seq':
-                rnn_func = partial(embedding_attention_seq2seq, num_heads=2)
+                rnn_func = partial(tf.nn.seq2seq.embedding_attention_seq2seq, num_heads=2)
             elif self.nn_type == 'emb_attention_seq2seq_context':
                 rnn_func = embedding_attention_seq2seq_context
             elif self.nn_type == 'emb_attention2_seq2seq_context':
@@ -677,10 +673,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                              for trg in self.targets]
 
         # cost
-        self.tf_cost = sequence_loss(self.outputs, self.targets,
-                                     self.cost_weights, self.tree_dict_size)
-        self.dec_cost = sequence_loss(self.dec_outputs, self.targets,
-                                      self.cost_weights, self.tree_dict_size)
+        self.tf_cost = tf.nn.seq2seq.sequence_loss(self.outputs, self.targets,
+                                                   self.cost_weights, self.tree_dict_size)
+        self.dec_cost = tf.nn.seq2seq.sequence_loss(self.dec_outputs, self.targets,
+                                                    self.cost_weights, self.tree_dict_size)
         if self.use_dec_cost:
             self.cost = 0.5 * (self.tf_cost + self.dec_cost)
         else:
