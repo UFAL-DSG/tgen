@@ -17,7 +17,6 @@ import shutil
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.ops import rnn, rnn_cell
 
 from pytreex.core.util import file_stream
 
@@ -27,7 +26,7 @@ from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
 from tgen.features import Features
 from tgen.ml import DictVectorizer
 from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract
-from tgen.tree import TreeData, NodeData
+from tgen.tree import TreeData
 from alex.components.slu.da import DialogueAct
 from tgen.tf_ml import TFModel
 
@@ -283,11 +282,11 @@ class RerankingClassifier(TFModel):
         """
         # read input from files or take it directly from parameters
         if not isinstance(das, list):
-            log_info('Reading DAs from ' + das_file + '...')
-            das = read_das(das_file)
+            log_info('Reading DAs from ' + das + '...')
+            das = read_das(das)
         if not isinstance(trees, list):
-            log_info('Reading t-trees from ' + ttree_file + '...')
-            ttree_doc = read_ttrees(ttree_file)
+            log_info('Reading t-trees from ' + trees + '...')
+            ttree_doc = read_ttrees(trees)
             if self.use_tokens:
                 tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
                 trees = self._tokens_to_flat_trees(tokens)
@@ -382,7 +381,7 @@ class RerankingClassifier(TFModel):
                 self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
                 self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
                                for i in xrange(self.input_shape[0])]
-                self.cell = rnn_cell.BasicLSTMCell(self.emb_size)
+                self.cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
                 self.outputs = self._rnn('rnn', self.inputs)
 
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
@@ -415,7 +414,7 @@ class RerankingClassifier(TFModel):
         activ = (num_layers * [tf.nn.tanh]) + [tf.identity]
         Y = X
         for i in xrange(num_layers + 1):
-            w = tf.get_variable(name + ('-w%d' %i), (width[i], width[i+1]),
+            w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i+1]),
                                 initializer=tf.random_normal_initializer(stddev=0.1))
             b = tf.get_variable(name + ('-b%d' % i), (width[i+1],),
                                 initializer=tf.constant_initializer())
@@ -423,8 +422,8 @@ class RerankingClassifier(TFModel):
         return Y
 
     def _rnn(self, name, enc_inputs):
-        encoder_cell = rnn_cell.EmbeddingWrapper(self.cell, self.dict_size)
-        _, encoder_states = rnn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
+        encoder_cell = tf.nn.rnn_cell.EmbeddingWrapper(self.cell, self.dict_size)
+        _, encoder_states = tf.nn.rnn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
         w = tf.get_variable(name + '-w', (self.cell.state_size, self.num_outputs),
                             initializer=tf.random_normal_initializer(stddev=0.1))
         b = tf.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
