@@ -18,6 +18,37 @@ from tgen.debug import exc_info_hook
 sys.excepthook = exc_info_hook
 
 
+# the color output is a recipe from the Python cookbook, #475186
+def has_colours(stream):
+    """Detect if the given output stream supports color codes."""
+    if not hasattr(stream, "isatty"):
+        return False
+    if not stream.isatty():
+        return False  # auto color only on TTYs
+    try:
+        import curses
+        curses.setupterm()
+        return curses.tigetnum("colors") > 2
+    except:
+        # guess false in case of error
+        return False
+
+
+stdout_has_colours = has_colours(sys.stdout)
+
+
+BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(8)
+
+
+def printout(text, colour=WHITE):
+    """Print text to sys.stdout using colors."""
+    if stdout_has_colours:
+        seq = "\x1b[1;%dm" % (30+colour) + text + "\x1b[0m"
+        sys.stdout.write(seq)
+    else:
+        sys.stdout.write(text)
+
+
 class Result(object):
     """This holds a general CSV line, with all CSV fields as attributes of the object."""
 
@@ -81,11 +112,14 @@ def main():
     ap = ArgumentParser()
     # TODO use more files ?
     ap.add_argument('-b', '--bootstrap-iters', type=int, default=1000)
+    ap.add_argument('-e', '--example-outputs', action='store_true')
     ap.add_argument('cf_output', type=str, help='crowdflower results file')
 
     args = ap.parse_args()
     votes = defaultdict(int)
     res = []
+    res_by_id = {}
+    options = {}
 
     with open(args.cf_output, 'rb') as fh:
         csvread = csv.reader(fh, delimiter=b',', quotechar=b'"', encoding="UTF-8")
@@ -94,17 +128,47 @@ def main():
             row = Result(row, headers)
             if row._golden == 'true':  # skip test questions
                 continue
+
+            res_by_id[row._unit_id] = res_by_id.get(row._unit_id, {row.origin_a: 0, row.origin_b: 0})
+            options[row._unit_id] = {'context': row.context,
+                                     row.origin_a: row.text_a,
+                                     row.origin_b: row.text_b}
             if row.more_natural == 'A less than B':
                 votes[row.origin_b] += 1
                 res.append(row.origin_b)
+                res_by_id[row._unit_id][row.origin_b] += 1
             elif row.more_natural == 'A more than B':
                 votes[row.origin_a] += 1
                 res.append(row.origin_a)
+                res_by_id[row._unit_id][row.origin_a] += 1
 
+    print "Results:"
     for key, val in votes.iteritems():
         print '%s\t%d (%2.2f)' % (key, val, float(val) / len(res) * 100)
 
+    agreement_stats = defaultdict(int)
+    for unit_id, stats in res_by_id.iteritems():
+        stats_key = " ".join(["%s=%d" % (key, times) for key, times in stats.iteritems()])
+        agreement_stats[stats_key] += 1
+
+    print "\nAgreement:"
+    for key, val in agreement_stats.iteritems():
+        print '%s\t%d (%2.2f)' % (key, val, float(val) / len(res_by_id) * 100)
+
+    print "\nBootstrap:"
     pairwise_bootstrap(res, args.bootstrap_iters)
+
+    if args.example_outputs:
+        all_keys = next(res_by_id.itervalues()).keys()
+        for good_key in all_keys:
+            print "\n%s = 0:\n=================" % good_key
+            for unit_id, stats in res_by_id.iteritems():
+                if all([key == good_key or res_by_id[unit_id][key] == 0 for key in all_keys]):
+                    printout(options[unit_id]['context'], YELLOW)
+                    print " : ",
+                    printout(options[unit_id][good_key], GREEN)
+                    print " > ",
+                    print " ".join([options[unit_id][key] for key in all_keys if key != good_key])
 
 
 if __name__ == '__main__':
