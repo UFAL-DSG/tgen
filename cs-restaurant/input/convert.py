@@ -115,6 +115,8 @@ class DA(object):
 
 class MorphoAnalyzer(object):
 
+    COORD_CONJS = ['a', 'i', 'nebo', 'anebo', 'či']
+
     def __init__(self, tagger_model, abst_slots):
         self._tagger = Tagger.load(tagger_model)
         self._analyzer = self._tagger.getMorpho()
@@ -333,6 +335,8 @@ class MorphoAnalyzer(object):
                     covered_slots.add(slot)
                 else:
                     delex_text.append((form, lemma, tag))
+            # fix coordinated delexicalized values
+            self._delex_fix_coords(delex_text)
             # check and warn if we left something non-delexicalized
             for dai in da:
                 if (dai.slot in self._abst_slots and
@@ -344,6 +348,19 @@ class MorphoAnalyzer(object):
             out.append(delex_text)
         return out
 
+    def _delex_fix_coords(self, text):
+        """Fix (merge) coordinated values in delexicalized text (X-slot and X-slot -> X-slot).
+        Modifies the input list directly.
+
+        @param text: list of form-lemma-tag tokens of the delexicalized sentence
+        @return: None
+        """
+        idx = 0
+        while idx < len(text) - 2:
+            if text[idx][0] == text[idx+2][0] and text[idx+1][1] in self.COORD_CONJS:
+                del text[idx+1]
+                del text[idx+1]
+            idx += 1
 
 def convert(args):
     """Main conversion function (using command-line arguments as parsed by Argparse)."""
