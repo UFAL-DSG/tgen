@@ -96,8 +96,16 @@ class DA(object):
         return da
 
     def has_value(self, value):
+        """If the DA contains the given value, return the corresponding slot; return None
+        otherwise. Abstracts away from "and" and "or" values (returns True for both coordination
+        members)."""
         for dai in self.dais:
             if dai.value == value:
+                return dai.slot
+            if (dai.value is not None and
+                    value not in [None, '?'] and
+                    (re.match(r'.* (and|or) ' + value + r'$', dai.value) or
+                     re.match(r'^' + value + r' (and|or) ', dai.value))):
                 return dai.slot
         return None
 
@@ -129,15 +137,16 @@ class MorphoAnalyzer(object):
             for value in values.keys():
                 for surface_form in values[value]:
                     form, tag = surface_form.split("\t")
-                    form_toks = form.split(" ")
+                    form_toks = form.lower().split(" ")
+                    lemma = value
                     if slot == 'street':  # add street number placeholders to addresses
-                        value += ' _'
+                        lemma += ' _'
                         form_toks.append('_')
                     form_toks = tuple(form_toks)
                     self._sf_max_len = max((self._sf_max_len, len(form_toks)))
                     if form_toks not in self._sf_dict:
                         self._sf_dict[form_toks] = []
-                    self._sf_dict[form_toks].append((value, tag))
+                    self._sf_dict[form_toks].append((lemma, tag))
 
     def _get_surface_form_taggedlemmas(self, forms_in):
         """Given a tokens deque, return the form & list of tagged lemmas (analyses)
@@ -150,7 +159,7 @@ class MorphoAnalyzer(object):
         for test_len in xrange(min(self._sf_max_len, len(forms_in)), 0, -1):
             # test the string, handle number placeholders
             full_substr = [form for form in islice(forms_in, 0, test_len)]
-            test_substr = tuple(['_' if re.match(r'^[0-9]+$', form) else form
+            test_substr = tuple(['_' if re.match(r'^[0-9]+$', form) else form.lower()
                                  for form in full_substr])
             if test_substr in self._sf_dict:
                 tls = TaggedLemmas()
@@ -212,6 +221,8 @@ class MorphoAnalyzer(object):
         return absts
 
     def process_files(self, input_text_file, input_da_file):
+        """Load DAs & sentences, obtain abstraction instructions, and store it all in member
+        variables (to be used later by writing methods)."""
         # load DAs
         self._das = []
         with codecs.open(input_da_file, 'r', encoding='UTF-8') as fh:
@@ -256,7 +267,7 @@ class MorphoAnalyzer(object):
     def write_text(self, data_file, out_format, subrange, delex=False):
         """Write output sentences for the given data subrange.
         @param data_file: output file name
-        @param out_format: output format ('conll' -- CoNLL-X morphology, \
+        @param out_format: output format ('conll' -- CoNLL-U morphology, \
             'interleaved' -- lemma/tag interleaved, 'plain' -- plain text)
         @param subrange: data range (slice) from buffers to write
         @param delex: delexicalize? false by default
@@ -294,6 +305,7 @@ class MorphoAnalyzer(object):
         self._write_plain(data_file, das)
 
     def _delex_das(self, subrange):
+        """Delexicalize DAs in the given subrange (slice) of the buffers."""
         out = []
         for da in self._das[subrange]:
             delex_da = DA()
@@ -307,24 +319,38 @@ class MorphoAnalyzer(object):
         return out
 
     def _delex_texts(self, subrange):
+        """Delexicalize texts in the given subrange (slice) of the buffers."""
         out = []
-        for text, da in zip(self._sents[subrange], self._das[subrange]):
+        for idx, (text, da) in enumerate(zip(self._sents[subrange], self._das[subrange]),
+                                         start=subrange.start):
             delex_text = []
+            covered_slots = set()
+            # do the delexicalization, keep track of which slots we used
             for (form, lemma, tag) in text:
                 slot = da.has_value(lemma)
-                if slot:
+                if slot and slot in self._abst_slots:
                     delex_text.append(('X-' + slot, 'X-' + slot, tag))
+                    covered_slots.add(slot)
                 else:
                     delex_text.append((form, lemma, tag))
+            # check and warn if we left something non-delexicalized
+            for dai in da:
+                if (dai.slot in self._abst_slots and
+                        dai.value not in [None, 'none', 'dont_care'] and
+                        dai.slot not in covered_slots):
+                    log_info("Cannot delexicalize slot  %s  at %d:\nDA: %s\nTx: %s\n" %
+                             (dai.slot, idx, unicode(da), " ".join([form for form, _, _ in text])))
+            # output the delexicalized text
             out.append(delex_text)
         return out
 
 
 def convert(args):
     """Main conversion function (using command-line arguments as parsed by Argparse)."""
-    log_info('Processing input files...')
+    log_info('Loading...')
     analyzer = MorphoAnalyzer(args.tagger_model, args.abst_slots)
     analyzer.load_surface_forms(args.surface_forms)
+    log_info('Processing input files...')
     analyzer.process_files(args.input_text_file, args.input_da_file)
     log_info('Loaded %d data items.' % analyzer.buf_length())
 
