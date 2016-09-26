@@ -95,6 +95,13 @@ class DA(object):
 
         return da
 
+    def value_for_slot(self, slot):
+        """Return the value for the given slot (None if unset or not present at all)."""
+        for dai in self.dais:
+            if dai.slot == slot:
+                return dai.value
+        return None
+
     def has_value(self, value):
         """If the DA contains the given value, return the corresponding slot; return None
         otherwise. Abstracts away from "and" and "or" values (returns True for both coordination
@@ -114,8 +121,6 @@ class DA(object):
 
 
 class MorphoAnalyzer(object):
-
-    COORD_CONJS = ['a', 'i', 'nebo', 'anebo', 'či']
 
     def __init__(self, tagger_model, abst_slots):
         self._tagger = Tagger.load(tagger_model)
@@ -211,17 +216,6 @@ class MorphoAnalyzer(object):
                              in zip(self._forms_buf, self._analyses_buf, self._indices_buf)])
         return analyzed
 
-    def get_delex_instr(self, analyzed, da):
-        """Get delexicalization/abstraction instructions from the given analyzed sentence
-        and the given corresponding DA. All values in the analyzed sentence are assumed to
-        be single-token (which may contains spaces)."""
-        absts = []
-        for idx, (_, lemma, _) in enumerate(analyzed):
-            slot = da.has_value(lemma)
-            if slot:
-                absts.append(Abst(slot, lemma, idx, idx+1))
-        return absts
-
     def process_files(self, input_text_file, input_da_file):
         """Load DAs & sentences, obtain abstraction instructions, and store it all in member
         variables (to be used later by writing methods)."""
@@ -236,8 +230,9 @@ class MorphoAnalyzer(object):
             for line in fh:
                 self._sents.append(self.analyze(line.strip()))
         assert(len(self._das) == len(self._sents))
-        # get abstraction instructions for all sentence-DA pairs
-        self._absts = [self.get_delex_instr(sent, da) for sent, da in zip(self._sents, self._das)]
+        # delexicalize DAs and sentences
+        self._delex_texts()
+        self._delex_das()
 
     def buf_length(self):
         """Return the number of sentence-DA pairs currently loaded in the buffer."""
@@ -275,7 +270,7 @@ class MorphoAnalyzer(object):
         @param delex: delexicalize? false by default
         """
         if delex:
-            texts = self._delex_texts(subrange)
+            texts = self._delexed_texts[subrange]
         else:
             texts = self._sents[subrange]
         if out_format == 'interleaved':
@@ -301,15 +296,15 @@ class MorphoAnalyzer(object):
         @param delex: delexicalize? false by default
         """
         if delex:
-            das = self._delex_das(subrange)
+            das = self._delexed_das[subrange]
         else:
             das = self._das[subrange]
         self._write_plain(data_file, das)
 
-    def _delex_das(self, subrange):
-        """Delexicalize DAs in the given subrange (slice) of the buffers."""
+    def _delex_das(self):
+        """Delexicalize DAs in the buffers, save them separately."""
         out = []
-        for da in self._das[subrange]:
+        for da in self._das:
             delex_da = DA()
             for dai in da:
                 delex_dai = DAI(dai.type, dai.slot,
@@ -318,37 +313,42 @@ class MorphoAnalyzer(object):
                                 else dai.value)
                 delex_da.append(delex_dai)
             out.append(delex_da)
-        return out
+        self._delexed_das = out
 
-    def _delex_texts(self, subrange):
-        """Delexicalize texts in the given subrange (slice) of the buffers."""
-        out = []
-        for idx, (text, da) in enumerate(zip(self._sents[subrange], self._das[subrange]),
-                                         start=subrange.start):
+    def _delex_texts(self):
+        """Delexicalize texts in the buffers and save them separately in the member variables,
+        along with the delexicalization instructions used for the operation."""
+        self._delexed_texts = []
+        self._absts = []
+        for text_idx, (text, da) in enumerate(zip(self._sents, self._das)):
             delex_text = []
-            covered_slots = set()
+            absts = []
             # do the delexicalization, keep track of which slots we used
-            for (form, lemma, tag) in text:
+            for tok_idx, (form, lemma, tag) in enumerate(text):
                 slot = da.has_value(lemma)
                 if slot and slot in self._abst_slots:
                     delex_text.append(('X-' + slot, 'X-' + slot, tag))
-                    covered_slots.add(slot)
+                    absts.append(Abst(slot, lemma, tok_idx, tok_idx + 1))
                 else:
                     delex_text.append((form, lemma, tag))
             # fix coordinated delexicalized values
-            self._delex_fix_coords(delex_text)
-            # check and warn if we left something non-delexicalized
+            self._delex_fix_coords(delex_text, da, absts)
+            covered_slots = set([a.slot for a in absts])
+            # check and warn if we left isomething non-delexicalized
             for dai in da:
                 if (dai.slot in self._abst_slots and
                         dai.value not in [None, 'none', 'dont_care'] and
                         dai.slot not in covered_slots):
                     log_info("Cannot delexicalize slot  %s  at %d:\nDA: %s\nTx: %s\n" %
-                             (dai.slot, idx, unicode(da), " ".join([form for form, _, _ in text])))
-            # output the delexicalized text
-            out.append(delex_text)
-        return out
+                             (dai.slot,
+                              text_idx,
+                              unicode(da),
+                              " ".join([form for form, _, _ in text])))
+            # save the delexicalized text and the delexicalization instructions
+            self._delexed_texts.append(delex_text)
+            self._absts.append(absts)
 
-    def _delex_fix_coords(self, text):
+    def _delex_fix_coords(self, text, da, absts):
         """Fix (merge) coordinated values in delexicalized text (X-slot and X-slot -> X-slot).
         Modifies the input list directly.
 
@@ -356,10 +356,16 @@ class MorphoAnalyzer(object):
         @return: None
         """
         idx = 0
-        while idx < len(text) - 2:
-            if text[idx][0] == text[idx+2][0] and text[idx+1][1] in self.COORD_CONJS:
-                del text[idx+1]
-                del text[idx+1]
+        while idx < len(absts) - 1:
+            if (absts[idx].slot == absts[idx+1].slot and
+                    absts[idx].end + 1 == absts[idx + 1].start and
+                    re.search(r' (and|or) ', da.value_for_slot(absts[idx].slot))):
+                for abst in absts[idx+2:]:
+                    abst.start -= 2
+                    abst.end -= 2
+                absts[idx].value = da.value_for_slot(absts[idx].slot)
+                del text[absts[idx].end:absts[idx + 1].end]
+                del absts[idx + 1]
             idx += 1
 
 def convert(args):
