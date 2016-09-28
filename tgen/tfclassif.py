@@ -22,7 +22,8 @@ from pytreex.core.util import file_stream
 
 from tgen.rnd import rnd
 from tgen.logf import log_debug, log_info
-from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc
+from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, \
+    tagged_lemmas_from_doc
 from tgen.features import Features
 from tgen.ml import DictVectorizer
 from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract
@@ -99,7 +100,7 @@ class RerankingClassifier(TFModel):
         if self.tree_embs:
             self.tree_embs = TreeEmbeddingClassifExtract(cfg)
             self.emb_size = cfg.get('emb_size', 50)
-        self.use_tokens = cfg.get('use_tokens', False)
+        self.mode = cfg.get('mode', 'tokens' if cfg.get('use_tokens') else 'trees')
 
         self.nn_shape = cfg.get('nn_shape', 'ff')
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
@@ -195,7 +196,7 @@ class RerankingClassifier(TFModel):
 
         # initialize training
         self._init_training(das, trees, data_portion)
-        if self.use_tokens and valid_trees is not None:
+        if self.mode in ['tokens', 'tagged_lemmas'] and valid_trees is not None:
             valid_trees = [self._tokens_to_flat_trees(paraphrases) for paraphrases in valid_trees]
 
         # start training
@@ -287,12 +288,15 @@ class RerankingClassifier(TFModel):
         if not isinstance(trees, list):
             log_info('Reading t-trees from ' + trees + '...')
             ttree_doc = read_ttrees(trees)
-            if self.use_tokens:
+            if self.mode == 'tokens':
                 tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
                 trees = self._tokens_to_flat_trees(tokens)
+            elif self.mode == 'tagged_lemmas':
+                tls = tagged_lemmas_from_doc(ttree_doc, self.language, self.selector)
+                trees = self._tokens_to_flat_trees(tls)
             else:
                 trees = trees_from_doc(ttree_doc, self.language, self.selector)
-        elif self.use_tokens:
+        elif self.mode in ['tokens', 'tagged_lemmas']:
             trees = self._tokens_to_flat_trees(trees)
 
         # make training data smaller if necessary
@@ -366,7 +370,7 @@ class RerankingClassifier(TFModel):
 
         self.targets = tf.placeholder(tf.float32, [None, self.num_outputs], name='targets')
 
-        with tf.variable_scope(self.scope_name) as scope:
+        with tf.variable_scope(self.scope_name):
 
             # feedforward networks
             if self.nn_shape.startswith('ff'):
@@ -496,9 +500,12 @@ class RerankingClassifier(TFModel):
         """
         das = read_das(das_file)
         ttree_doc = read_ttrees(ttree_file)
-        if self.use_tokens:
+        if self.mode == 'tokens':
             tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
             trees = self._tokens_to_flat_trees(tokens)
+        elif self.mode == 'tagged_lemmas':
+            tls = tagged_lemmas_from_doc(ttree_doc, self.language, self.selector)
+            trees = self._tokens_to_flat_trees(tls)
         else:
             trees = trees_from_doc(ttree_doc, self.language, self.selector)
 
