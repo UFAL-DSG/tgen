@@ -57,7 +57,8 @@ from flect.config import Config
 from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
 from tgen.futil import file_stream, read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens, \
-    lexicalization_from_doc, lexicalize_tokens, postprocess_tokens
+    postprocess_tokens, create_ttree_doc
+from tgen.lexicalize import Lexicalizer
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import ASearchPlanner, SamplingPlanner
@@ -436,7 +437,9 @@ def seq2seq_gen(args):
 
     ap.add_argument('-e', '--eval-file', type=str, help='A ttree/text file for evaluation')
     ap.add_argument('-a', '--abstr-file', type=str,
-                    help='Lexicalization file (a.k.a. abstraction instsructions, for tokens only)')
+                    help='Lexicalization file (a.k.a. abstraction instructions, for postprocessing)')
+    ap.add_argument('-s', '--surface-forms-file', type=str,
+                    help='Surface forms file (used with lexicalization file)')
     ap.add_argument('-r', '--ref-selector', type=str, default='',
                     help='Selector for reference trees in the evaluation file')
     ap.add_argument('-t', '--target-selector', type=str, default='',
@@ -474,75 +477,45 @@ def seq2seq_gen(args):
                                            tgen.language, tgen.selector)
             das = [(context, da) for context, da in zip(contexts, das)]
 
-    # prepare evaluation
-    if args.eval_file is None or args.eval_file.endswith('.txt'):  # just tokens
-        gen_doc = []
-    else:  # Trees: depending on PyTreex
-        from pytreex.core.document import Document
-        eval_doc = read_ttrees(args.eval_file)
-        if args.ref_selector == args.target_selector:
-            gen_doc = Document()
-        else:
-            gen_doc = eval_doc
-
-    if args.eval_file:
-        tgen.init_slot_err_stats()
-
     # generate
     log_info('Generating...')
-    tgen.selector = args.target_selector  # override target selector for generation
+    gen_trees = []
     for num, da in enumerate(das, start=1):
         log_debug("\n\nTREE No. %03d" % num)
-        tgen.generate_tree(da, gen_doc)
+        gen_trees.append(tgen.generate_tree(da))
+    log_info(tgen.get_slot_err_stats())
 
-    # evaluate
-    if args.eval_file is not None:
-        log_info(tgen.get_slot_err_stats())
-        # evaluate the generated tokens (F1 and BLEU scores)
-        if args.eval_file.endswith('.txt'):
-            lexicalize_tokens(gen_doc, lexicalization_from_doc(args.abstr_file))
-            eval_tokens(das, read_tokens(args.eval_file, ref_mode=True), gen_doc)
-        # evaluate the generated trees against golden trees
-        else:
-            eval_trees(das,
-                       ttrees_from_doc(eval_doc, tgen.language, args.ref_selector),
-                       ttrees_from_doc(gen_doc, tgen.language, args.target_selector),
-                       eval_doc, tgen.language, tgen.selector)
+    # evaluate the generated trees against golden trees (delexicalized)
+    eval_doc = None
+    if args.eval_file and not args.eval_file.endswith('.txt'):
+        eval_doc = read_ttrees(args.eval_file)
+        evaler = Evaluator()
+        evaler.process_eval_doc(eval_doc, gen_trees, tgen.language, args.ref_selector,
+                                args.target_selector or tgen.selector)
+
+    # lexicalize, if required
+    if args.abstr_file:
+        lexer = Lexicalizer(args.abstr_file, args.surface_forms)
+        lexer.lexicalize(gen_trees, tgen.mode)
+
+    # evaluate the generated & lexicalized tokens (F1 and BLEU scores)
+    if args.eval_file and args.eval_file.endswith('.txt'):
+        eval_tokens(das, read_tokens(args.eval_file, ref_mode=True), gen_trees)
 
     # write output .yaml.gz or .txt
     if args.output_file is not None:
         log_info('Writing output...')
         if args.output_file.endswith('.txt'):
-            write_tokens(gen_doc, args.output_file)
+            write_tokens(gen_trees, args.output_file)
         else:
-            write_ttrees(gen_doc, args.output_file)
-
-
-def eval_trees(das, eval_ttrees, gen_ttrees, eval_doc, language, selector):
-    """Evaluate generated trees and print out statistics."""
-
-    log_info('Evaluating...')
-    evaler = Evaluator()
-    for eval_bundle, eval_ttree, gen_ttree, da in zip(eval_doc.bundles, eval_ttrees, gen_ttrees, das):
-        # add some stats about the tree directly into the output file
-        add_bundle_text(eval_bundle, language, selector + 'Xscore',
-                        "P: %.4f R: %.4f F1: %.4f" % p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
-
-        # collect overall stats
-        # TODO maybe add cost ??
-        evaler.append(eval_ttree, gen_ttree)
-    # print overall stats
-    log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1())
-    log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % evaler.p_r_f1(EvalTypes.DEP))
-    log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.size_stats())
-    log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % evaler.score_stats())
-    log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
-             evaler.common_substruct_stats())
+            write_ttrees(create_ttree_doc(gen_trees, eval_doc, tgen.language,
+                                          args.target_selector or tgen.selector),
+                         args.output_file)
 
 
 def eval_tokens(das, eval_tokens, gen_tokens):
     """Evaluate generated tokens and print out statistics."""
-
+    # TODO move this into evaluation
     postprocess_tokens(eval_tokens, das)
     postprocess_tokens(gen_tokens, das)
 

@@ -11,7 +11,6 @@ import codecs
 import gzip
 from io import IOBase
 from codecs import StreamReader, StreamWriter
-import re
 
 from alex.components.slu.da import DialogueAct
 from tree import TreeData
@@ -76,6 +75,26 @@ def write_ttrees(ttree_doc, fname):
     writer.process_document(ttree_doc)
 
 
+def create_ttree_doc(trees, base_doc, language, selector):
+    """Create a t-tree document or add generated trees into existing
+    document.
+
+    @param trees: trees to add into the document
+    @param base_doc: pre-existing document (where trees will be added) or None
+    @param language: language of the trees to be added
+    @param selector: selector of the trees to be added
+    """
+    if base_doc is None:
+        from pytreex.core.document import Document
+        base_doc = Document()
+        for _ in xrange(len(trees)):
+            base_doc.create_bundle()
+    for tree, bundle in trees, base_doc.bundles:
+        zone = bundle.get_or_create_zone(language, selector)
+        zone.ttree = tree.create_ttree()
+    return base_doc
+
+
 def read_tokens(tok_file, ref_mode=False):
     """Read sentences (one per line) from a file and return them as a list of tokens
     (forms with undefined POS tags)."""
@@ -106,46 +125,6 @@ def read_tokens(tok_file, ref_mode=False):
             refs.append(cur_ref)
         tokens = refs
     return tokens
-
-
-def lexicalization_from_doc(abstr_file):
-    """Read lexicalization from a file with "abstraction instructions" (telling which tokens are
-    delexicalized to what). This just remembers the slots and values and returns them in a dict
-    for each line (slot -> list of values)."""
-    abstrs = []
-    with file_stream(abstr_file) as fh:
-        for line in fh:
-            line_abstrs = {}
-            for svp in filter(bool, line.strip().split("\t")):
-                m = re.match('([^=]*)=(.*):[0-9]+-[0-9]+$', svp)
-                slot = m.group(1)
-                value = re.sub(r'^[\'"]', '', m.group(2))
-                value = re.sub(r'[\'"]#?$', '', value)
-                value = re.sub(r'"#? and "', ' and ', value)
-                value = re.sub(r'_', ' ', value)
-
-                line_abstrs[slot] = line_abstrs.get(slot, [])
-                line_abstrs[slot].append(value)
-
-            abstrs.append(line_abstrs)
-    return abstrs
-
-
-def lexicalize_tokens(gen_doc, lexicalization):
-    """Given lexicalization dictionaries, this lexicalizes the nodes the generated trees."""
-    for idx, (sent, lex_dict) in enumerate(zip(gen_doc, lexicalization)):
-        lex_sent = []
-        for (tok, pos_tag) in sent:
-            if tok.startswith('X-'):
-                slot = tok[2:]
-                if slot in lex_dict:  # lexicalize (replace placeholder with tokens from new value)
-                    value = lex_dict[slot][0]
-                    for val_tok in value.split(' '):
-                        lex_sent.append((val_tok, pos_tag))
-                    lex_dict[slot] = lex_dict[slot][1:] + [value]  # cycle the values
-            else:
-                lex_sent.append((tok, pos_tag))
-        gen_doc[idx] = lex_sent
 
 
 def write_tokens(doc, tok_file):
@@ -187,12 +166,8 @@ def sentences_from_doc(ttree_doc, language, selector):
 def tokens_from_doc(ttree_doc, language, selector):
     """Given a Treex document, return a list of lists of tokens (word forms + tags) in the given
     language and selector."""
-    selectors = selector.split(',')
-    atrees = [bundle.get_zone(language, sel).atree
-              for bundle in ttree_doc.bundles
-              for sel in selectors]
     sents = []
-    for atree in atrees:
+    for atree in atrees_from_doc(ttree_doc, language, selector):
         anodes = atree.get_descendants(ordered=True)
         sent = []
         for anode in anodes:
@@ -204,6 +179,31 @@ def tokens_from_doc(ttree_doc, language, selector):
             sent.append((form, tag))
         sents.append(sent)
     return sents
+
+
+def tagged_lemmas_from_doc(ttree_doc, language, selector):
+    """Given a Treex document, return a list of lists of tagged lemmas (interleaved lemmas + tags)
+    in the given language and selector."""
+    sents = []
+    for atree in atrees_from_doc(ttree_doc, language, selector):
+        anodes = atree.get_descendants(ordered=True)
+        sent = []
+        for anode in anodes:
+            lemma, tag = anode.lemma, anode.tag
+            sent.append(lemma)
+            sent.append(tag)
+        sents.append(sent)
+    return sents
+
+
+def atrees_from_doc(ttree_doc, language, selector):
+    """Given a Treex document, return a list of a-trees (surface trees)
+    in the given language and selector."""
+    selectors = selector.split(',')
+    atrees = [bundle.get_zone(language, sel).atree
+              for bundle in ttree_doc.bundles
+              for sel in selectors]
+    return atrees
 
 
 def add_bundle_text(bundle, language, selector, text):

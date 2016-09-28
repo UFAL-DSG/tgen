@@ -8,9 +8,9 @@ Evaluation (t-tree comparison functions).
 from __future__ import unicode_literals
 from collections import defaultdict
 from enum import Enum
-from tgen.logf import log_debug
-from tgen.logf import log_warn
+from tgen.logf import log_debug, log_warn, log_info
 from tgen.tree import TreeData, TreeNode
+from tgen.futil import add_bundle_text
 import numpy as np
 
 try:
@@ -166,6 +166,38 @@ class Evaluator(object):
         self.gold = {eval_type: 0 for eval_type in EvalTypes}
         self.sizes = []
         self.scores = []
+
+    def process_eval_doc(self, eval_doc, gen_trees, language, ref_selector, target_selector):
+        """Evaluate generated trees against a reference document; save per-tree statistics
+        in the reference document and print out global statistics.
+
+        Does not reset statistics at the beginning (must be reset manually if needed).
+
+        @param eval_doc: reference t-tree document
+        @param gen_trees: a list of generated TreeData objects
+        @param language: language for the reference document
+        @param ref_selector: selector for reference trees in the reference document
+        @param target_selector: selector for generated trees (used to save statistics)
+        """
+        log_info('Evaluating...')
+        for eval_bundle, gen_tree, in zip(eval_doc.bundles, gen_trees):
+            # add some stats about the tree directly into the output file
+            eval_ttree = eval_bundle.get_zone(language, ref_selector).ttree
+            gen_ttree = TreeNode(gen_tree)
+            add_bundle_text(eval_bundle, language, target_selector + 'Xscore',
+                            "P: %.4f R: %.4f F1: %.4f" %
+                            p_r_f1_from_counts(*corr_pred_gold(eval_ttree, gen_ttree)))
+            # collect overall stats
+            # TODO maybe add cost somehow?
+            self.append(eval_ttree, gen_ttree)
+
+        # print out the overall stats
+        log_info("NODE precision: %.4f, Recall: %.4f, F1: %.4f" % self.p_r_f1())
+        log_info("DEP  precision: %.4f, Recall: %.4f, F1: %.4f" % self.p_r_f1(EvalTypes.DEP))
+        log_info("Tree size stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % self.size_stats())
+        log_info("Score stats:\n * GOLD %s\n * PRED %s\n * DIFF %s" % self.score_stats())
+        log_info("Common subtree stats:\n -- SIZE: %s\n -- ΔGLD: %s\n -- ΔPRD: %s" %
+                 self.common_substruct_stats())
 
     def append(self, gold, pred, gold_score=0.0, pred_score=0.0):
         """Add a pair of golden and predicted tree/sentence to the current statistics.

@@ -19,7 +19,7 @@ from pytreex.core.util import file_stream
 
 from tgen.logf import log_info, log_debug, log_warn
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list, \
-    read_tokens
+    read_tokens, tagged_lemmas_from_doc
 from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtract, \
     TreeEmbeddingSeq2SeqExtract, ContextDAEmbeddingSeq2SeqExtract
 from tgen.rnd import rnd
@@ -69,11 +69,14 @@ class Seq2SeqBase(SentencePlanner):
             # use the specialized settings for the reranking classifier
             rerank_cfg = cfg['classif_filter']
             # plus, copy some settings from the main Seq2Seq module (so we're consistent)
-            for setting in ['use_tokens', 'embeddings_lowercase', 'embeddings_split_plurals']:
+            for setting in ['mode', 'use_tokens', 'embeddings_lowercase',
+                            'embeddings_split_plurals']:
                 if setting in cfg:
                     rerank_cfg[setting] = cfg[setting]
             self.classif_filter = RerankingClassifier(rerank_cfg)
             self.misfit_penalty = cfg.get('misfit_penalty', 100)
+
+        self.init_slot_err_stats()
 
     def process_das(self, das, gold_trees=None):
         """
@@ -308,13 +311,8 @@ class Seq2SeqBase(SentencePlanner):
         log_debug("GENERATE TREE FOR DA: " + unicode(da))
         tree = self.process_das([da])[0]
         log_debug("RESULT: %s" % unicode(tree))
-        # if requested, append the result to the "document"
-        # just lists (generated tokens only, disregarding syntax; keep None for POS tags)
-        if isinstance(gen_doc, list):
-            # ignore tree technical root, take just "lemmas"
-            gen_doc.append([(n.t_lemma, None) for n in tree.nodes[1:]])
-        # full Pytreex documents (full trees)
-        elif gen_doc:
+        # append the tree to a t-tree document, if requested
+        if gen_doc:
             zone = self.get_target_zone(gen_doc)
             zone.ttree = tree.create_ttree()
             zone.sentence = unicode(da)
@@ -374,7 +372,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.multiple_refs = cfg.get('multiple_refs', False)  # multiple references for validation
         self.ref_selectors = cfg.get('ref_selectors', None)  # selectors of validation trees (if in separate file)
         self.max_cores = cfg.get('max_cores')
-        self.use_tokens = cfg.get('use_tokens', False)
+        self.mode = cfg.get('mode', 'tokens' if cfg.get('use_tokens') else 'trees')
         self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
         self.randomize = cfg.get('randomize', True)
         self.cell_type = cfg.get('cell_type', 'lstm')
@@ -417,7 +415,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.da_embs = ContextDAEmbeddingSeq2SeqExtract(cfg=self.cfg)
         else:
             self.da_embs = DAEmbeddingSeq2SeqExtract(cfg=self.cfg)
-        if self.use_tokens:
+        if self.mode in ['tokens', 'tagged_lemmas']:
             self.tree_embs = TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
         else:
             self.tree_embs = TreeEmbeddingSeq2SeqExtract(cfg=self.cfg)
@@ -445,7 +443,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.classif_filter.restore_checkpoint()  # restore the best performance on devel data
 
         # convert validation data to flat trees to enable F1 measuring
-        if self.validation_size > 0 and self.use_tokens:
+        if self.validation_size > 0 and self.mode in ['tokens', 'tagged_lemmas']:
             self.valid_trees = self._valid_data_to_flat_trees(self.valid_trees)
 
         # initialize top costs
@@ -462,15 +460,17 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
         log_info('Reading t-trees/sentences from ' + ttree_file + '...')
         if ttree_file.endswith('.txt'):
-            if not self.use_tokens:
+            if self.mode == 'trees':
                 raise ValueError("Cannot read trees from a .txt file (%s)!" % ttree_file)
             return read_tokens(ttree_file)
         else:
             ttree_doc = read_ttrees(ttree_file)
             if selector is None:
                 selector = self.selector
-            if self.use_tokens:
+            if self.mode == 'tokens':
                 return tokens_from_doc(ttree_doc, self.language, selector)
+            elif self.mode == 'tagged_lemmas':
+                return tagged_lemmas_from_doc(ttree_doc, self.language, selector)
             else:
                 return trees_from_doc(ttree_doc, self.language, selector)
 
@@ -589,11 +589,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
     def _valid_data_to_flat_trees(self, valid_sents):
         """Convert validation data to flat trees, which are the result of `process_das` when
-        `self.use_tokens` is in force. This enables to measure F1 on the resulting flat trees
-        (equals to unigram F1 on sentence tokens).
+        `self.mode` is 'tokens' or 'tagged_lemmas'. This enables to measure F1 on the resulting
+        flat trees (equals to unigram F1 on sentence tokens/lemmas&tags).
 
         @param valid_sents: validation set sentences (for each sentence, list of lists of \
-            tokens+tags)
+            tokens+tags/just tokens/lemmas+tags)
         @return: the same sentences converted to flat trees \
             (see `TokenEmbeddingSeq2SeqExtract.ids_to_tree`)
         """
@@ -792,7 +792,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 cur_train_out = self.process_das(self.train_das[:self.batch_size])
                 log_info("Current train output:\n" +
                          "\n".join([" ".join(n.t_lemma for n in tree.nodes[1:])
-                                    if self.use_tokens
+                                    if self.mode in ['tokens', 'tagged_lemmas']
                                     else unicode(tree)
                                     for tree in cur_train_out]))
 
@@ -800,7 +800,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 cur_cost = self._compute_valid_cost(cur_valid_out, self.valid_trees)
                 log_info("Current validation output:\n" +
                          "\n".join([" ".join(n.t_lemma for n in tree.nodes[1:])
-                                    if self.use_tokens
+                                    if self.mode in ['tokens', 'tagged_lemmas']
                                     else unicode(tree)
                                     for tree in cur_valid_out]))
                 log_info('IT %d validation cost: %5.4f' % (iter_no, cur_cost))
