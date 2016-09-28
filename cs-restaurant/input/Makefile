@@ -41,7 +41,7 @@ all: train-text.pickle.gz train-das.txt train-das_l.txt train-abst.txt \
 	treex -Lcs Read::CoNLLU from=$< $(TREEX_BASIC_SCEN) $(COORD_ADJUST) \
 	 	Write::Treex to=$@
 
-train-text.txt train-das.txt train-abst.txt train-text_l.txt train-text.conll train-text_l.conll train-tls.txt train-tls_l.txt devel-text.txt devel-das.txt devel-abst.txt devel-text_l.txt devel-text.conll devel-text_l.conll devel-tls.txt devel-tls_l.txt test-text.txt test-das.txt test-abst.txt test-text_l.txt test-text.conll test-text_l.conll test-tls.txt test-tls_l.txt: czech-morfflex-pdt-160310.tagger surface_forms.json expand-das.txt expand-texts.txt
+train-text.txt train-das.txt train-das_l.txt train-abst.txt train-text_l.txt train-text.conll train-text_l.conll train-tls.txt train-tls_l.txt devel-text.txt devel-das.txt devel-das_l.txt devel-abst.txt devel-text_l.txt devel-text.conll devel-text_l.conll devel-tls.txt devel-tls_l.txt test-text.txt test-das.txt test-das_l.txt test-abst.txt test-text_l.txt test-text.conll test-text_l.conll test-tls.txt test-tls_l.txt: czech-morfflex-pdt-160310.tagger surface_forms.json expand-das.txt expand-texts.txt
 	./convert.py $(CONVERT_SETTINGS) $^ train,devel,test
 
 grammatemes.tsv: train-text.treex.gz train-das.txt
