@@ -427,7 +427,7 @@ class RerankingClassifier(TFModel):
 
     def _rnn(self, name, enc_inputs):
         encoder_cell = tf.nn.rnn_cell.EmbeddingWrapper(self.cell, self.dict_size)
-        _, encoder_states = tf.nn.rnn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
+        _, encoder_states = tf.nn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
         w = tf.get_variable(name + '-w', (self.cell.state_size, self.num_outputs),
                             initializer=tf.random_normal_initializer(stddev=0.1))
         b = tf.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
