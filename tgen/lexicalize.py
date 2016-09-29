@@ -13,9 +13,35 @@ from tgen.tree import NodeData
 from tgen.rnd import rnd
 
 
+class FormSelect(object):
+
+    def __init__(self):
+        pass
+
+    def get_surface_form(self, sentence, pos, possible_forms):
+        raise NotImplementedError()
+
+
+class RandomFormSelect(FormSelect):
+
+    def get_surface_form(self, sentence, pos, possible_forms):
+        return rnd.choice(possible_forms)
+
+
+class KenLMFormSelect(FormSelect):
+
+    def __init__(self, model_file=None):
+        # TODO
+        pass
+
+    def get_surface_form(self, sentence, pos, possible_forms):
+        # TODO
+        pass
+
+
 class Lexicalizer(object):
 
-    def __init__(self, abstr_file=None, surface_forms_file=None):
+    def __init__(self, abstr_file=None, surface_forms_file=None, form_select_model=None):
         self._values = []
         self._sf_all = {}
         self._sf_by_formeme = {}
@@ -24,6 +50,10 @@ class Lexicalizer(object):
             self.load_lexicalization(abstr_file)
         if surface_forms_file:
             self.load_surface_forms(surface_forms_file)
+        self._form_select = RandomFormSelect()
+        if form_select_model:
+            # TODO
+            pass
 
     def load_surface_forms(self, surface_forms_fname):
         """Load all proper name surface forms from a file."""
@@ -118,17 +148,17 @@ class Lexicalizer(object):
                     if slot in lex_dict:
                         # tagged lemmas: one token with appropriate value
                         if mode == 'tagged_lemmas':
-                            val = self._get_surface_form(slot, lex_dict[slot][0],
+                            val = self._get_surface_form(tree, idx, slot, lex_dict[slot][0],
                                                          tag=tree[idx+1].t_lemma)
                             tree[idx] = NodeData(t_lemma=val, formeme='x')
                         # trees: one node with appropriate value, keep formeme
                         elif mode == 'trees':
-                            val = self._get_surface_form(slot, lex_dict[slot][0],
+                            val = self._get_surface_form(tree, idx, slot, lex_dict[slot][0],
                                                          formeme=tree[idx].formeme)
                             tree[idx] = NodeData(t_lemma=val, formeme=tree[idx].formeme)
                         # tokens: multiple tokens with all words from the value
                         else:
-                            value = self._get_surface_form(slot, lex_dict[slot][0])
+                            value = self._get_surface_form(tree, idx, slot, lex_dict[slot][0])
                             for shift, tok in enumerate(value.split(' ')):
                                 tree.create_child(0, idx + shift,
                                                   NodeData(t_lemma=tok, formeme='x'))
@@ -137,12 +167,11 @@ class Lexicalizer(object):
                         lex_dict[slot] = lex_dict[slot][1:] + lex_dict[slot][0]  # cycle the values
                 idx += 1
 
-    def get_surface_form(self, slot, value, tag=None, formeme=None):
+    def get_surface_form(self, tree, idx, slot, value, tag=None, formeme=None):
         """Get the appropriate surface form for the given slot and value. Use morphological tag
         and/or formeme restrictions to select a matching one. Selects randomly among matching
         forms.
         """
-
         # handle coordinated values
         value_parts = re.split(r'\s+(and|or)\s+', value)
         if len(value_parts) > 1:
@@ -168,18 +197,20 @@ class Lexicalizer(object):
             if slot in self._sf_by_tag and value in self._sf_by_tag[slot]:
                 for tag_sub in self._get_tag_subsets(tag):
                     if tag_sub in self._sf_by_tag[slot][value]:
-                        form = rnd.choice(self._sf_by_tag[slot][value][tag_sub])
+                        form = self._form_select.get_surface_form(
+                                tree, idx, self._sf_by_tag[slot][value][tag_sub])
 
         if form is None and formeme is not None:
             formeme = re.sub(r':.*\+', '', formeme)  # ignore prepositions/conjunctions
             formeme = re.sub(r':inf', r':fin', formeme)  # ignore finite/infinite verb distinction
             if slot in self._sf_by_formeme and value in self._sf_by_formeme[slot]:
                 if formeme in self._sf_by_formeme[slot][value]:
-                    form = rnd.choice(self._sf_by_formeme[slot][value][formeme])
+                    form = self._form_select.get_surface_form(
+                            tree, idx, self._sf_by_formeme[slot][value][formeme])
 
         if form is None:
             if slot in self._sf_all and value in self._sf_all[slot]:
-                form = rnd.choice(self._sf_all[slot][value])
+                form = self._form_select.get_surface_form(tree, idx, self._sf_all[slot][value])
 
         # backoff to the actual value (no surface form replacement)
         if form is None:
