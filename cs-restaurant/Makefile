@@ -80,7 +80,7 @@ ifdef EVAL_TEST
 endif
 SURFACE_SCEN = T2T::EN2CS::AddNounGender Scen::Synthesis::CS
 
-EVAL_SELECTOR = ref0
+EVAL_SELECTOR =
 TARGET_SELECTOR = gen
 
 # Help text
