@@ -62,6 +62,7 @@ TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
 TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
 
 GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
+SURFACE_FORMS = data/$(TRAINING_SET)/surface_forms.json
 
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
 TEST_REF = data/$(TRAINING_SET)/devel-das.sgm
@@ -232,6 +233,7 @@ prepare_test_data:
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
+	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
@@ -245,6 +247,7 @@ gen_process:
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
 		$(SELECTOR_CONFIG) \
 		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
+		-a $(TRY_DIR)/test-abst.txt -s $(TRY_DIR)/surface_forms.json \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		$(POSTPROCESS) -m $(GEN_MODEL) -i $(TRY_DIR)/test-das.txt \
 			-g $(TRY_DIR)/grammatemes.tsv -s $(TARGET_SELECTOR) \
