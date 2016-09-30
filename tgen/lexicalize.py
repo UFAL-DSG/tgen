@@ -152,7 +152,7 @@ class Lexicalizer(object):
         @return: None
         """
         for tree, lex_dict in zip(gen_trees, self._values):
-            idx = 0
+            idx = 1
             while idx < len(tree):
                 if tree[idx].t_lemma.startswith('X-'):
                     slot = tree[idx].t_lemma[2:]
@@ -170,13 +170,13 @@ class Lexicalizer(object):
                             tree[idx] = NodeData(t_lemma=val, formeme=tree[idx].formeme)
                         # tokens: multiple tokens with all words from the value
                         else:
-                            value = self._get_surface_form(tree, idx, slot, lex_dict[slot][0])
+                            value = self.get_surface_form(tree, idx, slot, lex_dict[slot][0])
+                            tree.remove_node(idx)
                             for shift, tok in enumerate(value.split(' ')):
                                 tree.create_child(0, idx + shift,
                                                   NodeData(t_lemma=tok, formeme='x'))
-                            tree.remove_node(idx)
                             idx += shift
-                        lex_dict[slot] = lex_dict[slot][1:] + lex_dict[slot][0]  # cycle the values
+                        lex_dict[slot] = lex_dict[slot][1:] + [lex_dict[slot][0]]  # cycle values
                 idx += 1
 
     def get_surface_form(self, tree, idx, slot, value, tag=None, formeme=None):
