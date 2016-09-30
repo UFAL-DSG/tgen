@@ -240,7 +240,6 @@ seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
 seq2seq_gen_process: SELECTOR_CONFIG := -r "$(EVAL_SELECTOR)" -t "$(TARGET_SELECTOR)"
 seq2seq_gen_process: gen_process
 
-# TODO postprocess here, deabstract
 gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
