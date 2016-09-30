@@ -31,12 +31,23 @@ class RandomFormSelect(FormSelect):
 class KenLMFormSelect(FormSelect):
 
     def __init__(self, model_file=None):
-        # TODO
-        pass
+        import kenlm  # needed only if KenLM is used
+        self._lm = kenlm.Model(model_file)
 
-    def get_surface_form(self, sentence, pos, possible_forms):
-        # TODO
-        pass
+    def get_surface_form(self, tree, pos, possible_forms):
+        import kenlm  # needed only if KenLM is used
+        state, dummy_state = kenlm.State(), kenlm.State()
+        self._lm.BeginSentenceWrite(state)
+        for idx in xrange(pos):
+            self._lm.BaseScore(state, tree[idx].t_lemma, state)
+        best_form = None
+        best_score = float('-inf')
+        for possible_form in possible_forms:
+            score = self._lm.BaseScore(state, possible_form, dummy_state)
+            if score > best_score:
+                best_score = score
+                best_form = possible_form
+        return best_form
 
 
 class Lexicalizer(object):
@@ -60,9 +71,9 @@ class Lexicalizer(object):
         with file_stream(surface_forms_fname) as fh:
             data = json.load(fh)
         for slot, values in data.iteritems():
-            self._sf_all[slot] = {}
-            self._sf_by_formeme[slot] = {}
-            self._sf_by_tag[slot] = {}
+            sf_all = {}
+            sf_formeme = {}
+            sf_tag = {}
             for value in values.keys():
                 for surface_form in values[value]:
                     form, tag = surface_form.split("\t")
@@ -70,15 +81,16 @@ class Lexicalizer(object):
                         value += ' _'
                         slot = 'address'
                     # store the value globally + for all possible tag subsets/formemes
-                    self._sf_all[value] = self._sf_all.get(value, []) + [form]
-                    self._sf_by_tag[value] = self._sf_by_tag.get(value, [])
+                    sf_all[value] = sf_all.get(value, []) + [form]
+                    sf_tag[value] = sf_tag.get(value, {})
+                    sf_formeme[value] = sf_formeme.get(value, {})
                     for tag_subset in self._get_tag_subsets(tag):
-                        self._sf_by_tag[value][tag_subset] = \
-                            self._sf_by_tag[value].get(tag_subset, []) + [form]
-                    self._sf_by_formeme[value] = self._sf_by_formeme.get(value, [])
+                        sf_tag[value][tag_subset] = sf_tag[value].get(tag_subset, []) + [form]
                     for formeme in self._get_compatible_formemes(tag):
-                        self._sf_by_formeme[value][formeme] = \
-                                self._sf_by_formeme[value].get(formeme, []) + [form]
+                        sf_formeme[value][formeme] = sf_formeme[value].get(formeme, []) + [form]
+            self._sf_all[slot] = sf_all
+            self._sf_by_formeme[slot] = sf_formeme
+            self._sf_by_tag[slot] = sf_tag
 
     def _get_tag_subsets(self, tag):
         """Select important tag subsets along which surface forms should be matched.

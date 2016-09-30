@@ -495,7 +495,7 @@ def seq2seq_gen(args):
 
     # lexicalize, if required
     if args.abstr_file:
-        lexer = Lexicalizer(args.abstr_file, args.surface_forms)
+        lexer = Lexicalizer(args.abstr_file, args.surface_forms_file)
         lexer.lexicalize(gen_trees, tgen.mode)
 
     # evaluate the generated & lexicalized tokens (F1 and BLEU scores)

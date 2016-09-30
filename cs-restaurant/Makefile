@@ -231,7 +231,7 @@ prepare_test_data:
 	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
+	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
 	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
 
