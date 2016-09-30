@@ -89,7 +89,7 @@ def create_ttree_doc(trees, base_doc, language, selector):
         base_doc = Document()
         for _ in xrange(len(trees)):
             base_doc.create_bundle()
-    for tree, bundle in trees, base_doc.bundles:
+    for tree, bundle in zip(trees, base_doc.bundles):
         zone = bundle.get_or_create_zone(language, selector)
         zone.ttree = tree.create_ttree()
     return base_doc
