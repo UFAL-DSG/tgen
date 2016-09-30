@@ -49,7 +49,7 @@ def process_file(args):
 
     scen = ['Read::YAML from="%s"' % args.input_file] + scen
     scen += ['Write::Treex',
-             'Util::Eval document="$.set_path(\"\"); $.set_file_stem(\"test\");"',
+             'Util::Eval document="$.set_path(\\"\\"); $.set_file_stem(\\"test\\");"',
              'Write::SgmMTEval to="%s" set_id=CsRest sys_id=TGEN add_header=tstset' % args.output_file]
 
     subprocess.call(('treex -Lcs -S%s ' % args.selector) + " ".join(scen), shell=True)
