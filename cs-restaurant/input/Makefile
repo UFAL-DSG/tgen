@@ -48,14 +48,14 @@ grammatemes.tsv: train-text.treex.gz train-das.txt
 	treex -Lcs Read::Treex from=$< Print::GrammatemesForTgen to=$@ da_file=train-das.txt
 
 %-conc.sgm: %-text_l.txt
-	echo '<refset setid="CsRest" srclang="any" trglang="cs">' > $@
+	echo '<refset setid="CsRest" srclang="any" trglang="cz">' > $@
 	treex -Lcs Read::Sentences from=$< \
 	    Write::SgmMTEval to=- set_id=CsRest sys_id=manual_0 selector= \
 	    | sed 's/docid="[^"]*"/docid="test"/' >> $@
 	echo '</refset>' >> $@
 
 %-text.sgm: %-text.txt
-	echo '<refset setid="CsRest" srclang="any" trglang="cs">' > $@
+	echo '<refset setid="CsRest" srclang="any" trglang="cz">' > $@
 	treex -Lcs Read::Sentences from=$< \
 	    Write::SgmMTEval to=- set_id=CsRest sys_id=manual_0 selector= \
 	    | sed 's/docid="[^"]*"/docid="test"/' >> $@
