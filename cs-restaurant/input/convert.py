@@ -14,107 +14,13 @@ from recordclass import recordclass
 from ufal.morphodita import Tagger, Forms, TaggedLemma, TaggedLemmas, TokenRanges, Analyses, Indices
 
 from tgen.logf import log_info
+from tgen.data import Abst, DAI, DA
 
 # Start IPdb on error in interactive mode
 from tgen.debug import exc_info_hook
 import sys
 sys.excepthook = exc_info_hook
 
-
-#
-# Representation of DAIs & Delex. instructions (TODO make these unified accross datasets)
-
-
-class DAI(recordclass('DAI', ['type', 'slot', 'value'])):
-    """Simple representation of a single dialogue act item."""
-
-    def __unicode__(self):
-        if self.slot is None:
-            return self.type + '()'
-        if self.value is None:
-            return self.type + '(' + self.slot + ')'
-        quote = '\'' if (' ' in self.value or ':' in self.value) else ''
-        return self.type + '(' + self.slot + '=' + quote + self.value + quote + ')'
-
-
-class Abst(recordclass('Abst', ['slot', 'value', 'start', 'end'])):
-    """Simple representation of a single abstraction instruction."""
-
-    def __unicode__(self):
-        quote = '"' if ' ' in self.value or ':' in self.value else ''
-        return (self.slot + '=' + quote + self.value + quote + ':' +
-                str(self.start) + '-' + str(self.end))
-
-
-class DA(object):
-    """Dialogue act – basically a list of DAIs."""
-
-    def __init__(self):
-        self.dais = []
-
-    def __getitem__(self, idx):
-        return self.dais[idx]
-
-    def __setitem__(self, idx, value):
-        self.dais[idx] = value
-
-    def append(self, value):
-        self.dais.append(value)
-
-    def __unicode__(self):
-        return '&'.join([unicode(dai) for dai in self.dais])
-
-    def __str__(self):
-        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
-
-    def __len__(self):
-        return len(self.dais)
-
-    @staticmethod
-    def parse(da_text):
-        """Parse a DA string into DAIs (DA types, slots, and values)."""
-        da = DA()
-
-        # split acc. to DAIs, trim final bracket
-        for dai_text in da_text[:-1].split(')&'):
-            da_type, svp = dai_text.split('(', 1)
-
-            if not svp:  # no slot + value (e.g. 'hello()')
-                da.append(DAI(da_type, None, None))
-                continue
-
-            if '=' not in svp:  # no value (e.g. 'request(to_stop)')
-                da.append(DAI(da_type, svp, None))
-                continue
-
-            slot, value = svp.split('=', 1)
-            if value.startswith('"'):  # remove quotes
-                value = value[1:-1]
-
-            da.append(DAI(da_type, slot, value))
-
-        return da
-
-    def value_for_slot(self, slot):
-        """Return the value for the given slot (None if unset or not present at all)."""
-        for dai in self.dais:
-            if dai.slot == slot:
-                return dai.value
-        return None
-
-    def has_value(self, value):
-        """If the DA contains the given value, return the corresponding slot; return None
-        otherwise. Abstracts away from "and" and "or" values (returns True for both coordination
-        members)."""
-        for dai in self.dais:
-            if dai.value == value:
-                return dai.slot
-            if (dai.value is not None and
-                    value not in [None, '?'] and
-                    (re.match(r'.* (and|or) ' + value + r'$', dai.value) or
-                     re.match(r'^' + value + r' (and|or) ', dai.value))):
-                return dai.slot
-        return None
 
 #
 # Morphology & delexicalization
@@ -307,7 +213,7 @@ class MorphoAnalyzer(object):
         for da in self._das:
             delex_da = DA()
             for dai in da:
-                delex_dai = DAI(dai.type, dai.slot,
+                delex_dai = DAI(dai.da_type, dai.slot,
                                 'X-' + dai.slot
                                 if (dai.value and dai.slot in self._abst_slots)
                                 else dai.value)
@@ -328,7 +234,7 @@ class MorphoAnalyzer(object):
                 slot = da.has_value(lemma)
                 if slot and slot in self._abst_slots:
                     delex_text.append(('X-' + slot, 'X-' + slot, tag))
-                    absts.append(Abst(slot, lemma, tok_idx, tok_idx + 1))
+                    absts.append(Abst(slot, lemma, form, tok_idx, tok_idx + 1))
                 else:
                     delex_text.append((form, lemma, tag))
             # fix coordinated delexicalized values
