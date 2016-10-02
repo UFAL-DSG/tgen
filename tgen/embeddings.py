@@ -567,3 +567,94 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
             tree.create_child(0, len(tree), NodeData(token, 'x'))
 
         return tree
+
+
+
+class TaggedLemmasEmbeddingSeq2SeqExtract(EmbeddingExtract):
+    # TODO this should be merged with Token...
+
+    VOID = 0
+    GO = 1
+    STOP = 2
+    UNK_LEMMA = 3
+    UNK_TAG = 4
+    MIN_VALID = 5
+
+    def __init__(self, cfg={}):
+        self.max_sent_len = cfg.get('max_sent_len', 50)
+        self.dict_lemma = {'<UNK_LEMMA>': self.UNK_LEMMA}
+        self.dict_tag = {'<UNK_TAG>': self.UNK_TAG}
+        self.rev_dict = {self.VOID: '<VOID>', self.GO: '<GO>',
+                         self.STOP: '<STOP>', self.UNK_LEMMA: '<UNK_LEMMA>',
+                         self.UNK_TAG: '<UNK_TAG>'}
+
+    def init_dict(self, train_sents, dict_ord=None):
+        """Initialize embedding dictionary (word -> id)."""
+        if dict_ord is None:
+            dict_ord = self.MIN_VALID
+
+        for sent in train_sents:
+            for lemma, tag in sent:
+                if lemma not in self.dict_lemma:
+                    self.dict_lemma[lemma] = dict_ord
+                    self.rev_dict[dict_ord] = lemma
+                    dict_ord += 1
+                if tag not in self.dict_tag:
+                    self.dict_tag[tag] = dict_ord
+                    self.rev_dict[dict_ord] = tag
+                    dict_ord += 1
+        return dict_ord
+
+    def get_embeddings(self, sent):
+        """Get the embeddings of a sentence (list of word form/tag pairs)."""
+        embs = [self.GO]
+        for lemma, tag in sent:
+            # append the token ID, or <UNK>
+            embs.append(self.dict_lemma.get(lemma, self.UNK_LEMMA))
+            embs.append(self.dict_tag.get(tag, self.UNK_TAG))
+
+        embs += [self.STOP]
+        if len(embs) > self.max_sent_len * 2 + 2:
+            embs = embs[:self.max_sent_len * 2 + 2]
+        elif len(embs) < self.max_sent_len * 2 + 2:
+            embs += [self.VOID] * (self.max_sent_len * 2 + 2 - len(embs))
+
+        return embs
+
+    def get_embeddings_shape(self):
+        """Return the shape of the embedding matrix (for one object, disregarding batches)."""
+        return [self.max_sent_len * 2 + 2]
+
+    def ids_to_strings(self, emb):
+        """Given embedding IDs, return list of strings where all VOIDs at the end are truncated."""
+
+        # skip VOIDs at the end
+        i = len(emb) - 1
+        while i > 0 and emb[i] == self.VOID:
+            i -= 1
+
+        # convert all IDs to their tokens
+        ret = [unicode(self.rev_dict.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
+
+        return ret
+
+    def ids_to_tree(self, emb, postprocess=True):
+        """Create a fake (flat) t-tree from token embeddings (IDs).
+
+        @param emb: source embeddings (token IDs)
+        @param postprocess: postprocess the sentence (capitalize sentence start, merge plural \
+            markers)? True by default.
+        @return: the corresponding tree
+        """
+
+        tree = TreeData()
+        tokens = self.ids_to_strings(emb)
+
+        for token in tokens:
+            if token in ['<GO>', '<STOP>', '<VOID>']:
+                continue
+            tree.create_child(0, len(tree), NodeData(token, 'x'))
+
+        return tree
+
+
