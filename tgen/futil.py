@@ -48,6 +48,17 @@ def read_das(da_file):
     return das
 
 
+def read_absts(abst_file):
+    """Read abstraction/lexicalization instructions from a file, one sentence per line."""
+    abstss = []
+    with file_stream(abst_file) as fh:
+        for line in fh:
+            absts = []
+            for abst_str in line.split("\t"):
+                absts.append(Abst.parse(abst_str))
+            abstss.append(absts)
+
+
 def read_ttrees(ttree_file):
     """Read t-trees from a YAML/Pickle file."""
     from pytreex.block.read.yaml import YAML as YAMLReader
@@ -190,8 +201,7 @@ def tagged_lemmas_from_doc(ttree_doc, language, selector):
         sent = []
         for anode in anodes:
             lemma, tag = anode.lemma, anode.tag
-            sent.append(lemma)
-            sent.append(tag)
+            sent.append((lemma, tag))
         sents.append(sent)
     return sents
 
