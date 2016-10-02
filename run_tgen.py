@@ -58,7 +58,6 @@ from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
 from tgen.futil import file_stream, read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens, \
     postprocess_tokens, create_ttree_doc
-from tgen.lexicalize import Lexicalizer
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import ASearchPlanner, SamplingPlanner
@@ -244,6 +243,9 @@ def seq2seq_train(args):
                     help='Input ttree/text file with context utterances')
     ap.add_argument('-v', '--valid-data', type=str,
                     help='Validation data paths (2-3 comma-separated files: DAs, trees/sentences, contexts)')
+    ap.add_argument('-l', '--lexic-data', type=str,
+                    help='Lexicalization data paths (1-2 comma-separated files: surface forms,' +
+                    'training lexic. instructions)')
 
     ap.add_argument('seq2seq_config_file', type=str, help='Seq2Seq generator configuration file')
     ap.add_argument('da_train_file', type=str, help='Input training DAs')
@@ -271,7 +273,7 @@ def seq2seq_train(args):
 
     generator.train(args.da_train_file, args.tree_train_file,
                     data_portion=args.train_size, context_file=args.context_file,
-                    validation_files=args.valid_data)
+                    validation_files=args.valid_data, lexic_files=args.lexic_data)
 
     sys.setrecursionlimit(100000)
     generator.save_to_file(args.seq2seq_model_file)
@@ -438,8 +440,6 @@ def seq2seq_gen(args):
     ap.add_argument('-e', '--eval-file', type=str, help='A ttree/text file for evaluation')
     ap.add_argument('-a', '--abstr-file', type=str,
                     help='Lexicalization file (a.k.a. abstraction instructions, for postprocessing)')
-    ap.add_argument('-s', '--surface-forms-file', type=str,
-                    help='Surface forms file (used with lexicalization file)')
     ap.add_argument('-r', '--ref-selector', type=str, default='',
                     help='Selector for reference trees in the evaluation file')
     ap.add_argument('-t', '--target-selector', type=str, default='',
@@ -494,9 +494,8 @@ def seq2seq_gen(args):
                                 args.target_selector or tgen.selector)
 
     # lexicalize, if required
-    if args.abstr_file:
-        lexer = Lexicalizer(args.abstr_file, args.surface_forms_file)
-        lexer.lexicalize(gen_trees, tgen.mode)
+    if args.abstr_file and tgen.lexicalizer:
+        tgen.lexicalize(gen_trees, args.abstr_file)
 
     # evaluate the generated & lexicalized tokens (F1 and BLEU scores)
     if args.eval_file and args.eval_file.endswith('.txt'):

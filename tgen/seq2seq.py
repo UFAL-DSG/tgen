@@ -21,7 +21,8 @@ from tgen.logf import log_info, log_debug, log_warn
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list, \
     read_tokens, tagged_lemmas_from_doc
 from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtract, \
-    TreeEmbeddingSeq2SeqExtract, ContextDAEmbeddingSeq2SeqExtract
+    TreeEmbeddingSeq2SeqExtract, ContextDAEmbeddingSeq2SeqExtract, \
+    TaggedLemmasEmbeddingSeq2SeqExtract
 from tgen.rnd import rnd
 from tgen.planner import SentencePlanner
 from tgen.tree import TreeData, TreeNode
@@ -29,6 +30,7 @@ from tgen.eval import Evaluator, SlotErrAnalyzer
 from tgen.bleu import BLEUMeasure
 from tgen.tfclassif import RerankingClassifier
 from tgen.tf_ml import TFModel, embedding_attention_seq2seq_context
+from tgen.lexicalize import Lexicalizer
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -75,6 +77,15 @@ class Seq2SeqBase(SentencePlanner):
                     rerank_cfg[setting] = cfg[setting]
             self.classif_filter = RerankingClassifier(rerank_cfg)
             self.misfit_penalty = cfg.get('misfit_penalty', 100)
+
+        self.lexicalizer = None
+        if 'lexicalizer' in cfg:
+            # build a lexicalizer with the given settings
+            lexer_cfg = cfg['lexicalizer']
+            for setting in ['mode']:
+                if setting in cfg:
+                    lexer_cfg[setting] = cfg[setting]
+            self.lexicalizer = Lexicalizer(lexer_cfg)
 
         self.init_slot_err_stats()
 
@@ -380,7 +391,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         self.use_context = cfg.get('use_context', False)
 
-    def _init_training(self, das_file, ttree_file, data_portion, context_file, validation_files):
+    def _init_training(self, das_file, ttree_file, data_portion,
+                       context_file, validation_files, lexic_files):
         """Load training data, prepare batches, build the NN.
 
         @param das_file: training DAs (file path)
@@ -388,6 +400,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @param data_portion: portion of the data to be actually used for training
         @param context_file: training contexts (file path)
         @param validation_files: validation file paths (or None)
+        @param lexic_files: paths to lexicalization data (or None)
         """
         # read training data
         log_info('Reading DAs from ' + das_file + '...')
@@ -415,8 +428,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.da_embs = ContextDAEmbeddingSeq2SeqExtract(cfg=self.cfg)
         else:
             self.da_embs = DAEmbeddingSeq2SeqExtract(cfg=self.cfg)
-        if self.mode in ['tokens', 'tagged_lemmas']:
+        if self.mode == 'tokens':
             self.tree_embs = TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
+        elif self.mode == 'tagged_lemmas':
+            self.tree_embs = TaggedLemmasEmbeddingSeq2SeqExtract(cfg=self.cfg)
         else:
             self.tree_embs = TreeEmbeddingSeq2SeqExtract(cfg=self.cfg)
 
@@ -435,12 +450,15 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                                             for tree in self.train_trees],
                                            self.batch_size, None)]
 
+        # train lexicalizer (store surface forms, possibly train LM)
+        if self.lexicalizer:
+            self.lexicalizer.train(lexic_files, self.train_trees)
+
         # train the classifier for filtering n-best lists
         if self.classif_filter:
             self.classif_filter.train(self.train_das, self.train_trees,
                                       valid_das=self.valid_das,
                                       valid_trees=self.valid_trees)
-            self.classif_filter.restore_checkpoint()  # restore the best performance on devel data
 
         # convert validation data to flat trees to enable F1 measuring
         if self.validation_size > 0 and self.mode in ['tokens', 'tagged_lemmas']:
@@ -763,7 +781,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         return iter_no > self.min_passes and iter_no > self.top_k_change + self.improve_interval
 
     def train(self, das_file, ttree_file, data_portion=1.0,
-              context_file=None, validation_files=None):
+              context_file=None, validation_files=None, lexic_files=None):
         """
         The main training process – initialize and perform a specified number of
         training passes, validating every couple iterations.
@@ -773,9 +791,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @param data_portion: portion of training data to be actually used, defaults to 1.0
         @param context_file: path to training file with contexts (trees/sentences)
         @param validation_files: paths to validation data (DAs, trees/sentences, possibly contexts)
+        @param lexic_files: paths to lexicalization data (surface forms, possibly lexicalization \
+                instruction file to train LM)
         """
         # load and prepare data and initialize the neural network
-        self._init_training(das_file, ttree_file, data_portion, context_file, validation_files)
+        self._init_training(das_file, ttree_file, data_portion,
+                            context_file, validation_files, lexic_files)
 
         # do the training passes
         for iter_no in xrange(1, self.passes + 1):
@@ -867,6 +888,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         if self.classif_filter:
             classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
             self.classif_filter.save_to_file(classif_filter_fname)
+        if self.lexicalizer:
+            lexicalizer_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.lexic\1', model_fname)
+            self.lexicalizer.save_to_file(lexicalizer_fname)
 
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
@@ -885,7 +909,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 'tree_dict_size': self.tree_dict_size,
                 'max_da_len': self.max_da_len,
                 'max_tree_len': self.max_tree_len,
-                'classif_filter': self.classif_filter is not None}
+                'classif_filter': self.classif_filter is not None,
+                'lexicalizer': self.lexicalizer is not None}
         return data
 
     def _save_checkpoint(self):
@@ -918,6 +943,14 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             else:
                 log_warn("Classification filter data not found, ignoring.")
                 ret.classif_filter = False
+
+        if ret.lexicalizer:
+            lexicalizer_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.lexic\1', model_fname)
+            if os.path.isfile(lexicalizer_fname):
+                ret.lexicalizer = Lexicalizer.load_from_file(lexicalizer_fname)
+            else:
+                log_warn("Lexicalizer data not found, ignoring.")
+                ret.lexicalizer = None
 
         # re-build TF graph and restore the TF session
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
@@ -991,3 +1024,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # http://stackoverflow.com/questions/34968722/softmax-function-python
         out_probs = np.exp(output[0]) / np.sum(np.exp(output[0]), axis=0)
         return out_probs, state
+
+    def lexicalize(self, trees, abstr_file):
+        """Lexicalize generated trees according to the given lexicalization instruction file.
+        @param trees: list of generated TreeData instances (delexicalized)
+        @Param abstr_file: a file containing lexicalization instructions
+        @return: None
+        """
+        self.lexicalizer.lexicalize(trees, abstr_file)

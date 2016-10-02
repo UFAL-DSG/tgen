@@ -8,9 +8,18 @@ Lexicalization functions (postprocessing generated trees).
 from __future__ import unicode_literals
 import json
 import re
-from futil import file_stream
+import kenlm  # needed only if KenLMFormSelect is used
+import cPickle as pickle
+import numpy as np
+import sys
+import tempfile
+import shutil
+from subprocess import Popen, PIPE
+
 from tgen.tree import NodeData
 from tgen.rnd import rnd
+from tgen.futil import file_stream, read_absts
+from tgen.logf import log_warn, log_info
 
 
 class FormSelect(object):
@@ -30,44 +39,130 @@ class RandomFormSelect(FormSelect):
 
 class KenLMFormSelect(FormSelect):
 
-    def __init__(self, model_file=None):
-        import kenlm  # needed only if KenLM is used
-        self._lm = kenlm.Model(model_file)
+    def __init__(self, cfg):
+        self._sample = cfg.get('form_sample', False)
+        self._trained_model = None
+        np.random.seed(rnd.randint(-sys.maxint, sys.maxint))
 
     def get_surface_form(self, tree, pos, possible_forms):
-        import kenlm  # needed only if KenLM is used
         state, dummy_state = kenlm.State(), kenlm.State()
         self._lm.BeginSentenceWrite(state)
-        for idx in xrange(pos):
+        for idx in xrange(pos, start=1):
             self._lm.BaseScore(state, tree[idx].t_lemma, state)
         best_form = None
         best_score = float('-inf')
+        scores = []
         for possible_form in possible_forms:
+            possible_form = possible_form.replace(' ', '_')
             score = self._lm.BaseScore(state, possible_form, dummy_state)
+            scores.append(score)
             if score > best_score:
                 best_score = score
                 best_form = possible_form
+        if self._sample:
+            probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
+            return np.random.choice(possible_forms, p=probs)
         return best_form
+
+    def load_model(self, model_fname_pattern):
+        model_fname = re.sub(r'(.pickle)?(.gz)?$', '.kenlm.bin', model_fname_pattern)
+        self._lm = kenlm.Model(model_fname)
+        self._trained_model = model_fname
+
+    def save_model(self, model_fname_pattern):
+        if not self._trained_model:
+            log_warn('No lexicalizer model trained, skipping saving!')
+
+        model_fname = re.sub(r'(.pickle)?(.gz)?$', '.kenlm.bin', model_fname_pattern)
+        shutil.copyfile(self._trained_model, model_fname)
+
+    def train(self, train_sents):
+        # create tempfile for output
+        tmpfile, path = tempfile.mkstemp(".kenlm.bin", "formselect-")
+        # create processes
+        lmplz = Popen(['lmplz', '-o', '5', '-S', '2G'], stdin=PIPE, stdout=PIPE)
+        binarize = Popen(['build_binary'], stdin=lmplz.stdout, stdout=tmpfile)
+        # feed input data
+        for sent in train_sents:
+            lmplz.stdin.write(" ".join(sent) + "\n")
+        # wait for the process to complete
+        binarize.wait()
+        if binarize.returncode != 0:
+            raise RuntimeError("LM build failed (error code: %d)" % binarize.errorcode)
+        # load the output into memory
+        self.load_model(path)
 
 
 class Lexicalizer(object):
 
-    def __init__(self, abstr_file=None, surface_forms_file=None, form_select_model=None):
-        self._values = []
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.mode = cfg.get('mode', 'trees')
         self._sf_all = {}
         self._sf_by_formeme = {}
         self._sf_by_tag = {}
-        if abstr_file:
-            self.load_lexicalization(abstr_file)
-        if surface_forms_file:
-            self.load_surface_forms(surface_forms_file)
         self._form_select = RandomFormSelect()
-        if form_select_model:
-            # TODO
-            pass
+        if 'form_select_type' in cfg:
+            if cfg['form_select_type'] == 'kenlm':
+                self._form_select = KenLMFormSelect(cfg)
+
+    def train(self, fnames, train_trees):
+        log_info('Training lexicalizer...')
+        if not fnames:
+            return
+        if ',' in fnames:
+            surface_forms_fname, train_abst_fname = fnames.split(',')
+        else:
+            surface_forms_fname, train_abst_fname = fnames, None
+
+        self.load_surface_forms(surface_forms_fname)
+        if train_abst_fname and not isinstance(self._form_select, RandomFormSelect):
+            log_info('Training lexicalization LM from training trees and %s...' % train_abst_fname)
+            self._form_select.train(self._prepare_train_toks(train_trees, train_abst_fname))
+
+    def _first_abst(self, absts, slot):
+        """Get 1st abstraction instruction for a specific slot in the lis, put it back to
+        the end of the list"""
+        i, abst = ((i, a) for i, a in enumerate(absts) if a.slot == slot).next()
+        del absts[i]
+        absts.append(abst)
+        return abst
+
+    def _prepare_train_toks(self, train_trees, train_abstr_fname):
+        # load abstraction file
+        abstss = read_absts(train_abstr_fname)
+        out_sents = []
+        for tree, absts in zip(train_trees, abstss):
+            out_sent = []
+            if self.mode == 'trees':
+                for idx, node in enumerate(tree):
+                    if node.t_lemma.startswith('X-'):
+                        abst = self._first_abst(absts, node.t_lemma[2:])
+                        out_sent.append(abst.surface_form.replace(' ', '_'))
+                    else:
+                        out_sent.append(node.t_lemma)
+                    out_sent.append(node.formeme)
+            elif self.mode == 'tagged_lemmas':
+                for lemma, tag in tree:
+                    if lemma.startswith('X-'):
+                        abst = self._first_abst(absts, lemma[2:])
+                        out_sent.append(abst.surface_form.replace(' ', '_'))
+                    else:
+                        out_sent.append(lemma)
+                    out_sent.append(tag)
+            else:  # tokens
+                for tok, _ in tree:
+                    if tok.startswith('X-'):
+                        abst = self._first_abst(absts, tok[2:])
+                        out_sent.append(abst.surface_form.replace(' ', '_'))
+                    else:
+                        out_sent.append(tok)
+            out_sents.append(out_sent)
+        return out_sents
 
     def load_surface_forms(self, surface_forms_fname):
         """Load all proper name surface forms from a file."""
+        log_info('Loading surface forms from %s...' % surface_forms_fname)
         with file_stream(surface_forms_fname) as fh:
             data = json.load(fh)
         for slot, values in data.iteritems():
@@ -140,18 +235,20 @@ class Lexicalizer(object):
                     line_abstrs[slot].append(value)
 
                 abstrs.append(line_abstrs)
-        self._values = abstrs
+        return abstrs
 
-    def lexicalize(self, gen_trees, mode):
+    def lexicalize(self, gen_trees, abstr_file):
         """Lexicalize nodes in the generated trees (which may represent trees, tokens, or tagged lemmas).
         Expects lexicalization file (and surface forms file) to be loaded in the Lexicalizer object,
         otherwise nothing will happen. The actual operation depends on the generator mode.
 
         @param gen_trees: list of TreeData objects representing generated trees/tokens/tagged lemmas
+        @param abstr_file: abstraction/delexicalization instructions file path
         @param mode: generator mode (acceptable string values: "trees"/"tokens"/"tagged_lemmas")
         @return: None
         """
-        for tree, lex_dict in zip(gen_trees, self._values):
+        abstrs = self.load_lexicalization(abstr_file)
+        for tree, lex_dict in zip(gen_trees, abstrs):
             idx = 1
             while idx < len(tree):
                 if tree[idx].t_lemma.startswith('X-'):
@@ -159,12 +256,12 @@ class Lexicalizer(object):
                     # we can lexicalize
                     if slot in lex_dict:
                         # tagged lemmas: one token with appropriate value
-                        if mode == 'tagged_lemmas':
+                        if self.mode == 'tagged_lemmas':
                             val = self._get_surface_form(tree, idx, slot, lex_dict[slot][0],
                                                          tag=tree[idx+1].t_lemma)
                             tree[idx] = NodeData(t_lemma=val, formeme='x')
                         # trees: one node with appropriate value, keep formeme
-                        elif mode == 'trees':
+                        elif self.mode == 'trees':
                             val = self._get_surface_form(tree, idx, slot, lex_dict[slot][0],
                                                          formeme=tree[idx].formeme)
                             tree[idx] = NodeData(t_lemma=val, formeme=tree[idx].formeme)
@@ -233,3 +330,33 @@ class Lexicalizer(object):
             form = re.sub(r'_', num, form, count=1)
 
         return form
+
+    @staticmethod
+    def load_from_file(lexicalizer_fname):
+        log_info("Loading lexicalizer from %s..." % lexicalizer_fname)
+        with file_stream(lexicalizer_fname, 'rb', encoding=None) as fh:
+            data = pickle.load(fh)
+            ret = Lexicalizer(cfg=data['cfg'])
+            ret.__dict__.update(data)
+            ret._form_select = ret._form_select(data['cfg'])
+
+        if not isinstance(ret._form_select, RandomFormSelect):
+            ret._form_select.load_model(lexicalizer_fname)
+
+    def save_to_file(self, lexicalizer_fname):
+        log_info("Saving lexicalizer to %s..." % lexicalizer_fname)
+        with file_stream(lexicalizer_fname, 'wb', encoding=None) as fh:
+            pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
+
+        if not isinstance(self._form_select, RandomFormSelect):
+            self._form_select.save_model(lexicalizer_fname)
+
+    def get_all_settings(self):
+        """Get all settings except the trained model parameters (to be stored in a pickle)."""
+        data = {'cfg': self.cfg,
+                'mode': self.mode,
+                '_sf_all': self._sf_all,
+                '_sf_by_formeme': self._sf_by_formeme,
+                '_sf_by_tag': self._sf_by_tag,
+                '_form_select': type(self._form_select)}
+        return data
