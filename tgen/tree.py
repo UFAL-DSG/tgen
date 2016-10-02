@@ -8,7 +8,6 @@ Trees for generating.
 from __future__ import unicode_literals
 from collections import namedtuple, deque
 from pytreex.core.node import T
-from tgen.logf import log_info
 
 
 __author__ = "Ondřej Dušek"
