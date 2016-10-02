@@ -164,13 +164,13 @@ class RerankingClassifier(TFModel):
 
     @staticmethod
     def load_from_file(model_fname):
-        """Load the generator from a file (actually two files, one for configuration and one
+        """Load the reranker from a file (actually two files, one for configuration and one
         for the TensorFlow graph, which must be stored separately).
 
         @param model_fname: file name (for the configuration file); TF graph must be stored with a \
             different extension
         """
-        log_info("Loading generator from %s..." % model_fname)
+        log_info("Loading reranker from %s..." % model_fname)
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
             ret = RerankingClassifier(cfg=data['cfg'])
@@ -223,6 +223,9 @@ class RerankingClassifier(TFModel):
                 if math.isnan(top_comb_cost) or comb_cost < top_comb_cost:
                     top_comb_cost = comb_cost
                     self._save_checkpoint()
+
+        # restore last checkpoint (best performance on devel data)
+        self.restore_checkpoint()
 
     def classify(self, trees):
         """Classify the tree -- get DA slot-value pairs and DA type to which the tree
