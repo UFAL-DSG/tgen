@@ -109,6 +109,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
     def load_from_file(model_fname):
         """Load the whole ensemble from a file (load settings and model parameters, then build the
         ensemble network)."""
+        # TODO support for lexicalizer
 
         log_info("Loading ensemble generator from %s..." % model_fname)
 
@@ -132,6 +133,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
     def save_to_file(self, model_fname):
         """Save the whole ensemble into a file (get all settings and parameters, dump them in a
         pickle)."""
+        # TODO support for lexicalizer
 
         log_info("Saving generator to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
