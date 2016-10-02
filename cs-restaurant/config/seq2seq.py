@@ -54,5 +54,10 @@ config = {
               'emb_size': 50,
               'max_tree_len': 50,
               'validation_freq': 1,
-              }
-          }
+              },
+
+        'lexicalizer': {
+            'mode': 'tokens',
+            'form_select_type': 'random',
+        },
+}
