@@ -14,6 +14,7 @@ from codecs import StreamReader, StreamWriter
 
 from alex.components.slu.da import DialogueAct
 from tree import TreeData
+from data import Abst
 
 
 def file_stream(filename, mode='r', encoding='UTF-8'):
@@ -49,14 +50,20 @@ def read_das(da_file):
 
 
 def read_absts(abst_file):
-    """Read abstraction/lexicalization instructions from a file, one sentence per line."""
+    """Read abstraction/lexicalization instructions from a file, one sentence per line.
+    @param abst_file: path to the file containing lexicalization instructions
+    @return: list of list of Abst objects, representing the instructions
+    """
     abstss = []
     with file_stream(abst_file) as fh:
         for line in fh:
+            line = line.strip()
             absts = []
-            for abst_str in line.split("\t"):
-                absts.append(Abst.parse(abst_str))
+            if line:  # empty lines = empty abstraction instructions
+                for abst_str in line.split("\t"):
+                    absts.append(Abst.parse(abst_str))
             abstss.append(absts)
+    return abstss
 
 
 def read_ttrees(ttree_file):
