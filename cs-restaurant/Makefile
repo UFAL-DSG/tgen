@@ -211,6 +211,8 @@ seq2seq_train:
 	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
+	cp $(TRAIN_ABSTR) $(TRY_DIR)/train-abst.txt
+	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
 	if [[ -n "$(EVAL_TEST)" ]]; then \
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
 		cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
@@ -219,6 +221,7 @@ seq2seq_train:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" '"$$VALID_DATA_SPEC"' \
+		-l $(TRY_DIR)/surface_forms.json,$(TRY_DIR)/train-abst.txt \
 		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
@@ -233,7 +236,6 @@ prepare_test_data:
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
 	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
-	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
