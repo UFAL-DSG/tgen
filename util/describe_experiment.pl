@@ -36,6 +36,7 @@ $config_data =~ s/^\s*#.*$//gm;
 
 my $mode = 'percrank';
 my $classif_filter_data = '';
+my $lexicalizer_data = '';
 
 if ( $ARGV[0] =~ /seq2seq/ ){
     $mode = 'seq2seq';
@@ -43,6 +44,10 @@ if ( $ARGV[0] =~ /seq2seq/ ){
     # remove classification filter data so that they do not influence reading other settings
     $classif_filter_data = ( $config_data =~ /'classif_filter'\s*:\s*{([^}]*)}/s )[0];
     $config_data =~ s/'classif_filter'\s*:\s*{[^}]*}//s;
+
+    # do the same with lexicalizer data
+    $lexicalizer_data = ( $config_data =~ /'lexicalizer'\s*:\s*{([^}]*)}/s )[0];
+    $config_data =~ s/'lexicalizer'\s*:\s*{[^}]*}//s;
 }
 
 # data set (devel -- default, eval -- mark)
@@ -94,12 +99,19 @@ $training_data .= ' + sc'        if ( $training_set =~ /^training[12]_sc/ );
 $training_data .= ' + xc'        if ( $training_set =~ /^training[12]_xc/ );
 $training_data .= ' + flat'      if ( $training_set =~ /^training[12]_flat/ );
 $training_data .= ' + norep'     if ( $training_set =~ /^training[12]_norep/ );
-$training_data .= ' + dlimit cg' if ( $training_set =~ /dlimit$/ );
-$training_data .= ' + llimit cg' if ( $training_set =~ /llimit$/ );
-$training_data .= ' + delex cg'  if ( $training_set =~ /delex$/ );
-$training_data .= ' + lex cg'    if ( $training_set =~ /[12]$/ );
-if ( $training_set =~ /-(.*)$/ ) {
-    $training_data .= ' + ' . $1 . ' cg';
+if ($mode eq 'percrank'){
+    $training_data .= ' + dlimit cg' if ( $training_set =~ /dlimit$/ );
+    $training_data .= ' + llimit cg' if ( $training_set =~ /llimit$/ );
+    $training_data .= ' + delex cg'  if ( $training_set =~ /delex$/ );
+    $training_data .= ' + lex cg'    if ( $training_set =~ /[12]$/ );
+    if ( $training_set =~ /-(.*)$/ ) {
+        $training_data .= ' + ' . $1 . ' cg';
+    }
+}
+else {
+    if ( $training_set =~ /-(.*)$/ ) {
+        $training_data .= ' + ' . $1;
+    }
 }
 
 if ( $mode eq 'percrank' ){
@@ -152,7 +164,8 @@ elsif ( $mode eq 'seq2seq' ){
     $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
     $nn_shape .= ' +adgr'  if ( $config_data =~ /'optimizer_type'\s*:\s*'adagrad'/ );
     $nn_shape .= ' +dc'  if ( $config_data =~ /'use_dec_cost'\s*:\s*True/ );
-    $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ );
+    $nn_shape .= ' ->tok'  if ( $config_data =~ /'use_tokens'\s*:\s*True/ or $config_data =~ /'mode'\s*:\s*'tokens'/ );
+    $nn_shape .= ' ->tls'  if ( $config_data =~ /'mode'\s*:\s*'tagged_lemmas'/ );
 
     if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention2?_seq2seq_context'/ ){
         $nn_shape .= ' +C-sepenc';
@@ -201,6 +214,17 @@ elsif ( $mode eq 'seq2seq' ){
             $nn_shape .= 'E' . ( ( $classif_filter_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
         }
         $nn_shape .= '-N' . ( ( $classif_filter_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
+    }
+
+    # lexicalizer settings
+    if ($lexicalizer_data){
+        $nn_shape .=  ' +lx';
+        my $form_sel_type = (( $lexicalizer_data =~ /'form_select_type'\s*:\s*'([^']*)'/ )[0] // 'random' );
+        my $form_sample = (( $lexicalizer_data =~ /'form_sample'\s*:\s*(False|True)/ )[0] // 'False' );
+        $nn_shape .= '-' . $form_sel_type;
+        if ($form_sample eq 'True'){
+            $nn_shape .= '+samp';
+        }
     }
 }
 
