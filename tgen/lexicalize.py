@@ -14,6 +14,7 @@ import numpy as np
 import sys
 import tempfile
 import shutil
+import codecs
 from subprocess import Popen, PIPE
 
 from tgen.tree import NodeData
@@ -42,7 +43,7 @@ class KenLMFormSelect(FormSelect):
     def __init__(self, cfg):
         self._sample = cfg.get('form_sample', False)
         self._trained_model = None
-        np.random.seed(rnd.randint(-sys.maxint, sys.maxint))
+        np.random.seed(rnd.randint(0, 2**32 - 1))
 
     def get_surface_form(self, tree, pos, possible_forms):
         state, dummy_state = kenlm.State(), kenlm.State()
@@ -73,24 +74,26 @@ class KenLMFormSelect(FormSelect):
         if not self._trained_model:
             log_warn('No lexicalizer model trained, skipping saving!')
 
-        model_fname = re.sub(r'(.pickle)?(.gz)?$', '.kenlm.bin', model_fname_pattern)
+        model_fname = re.sub(r'(\.pickle)?(\.gz)?$', '.kenlm.bin', model_fname_pattern)
         shutil.copyfile(self._trained_model, model_fname)
 
     def train(self, train_sents):
         # create tempfile for output
-        tmpfile, path = tempfile.mkstemp(".kenlm.bin", "formselect-")
+        tmpfile, tmppath = tempfile.mkstemp(".kenlm.bin", "formselect-")
         # create processes
         lmplz = Popen(['lmplz', '-o', '5', '-S', '2G'], stdin=PIPE, stdout=PIPE)
-        binarize = Popen(['build_binary'], stdin=lmplz.stdout, stdout=tmpfile)
+        binarize = Popen(['build_binary', '/dev/stdin', tmppath], stdin=lmplz.stdout)
         # feed input data
+        lmplz_stdin = codecs.getwriter('UTF-8')(lmplz.stdin)
         for sent in train_sents:
-            lmplz.stdin.write(" ".join(sent) + "\n")
+            lmplz_stdin.write(" ".join(sent) + "\n")
+        lmplz_stdin.close()
         # wait for the process to complete
         binarize.wait()
         if binarize.returncode != 0:
-            raise RuntimeError("LM build failed (error code: %d)" % binarize.errorcode)
-        # load the output into memory
-        self.load_model(path)
+            raise RuntimeError("LM build failed (error code: %d)" % binarize.returncode)
+        # load the output into memory (extension will be filled in again)
+        self.load_model(re.sub('\.kenlm\.bin$', '', tmppath))
 
 
 class Lexicalizer(object):
