@@ -127,6 +127,9 @@ class Abst(object):
         out += str(self.start) + '-' + str(self.end)
         return out
 
+    def __str__(self):
+        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
+
     @staticmethod
     def parse(abst_str):
         """Create the abstraction instruction from a string representation, in the following
