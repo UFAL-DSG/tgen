@@ -24,7 +24,7 @@ Notice
 
 * TGen is highly experimental and only tested on a few datasets. Use at your own risk.
 * To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
-* To get the version used in our ACL 2016 paper (seq2seq approach for generating sentence plans or strings), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
+* To get the version used in our ACL 2016 and SIGDIAL 2016 papers (seq2seq approach for generating sentence plans or strings, optionally using previous context), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
 
 Dependencies
 ------------
