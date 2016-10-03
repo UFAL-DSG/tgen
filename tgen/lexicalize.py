@@ -138,7 +138,7 @@ class Lexicalizer(object):
         for tree, absts in zip(train_trees, abstss):
             out_sent = []
             if self.mode == 'trees':
-                for idx, node in enumerate(tree):
+                for idx, node in enumerate(tree.nodes[1:]):
                     if node.t_lemma.startswith('X-'):
                         abst = self._first_abst(absts, node.t_lemma[2:])
                         out_sent.append(abst.surface_form.replace(' ', '_'))
