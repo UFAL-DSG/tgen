@@ -57,7 +57,7 @@ config = {
               },
 
         'lexicalizer': {
-            'mode': 'tokens',
             'form_select_type': 'random',
+            'form_sample': False,
         },
 }
