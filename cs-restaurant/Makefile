@@ -247,8 +247,7 @@ gen_process:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
 		$(SELECTOR_CONFIG) \
-		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
-		-a $(TRY_DIR)/test-abst.txt -s $(TRY_DIR)/surface_forms.json \
+		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		$(POSTPROCESS) -m $(GEN_MODEL) -i $(TRY_DIR)/test-das.txt \
 			-g $(TRY_DIR)/grammatemes.tsv -s $(TARGET_SELECTOR) \

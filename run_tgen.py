@@ -495,6 +495,7 @@ def seq2seq_gen(args):
 
     # lexicalize, if required
     if args.abstr_file and tgen.lexicalizer:
+        log_info('Lexicalizing...')
         tgen.lexicalize(gen_trees, args.abstr_file)
 
     # evaluate the generated & lexicalized tokens (F1 and BLEU scores)

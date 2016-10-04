@@ -434,7 +434,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
 
 class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
-    """Extracting token emeddings from a string (array of words)."""
+    """Extracting token embeddings from a string (array of words)."""
 
     VOID = 0
     GO = 1
