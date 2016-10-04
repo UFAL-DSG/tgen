@@ -16,16 +16,17 @@ import tempfile
 import shutil
 import codecs
 from subprocess import Popen, PIPE
+import tensorflow as tf
 
 from tgen.tree import NodeData
 from tgen.rnd import rnd
 from tgen.futil import file_stream, read_absts
 from tgen.logf import log_warn, log_info
-
+from tgen.tf_ml import TFModel
 
 class FormSelect(object):
 
-    def __init__(self):
+    def __init__(self, cfg=None):
         pass
 
     def get_surface_form(self, sentence, pos, possible_forms):
@@ -34,6 +35,9 @@ class FormSelect(object):
 
 class RandomFormSelect(FormSelect):
 
+    def __init__(self, cfg=None):
+        super(RandomFormSelect, self).__init__(cfg)
+
     def get_surface_form(self, sentence, pos, possible_forms):
         return rnd.choice(possible_forms)
 
@@ -41,6 +45,7 @@ class RandomFormSelect(FormSelect):
 class KenLMFormSelect(FormSelect):
 
     def __init__(self, cfg):
+        super(KenLMFormSelect, self).__init__(cfg)
         self._sample = cfg.get('form_sample', False)
         self._trained_model = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
@@ -54,7 +59,7 @@ class KenLMFormSelect(FormSelect):
         best_score = float('-inf')
         scores = []
         for possible_form in possible_forms:
-            possible_form = possible_form.replace(' ', '_')
+            possible_form = possible_form.lower().replace(' ', '_')
             score = self._lm.BaseScore(state, possible_form, dummy_state)
             scores.append(score)
             if score > best_score:
@@ -86,7 +91,7 @@ class KenLMFormSelect(FormSelect):
         # feed input data
         lmplz_stdin = codecs.getwriter('UTF-8')(lmplz.stdin)
         for sent in train_sents:
-            lmplz_stdin.write(" ".join(sent) + "\n")
+            lmplz_stdin.write(" ".join(sent).lower() + "\n")
         lmplz_stdin.close()
         # wait for the process to complete
         binarize.wait()
