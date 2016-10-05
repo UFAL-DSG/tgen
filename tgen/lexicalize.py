@@ -144,6 +144,10 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self.vocab_size = None
 
     def _init_training(self, train_sents):
+        """Initialize training (prepare vocabulary, prepare training batches), initialize the
+        RNN.
+        @param train_sents: training data (list of lists of tokens, lexicalized)
+        """
         # initialize embeddings
         dict_ord = self.MIN_VALID
         for sent in train_sents:
@@ -162,6 +166,11 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self.session.run(tf.initialize_all_variables())
 
     def _sent_to_ids(self, sent):
+        """Convert tokens in a sentence to integer IDs to be used as an input to the RNN.
+        Pad with "<VOID>" to maximum sentence length.
+        @param sent: input sentence (list of string tokens)
+        @return: list of IDs corresponding to the input tokens, padded to RNN length
+        """
         ids = [self.vocab.get('<GO>')]
         ids += [self.vocab.get(tok, self.vocab.get('<UNK>')) for tok in sent]
         ids = ids[:self.max_sent_len]
@@ -180,25 +189,26 @@ class RNNLMFormSelect(FormSelect, TFModel):
             yield inputs, targets
 
     def _init_neural_network(self):
+        """Initialize the RNNLM network."""
 
         with tf.variable_scope(self.scope_name):
             # TODO dropout
-            self._inputs = tf.placeholder(tf.int32, [None, self.max_sent_len],
-                                          name='inputs')
-            self._targets = tf.placeholder(tf.int32, [None, self.max_sent_len],
-                                           name='targets')
+            # I/O placeholders
+            self._inputs = tf.placeholder(tf.int32, [None, self.max_sent_len], name='inputs')
+            self._targets = tf.placeholder(tf.int32, [None, self.max_sent_len], name='targets')
 
+            # RNN cell type
             if self.cell_type.startswith('gru'):
                 self._cell = tf.nn.rnn_cell.GRUCell(self.emb_size)
             else:
                 self._cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
             if re.match(r'/[0-9]$', self.cell_type):
                 self._cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * int(self.cell_type[-1]))
-
             self._initial_state = self._cell.zero_state(tf.shape(self._inputs)[0], tf.float32)
+
             # embeddings
             emb_cell = tf.nn.rnn_cell.EmbeddingWrapper(self._cell, self.vocab_size)
-            # RNN encoding
+            # RNN encoder
             inputs = [tf.squeeze(input_, [1])
                       for input_ in tf.split(1, self.max_sent_len, self._inputs)]
             outputs, states = tf.nn.rnn(emb_cell, inputs, initial_state=self._initial_state)
@@ -230,7 +240,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
             grads, _ = tf.clip_by_global_norm([g for g, _ in grads_tvars], self.max_grad_norm)
             self._train_func = opt.apply_gradients(zip(grads, [v for _, v in grads_tvars]))
 
-        # initialize session
+        # initialize TF session
         session_config = None
         if self.max_cores:
             session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
@@ -243,6 +253,9 @@ class RNNLMFormSelect(FormSelect, TFModel):
                 'vocab_size': self.vocab_size}
 
     def train(self, train_sents):
+        """Train the RNNLM on the given data (list of lists of tokens).
+        @param train_sents: training data (list of lists of tokens, lexicalized)
+        """
         self._init_training(train_sents)
 
         for iter_no in xrange(1, self.passes + 1):
@@ -253,6 +266,10 @@ class RNNLMFormSelect(FormSelect, TFModel):
             self._training_pass(iter_no, iter_alpha)
 
     def _training_pass(self, pass_no, pass_alpha):
+        """Run one pass over the training data (epoch).
+        @param pass_no: pass number (for logging)
+        @param pass_alpha: learning rate for the current pass
+        """
         pass_start_time = time.time()
         pass_cost = 0
         for batch_no, (inputs, targets) in enumerate(self._batches()):
@@ -266,12 +283,14 @@ class RNNLMFormSelect(FormSelect, TFModel):
         return pass_cost
 
     def load_model(self, model_fname_pattern):
+        """Load the RNNLM model from a file."""
         model_fname = re.sub(r'(.pickle)?(.gz)?$', '.rnnlm', model_fname_pattern)
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             self.load_all_settings(pickle.load(fh))
             self.set_model_params(pickle.load(fh))
 
     def save_model(self, model_fname_pattern):
+        """Save the RNNLM model to a file.""""
         model_fname = re.sub(r'(.pickle)?(.gz)?$', '.rnnlm', model_fname_pattern)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, pickle.HIGHEST_PROTOCOL)
@@ -294,8 +313,12 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
 
 class Lexicalizer(object):
+    """Main object controlling lexicalization, using a LM or random surface forms to replace
+    slot placeholders in the outputs."""
 
     def __init__(self, cfg):
+        """Read configuration, initialize internal buffers, create the surface form selection
+        LM object (if required)."""
         self.cfg = cfg
         self.mode = cfg.get('mode', 'trees')
         self._sf_all = {}
@@ -309,6 +332,12 @@ class Lexicalizer(object):
                 self._form_select = RNNLMFormSelect(cfg)
 
     def train(self, fnames, train_trees):
+        """Train the lexicalizer (including its LM, if applicable).
+        @param fnames: file names for surface forms (JSON) and training data lexicalization \
+            instructions
+        @param train_trees: loaded generator training data (TreeData trees/lists of lemma-tag \
+            or form-tag pairs)
+        """
         log_info('Training lexicalizer...')
         if not fnames:
             return
@@ -544,6 +573,7 @@ class Lexicalizer(object):
 
     @staticmethod
     def load_from_file(lexicalizer_fname):
+        """Load the lexicalizer model from a file (and a second file with the LM, if needed)."""
         log_info("Loading lexicalizer from %s..." % lexicalizer_fname)
         with file_stream(lexicalizer_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
@@ -556,6 +586,7 @@ class Lexicalizer(object):
         return ret
 
     def save_to_file(self, lexicalizer_fname):
+        """Save the lexicalizer model to a file (and a second file with the LM, if needed)."""
         log_info("Saving lexicalizer to %s..." % lexicalizer_fname)
         with file_stream(lexicalizer_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
