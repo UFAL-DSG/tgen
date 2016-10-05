@@ -59,5 +59,16 @@ config = {
         'lexicalizer': {
             'form_select_type': 'random',
             'form_sample': False,
+            'randomize': True,
+            'passes': 50,
+            'alpha': 1,
+            'alpha_decay': 0.0,
+            'batch_size': 20,
+            'max_sent_len': 32,
+            'emb_size': 50,
+            'cell_type': 'lstm',
+            'max_grad_norm': 10,
+            'optimizer_type': 'adam',
+            'max_cores': 4,
         },
 }

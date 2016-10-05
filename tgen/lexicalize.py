@@ -11,18 +11,21 @@ import re
 import kenlm  # needed only if KenLMFormSelect is used
 import cPickle as pickle
 import numpy as np
-import sys
 import tempfile
+import time
+import datetime
 import shutil
 import codecs
+import operator
 from subprocess import Popen, PIPE
 import tensorflow as tf
 
-from tgen.tree import NodeData
+from tgen.tree import NodeData, TreeData
 from tgen.rnd import rnd
 from tgen.futil import file_stream, read_absts
 from tgen.logf import log_warn, log_info
 from tgen.tf_ml import TFModel
+
 
 class FormSelect(object):
 
@@ -30,6 +33,14 @@ class FormSelect(object):
         pass
 
     def get_surface_form(self, sentence, pos, possible_forms):
+        """Return a suitable surface form for the given position in the given sentence,
+        selecting from a list of possible forms.
+
+        @param sentence: input sentence (a list of tokens)
+        @param pos: position in the sentence where the form should be selected
+        @param possible_forms: list of possible surface forms for this position
+        @return: the selected surface form (string)
+        """
         raise NotImplementedError()
 
 
@@ -50,25 +61,25 @@ class KenLMFormSelect(FormSelect):
         self._trained_model = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
 
-    def get_surface_form(self, tree, pos, possible_forms):
+    def get_surface_form(self, sentence, pos, possible_forms):
         state, dummy_state = kenlm.State(), kenlm.State()
         self._lm.BeginSentenceWrite(state)
-        for idx in xrange(pos, start=1):
-            self._lm.BaseScore(state, tree[idx].t_lemma, state)
-        best_form = None
+        for idx in xrange(pos):
+            self._lm.BaseScore(state, sentence[idx], state)
+        best_form_idx = 0
         best_score = float('-inf')
         scores = []
-        for possible_form in possible_forms:
-            possible_form = possible_form.lower().replace(' ', '_')
+        for form_idx, possible_form in enumerate(possible_forms):
+            possible_form = possible_form.lower().replace(' ', '^')
             score = self._lm.BaseScore(state, possible_form, dummy_state)
             scores.append(score)
             if score > best_score:
                 best_score = score
-                best_form = possible_form
+                best_form_idx = form_idx
         if self._sample:
             probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
             return np.random.choice(possible_forms, p=probs)
-        return best_form
+        return possible_forms[best_form_idx]
 
     def load_model(self, model_fname_pattern):
         model_fname = re.sub(r'(.pickle)?(.gz)?$', '.kenlm.bin', model_fname_pattern)
@@ -91,7 +102,7 @@ class KenLMFormSelect(FormSelect):
         # feed input data
         lmplz_stdin = codecs.getwriter('UTF-8')(lmplz.stdin)
         for sent in train_sents:
-            lmplz_stdin.write(" ".join(sent).lower() + "\n")
+            lmplz_stdin.write(' '.join([tok.lower().replace(' ', '^') for tok in sent]) + "\n")
         lmplz_stdin.close()
         # wait for the process to complete
         binarize.wait()
@@ -99,6 +110,187 @@ class KenLMFormSelect(FormSelect):
             raise RuntimeError("LM build failed (error code: %d)" % binarize.returncode)
         # load the output into memory (extension will be filled in again)
         self.load_model(re.sub('\.kenlm\.bin$', '', tmppath))
+
+
+class RNNLMFormSelect(FormSelect, TFModel):
+
+    VOID = 0
+    GO = 1
+    STOP = 2
+    UNK = 3
+    MIN_VALID = 4
+
+    def __init__(self, cfg):
+        FormSelect.__init__(self)
+        TFModel.__init__(self, scope_name='formselect-' + cfg.get('scope_suffix', ''))
+        # load configuration
+        self._sample = cfg.get('form_sample', False)
+
+        self.randomize = cfg.get('randomize', True)
+        self.emb_size = cfg.get('emb_size', 50)
+        self.passes = cfg.get('passes', 200)
+        self.alpha = cfg.get('alpha', 1)
+        self.batch_size = cfg.get('batch_size', 1)
+        self.max_sent_len = cfg.get('max_sent_len', 32)
+        self.cell_type = cfg.get('cell_type', 'lstm')
+        self.max_grad_norm = cfg.get('max_grad_norm', 100)
+        self.optimizer_type = cfg.get('optimizer_type', 'adam')
+        self.max_cores = cfg.get('max_cores', 4)
+        self.alpha_decay = cfg.get('alpha_decay', 0.0)
+        self.vocab = {'<VOID>': self.VOID, '<GO>': self.GO,
+                      '<STOP>': self.STOP, '<UNK>': self.UNK}
+        self.reverse_dict = {self.VOID: '<VOID>', self.GO: '<GO>',
+                             self.STOP: '<STOP>', self.UNK: '<UNK>'}
+        self.vocab_size = None
+
+    def _init_training(self, train_sents):
+        # initialize embeddings
+        dict_ord = self.MIN_VALID
+        for sent in train_sents:
+            for tok in sent:
+                tok = tok.lower()
+                if tok not in self.vocab:
+                    self.vocab[tok] = dict_ord
+                    self.reverse_dict[dict_ord] = tok
+                    dict_ord += 1
+        self.vocab_size = dict_ord
+        # prepare training data
+        self._train_data = []
+        for sent in train_sents:
+            self._train_data.append(self._sent_to_ids(sent))
+        self._init_neural_network()
+        self.session.run(tf.initialize_all_variables())
+
+    def _sent_to_ids(self, sent):
+        ids = [self.vocab.get('<GO>')]
+        ids += [self.vocab.get(tok, self.vocab.get('<UNK>')) for tok in sent]
+        ids = ids[:self.max_sent_len]
+        ids += [self.vocab.get('<STOP>')]
+        # actually using max_sent_len + 1 (inputs exclude last step, targets exclude the 1st)
+        ids += [self.vocab.get('<VOID>') for _ in xrange(self.max_sent_len - len(ids) + 1)]
+        return ids
+
+    def _batches(self):
+        """Create batches from the input; use as iterator."""
+        for batch_start in xrange(0, len(self._train_order), self.batch_size):
+            sents = [self._train_data[idx]
+                     for idx in self._train_order[batch_start: batch_start + self.batch_size]]
+            inputs = np.array([sent[:-1] for sent in sents], dtype=np.int32)
+            targets = np.array([sent[1:] for sent in sents], dtype=np.int32)
+            yield inputs, targets
+
+    def _init_neural_network(self):
+
+        with tf.variable_scope(self.scope_name):
+            # TODO dropout
+            self._inputs = tf.placeholder(tf.int32, [None, self.max_sent_len],
+                                          name='inputs')
+            self._targets = tf.placeholder(tf.int32, [None, self.max_sent_len],
+                                           name='targets')
+
+            if self.cell_type.startswith('gru'):
+                self._cell = tf.nn.rnn_cell.GRUCell(self.emb_size)
+            else:
+                self._cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
+            if re.match(r'/[0-9]$', self.cell_type):
+                self._cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * int(self.cell_type[-1]))
+
+            self._initial_state = self._cell.zero_state(tf.shape(self._inputs)[0], tf.float32)
+            # embeddings
+            emb_cell = tf.nn.rnn_cell.EmbeddingWrapper(self._cell, self.vocab_size)
+            # RNN encoding
+            inputs = [tf.squeeze(input_, [1])
+                      for input_ in tf.split(1, self.max_sent_len, self._inputs)]
+            outputs, states = tf.nn.rnn(emb_cell, inputs, initial_state=self._initial_state)
+
+            # output layer
+            output = tf.reshape(tf.concat(1, outputs), [-1, self.emb_size])
+            self._logits = (tf.matmul(output,
+                                      tf.get_variable("W", [self.emb_size, self.vocab_size])) +
+                            tf.get_variable("b", [self.vocab_size]))
+
+            # cost
+            targets_1d = tf.reshape(self._targets, [-1])
+            self._loss = tf.nn.seq2seq.sequence_loss_by_example(
+                    [self._logits], [targets_1d],
+                    [tf.ones_like(targets_1d, dtype=tf.float32)], self.vocab_size)
+            self._cost = tf.reduce_mean(self._loss)
+
+            # optimizer
+            self._learning_rate = tf.placeholder(tf.float32, name="learning_rate")
+            if self.optimizer_type == 'sgd':
+                opt = tf.train.GradientDescentOptimizer(self._learning_rate)
+            if self.optimizer_type == 'adagrad':
+                opt = tf.train.AdagradOptimizer(self._learning_rate)
+            else:
+                opt = tf.train.AdamOptimizer(self._learning_rate)
+
+            # gradient clipping
+            grads_tvars = opt.compute_gradients(self._loss, tf.trainable_variables())
+            grads, _ = tf.clip_by_global_norm([g for g, _ in grads_tvars], self.max_grad_norm)
+            self._train_func = opt.apply_gradients(zip(grads, [v for _, v in grads_tvars]))
+
+        # initialize session
+        session_config = None
+        if self.max_cores:
+            session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
+                                            intra_op_parallelism_threads=self.max_cores)
+        self.session = tf.Session(config=session_config)
+
+    def get_all_settings(self):
+        return {'vocab': self.vocab,
+                'reverse_dict': self.reverse_dict,
+                'vocab_size': self.vocab_size}
+
+    def train(self, train_sents):
+        self._init_training(train_sents)
+
+        for iter_no in xrange(1, self.passes + 1):
+            iter_alpha = self.alpha * np.exp(-self.alpha_decay * iter_no)
+            self._train_order = range(len(self._train_data))
+            if self.randomize:
+                rnd.shuffle(self._train_order)
+            self._training_pass(iter_no, iter_alpha)
+
+    def _training_pass(self, pass_no, pass_alpha):
+        pass_start_time = time.time()
+        pass_cost = 0
+        for batch_no, (inputs, targets) in enumerate(self._batches()):
+            cost, _ = self.session.run([self._cost, self._train_func],
+                                       {self._inputs: inputs,
+                                        self._targets: targets,
+                                        self._learning_rate: pass_alpha, })
+            pass_cost += cost
+        duration = str(datetime.timedelta(seconds=(time.time() - pass_start_time)))
+        log_info("Pass %d: duration %s, cost %.3f" % (pass_no, duration, pass_cost))
+        return pass_cost
+
+    def load_model(self, model_fname_pattern):
+        model_fname = re.sub(r'(.pickle)?(.gz)?$', '.rnnlm', model_fname_pattern)
+        with file_stream(model_fname, 'rb', encoding=None) as fh:
+            self.load_all_settings(pickle.load(fh))
+            self.set_model_params(pickle.load(fh))
+
+    def save_model(self, model_fname_pattern):
+        model_fname = re.sub(r'(.pickle)?(.gz)?$', '.rnnlm', model_fname_pattern)
+        with file_stream(model_fname, 'wb', encoding=None) as fh:
+            pickle.dump(self.get_all_settings(), fh, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.get_model_params(), fh, pickle.HIGHEST_PROTOCOL)
+
+    def get_surface_form(self, sentence, pos, possible_forms):
+        # get unnormalized scores for the whole vocabulary
+        logits = self.session.run([self._logits],
+                                  {self._inputs: self._sent_to_ids(sentence)})
+        # pick out scores for possible forms
+        scores = [logits[self.vocab.get(form.lower(), self.vocab.get('<UNK>'))]
+                  for form in possible_forms]
+        probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
+        # sample from the prob. dist.
+        if self._sample:
+            return np.random.choice(possible_forms, p=probs)
+        # get just the most probable option
+        max_idx, _ = max(enumerate(probs), key=operator.itemgetter(1))
+        return possible_forms[max_idx]
 
 
 class Lexicalizer(object):
@@ -113,6 +305,8 @@ class Lexicalizer(object):
         if 'form_select_type' in cfg:
             if cfg['form_select_type'] == 'kenlm':
                 self._form_select = KenLMFormSelect(cfg)
+            elif cfg['form_select_type'] == 'rnnlm':
+                self._form_select = RNNLMFormSelect(cfg)
 
     def train(self, fnames, train_trees):
         log_info('Training lexicalizer...')
@@ -129,44 +323,65 @@ class Lexicalizer(object):
             self._form_select.train(self._prepare_train_toks(train_trees, train_abst_fname))
 
     def _first_abst(self, absts, slot):
-        """Get 1st abstraction instruction for a specific slot in the lis, put it back to
-        the end of the list"""
-        i, abst = ((i, a) for i, a in enumerate(absts) if a.slot == slot).next()
-        del absts[i]
-        absts.append(abst)
-        return abst
+        """Get 1st abstraction instruction for a specific slot in the list, put it back to
+        the end of the list. If there is no matching abstraction instruction, return None."""
+        try:
+            i, abst = ((i, a) for i, a in enumerate(absts) if a.slot == slot).next()
+            del absts[i]
+            absts.append(abst)
+            return abst
+        except StopIteration:
+            return None
 
     def _prepare_train_toks(self, train_trees, train_abstr_fname):
+        """Prepare training data for form selection LM. Use training trees/tagged lemmas/tokens,
+        apply lexicalization instructions including surface forms, and convert the output to a
+        list of lists of tokens (sentences).
+        @param train_trees: main generator training data (trees, tagged lemmas, tokens)
+        @param train_abstr_fname: file name for the corresponding lexicalization instructions
+        @return: list of lists of LM training tokens (lexicalized)
+        """
         # load abstraction file
         abstss = read_absts(train_abstr_fname)
         out_sents = []
         for tree, absts in zip(train_trees, abstss):
-            out_sent = []
-            if self.mode == 'trees':
-                for idx, node in enumerate(tree.nodes[1:]):
-                    if node.t_lemma.startswith('X-'):
-                        abst = self._first_abst(absts, node.t_lemma[2:])
-                        out_sent.append(abst.surface_form.replace(' ', '_'))
-                    else:
-                        out_sent.append(node.t_lemma)
-                    out_sent.append(node.formeme)
-            elif self.mode == 'tagged_lemmas':
-                for lemma, tag in tree:
-                    if lemma.startswith('X-'):
-                        abst = self._first_abst(absts, lemma[2:])
-                        out_sent.append(abst.surface_form.replace(' ', '_'))
-                    else:
-                        out_sent.append(lemma)
-                    out_sent.append(tag)
-            else:  # tokens
-                for tok, _ in tree:
-                    if tok.startswith('X-'):
-                        abst = self._first_abst(absts, tok[2:])
-                        out_sent.append(abst.surface_form.replace(' ', '_'))
-                    else:
-                        out_sent.append(tok)
+            # create a list of tokens
+            out_sent = self._tree_to_sentence(tree)
+            # lexicalize the resulting sentence using abstraction instructions
+            for idx, tok in enumerate(out_sent):
+                if tok.startswith('X-'):
+                    abst = self._first_abst(absts, tok[2:])
+                    form = re.sub(r'\b[0-9]+\b', '_', abst.surface_form)  # abstract numbers
+                    out_sent[idx] = form
+            # store the result
             out_sents.append(out_sent)
         return out_sents
+
+    def _tree_to_sentence(self, tree):
+        """Convert the given "tree" (i.e., tree, tagged lemmas, or tokens; represented as TreeData
+        or a list of tuples form/lemma-tag) into a sentence (i.e., always a plain list of tokens).
+        @param tree: input sentence -- a tree, tagged lemmas, or tokens (as TreeData or lists of \
+                tuples)
+        @return: list of tokens in the sentence
+        """
+        # based on embedding types
+        out_sent = []
+        if self.mode == 'trees':
+            for node in tree.nodes[1:]:
+                out_sent.append(node.t_lemma)
+                out_sent.append(node.formeme)
+        else:  # tokens or tagged lemmas are stored in t_lemmas
+            if isinstance(tree, TreeData):
+                for node in tree.nodes[1:]:
+                    out_sent.append(node.t_lemma)
+            else:
+                if self.mode == 'tagged_lemmas':
+                    for lemma, tag in tree:
+                        out_sent.append(lemma)
+                        out_sent.append(tag)
+                else:
+                    out_sent = [form for form, _ in tree]
+        return out_sent
 
     def load_surface_forms(self, surface_forms_fname):
         """Load all proper name surface forms from a file."""
@@ -223,66 +438,54 @@ class Lexicalizer(object):
             return ['v:fin']
         return ['x']
 
-    def load_lexicalization(self, abstr_file):
-        """Read lexicalization from a file with "abstraction instructions" (telling which tokens are
-        delexicalized to what). This just remembers the slots and values and returns them in a dict
-        for each line (slot -> list of values)."""
-        abstrs = []
-        with file_stream(abstr_file) as fh:
-            for line in fh:
-                line_abstrs = {}
-                for svp in filter(bool, line.strip().split("\t")):
-                    m = re.match('([^=]*)=(.*):[0-9]+-[0-9]+$', svp)
-                    slot = m.group(1)
-                    value = re.sub(r'^[\'"]', '', m.group(2))
-                    value = re.sub(r'[\'"]#?$', '', value)
-                    value = re.sub(r'"#? and "', ' and ', value)
-                    value = re.sub(r'_', ' ', value)
-
-                    line_abstrs[slot] = line_abstrs.get(slot, [])
-                    line_abstrs[slot].append(value)
-
-                abstrs.append(line_abstrs)
-        return abstrs
-
-    def lexicalize(self, gen_trees, abstr_file):
+    def lexicalize(self, gen_trees, abst_file):
         """Lexicalize nodes in the generated trees (which may represent trees, tokens, or tagged lemmas).
         Expects lexicalization file (and surface forms file) to be loaded in the Lexicalizer object,
         otherwise nothing will happen. The actual operation depends on the generator mode.
 
         @param gen_trees: list of TreeData objects representing generated trees/tokens/tagged lemmas
-        @param abstr_file: abstraction/delexicalization instructions file path
+        @param abst_file: abstraction/delexicalization instructions file path
         @param mode: generator mode (acceptable string values: "trees"/"tokens"/"tagged_lemmas")
         @return: None
         """
-        abstrs = self.load_lexicalization(abstr_file)
-        for tree, lex_dict in zip(gen_trees, abstrs):
-            idx = 1
-            while idx < len(tree):
-                if tree[idx].t_lemma.startswith('X-'):
-                    slot = tree[idx].t_lemma[2:]
-                    # we can lexicalize
-                    if slot in lex_dict:
+        abstss = read_absts(abst_file)
+        for tree, absts in zip(gen_trees, abstss):
+            sent = self._tree_to_sentence(tree)
+            for idx, tok in enumerate(sent):
+                if tok.startswith('X-'):  # we would like to delexicalize
+                    slot = tok[2:]
+                    # check if we have a value to substitute; if yes, do it
+                    abst = self._first_abst(absts, slot)
+                    if abst:
                         # tagged lemmas: one token with appropriate value
                         if self.mode == 'tagged_lemmas':
-                            val = self._get_surface_form(tree, idx, slot, lex_dict[slot][0],
-                                                         tag=tree[idx+1].t_lemma)
-                            tree[idx] = NodeData(t_lemma=val, formeme='x')
+                            tag = sent[idx+1] if idx < len(sent) - 1 else None
+                            val = self._get_surface_form(sent, idx, slot, abst.value, tag=tag)
+                            sent[idx] = val
+                            tree[idx/2] = NodeData(t_lemma=val, formeme='x')
                         # trees: one node with appropriate value, keep formeme
                         elif self.mode == 'trees':
-                            val = self._get_surface_form(tree, idx, slot, lex_dict[slot][0],
-                                                         formeme=tree[idx].formeme)
-                            tree[idx] = NodeData(t_lemma=val, formeme=tree[idx].formeme)
-                        # tokens: multiple tokens with all words from the value
+                            formeme = sent[idx + 1] if idx < len(sent) - 1 else None
+                            val = self._get_surface_form(sent, idx, slot, abst.value,
+                                                         formeme=formeme)
+                            tree[idx/2] = NodeData(t_lemma=val, formeme=tree[idx/2].formeme)
+                        # tokens: one token with all words from the value (postprocessed below)
                         else:
-                            value = self.get_surface_form(tree, idx, slot, lex_dict[slot][0])
-                            tree.remove_node(idx)
-                            for shift, tok in enumerate(value.split(' ')):
-                                tree.create_child(0, idx + shift,
-                                                  NodeData(t_lemma=tok, formeme='x'))
-                            idx += shift
-                        lex_dict[slot] = lex_dict[slot][1:] + [lex_dict[slot][0]]  # cycle values
-                idx += 1
+                            value = self.get_surface_form(sent, idx, slot, abst.value)
+                            sent[idx] = val
+                            tree[idx] = NodeData(t_lemma=val, formeme='x')
+            # postprocess tokens (split multi-word nodes)
+            if self.mode == 'tokens':
+                idx = 1
+                while idx < len(tree):
+                    if ' ' in tree[idx].t_lemma:
+                        value = tree[idx].t_lemma
+                        tree.remove_node(idx)
+                        for shift, tok in enumerate(value.split(' ')):
+                            tree.create_child(0, idx + shift,
+                                              NodeData(t_lemma=tok, formeme='x'))
+                        idx += shift
+                    idx += 1
 
     def get_surface_form(self, tree, idx, slot, value, tag=None, formeme=None):
         """Get the appropriate surface form for the given slot and value. Use morphological tag
@@ -350,6 +553,7 @@ class Lexicalizer(object):
 
         if not isinstance(ret._form_select, RandomFormSelect):
             ret._form_select.load_model(lexicalizer_fname)
+        return ret
 
     def save_to_file(self, lexicalizer_fname):
         log_info("Saving lexicalizer to %s..." % lexicalizer_fname)
