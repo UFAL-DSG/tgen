@@ -28,6 +28,7 @@ from tgen.tf_ml import TFModel
 
 
 class FormSelect(object):
+    """Interface for all surface form selector classes."""
 
     def __init__(self, cfg=None):
         pass
@@ -45,6 +46,7 @@ class FormSelect(object):
 
 
 class RandomFormSelect(FormSelect):
+    """A dummy form surface selector, selecting a form at random from the offered choice."""
 
     def __init__(self, cfg=None):
         super(RandomFormSelect, self).__init__(cfg)
@@ -53,7 +55,49 @@ class RandomFormSelect(FormSelect):
         return rnd.choice(possible_forms)
 
 
+class FrequencyFormSelect(FormSelect):
+    """A very simple surface form selector, picking the form that has been seen most frequently
+    in the training data (or sampling along the frequency distribution in the training data).
+    It disregards any context completely."""
+
+    def __init__(self, cfg):
+        super(KenLMFormSelect, self).__init__(cfg)
+        self._sample = cfg.get('form_sample', False)
+        self._word_freq = None
+        np.random.seed(rnd.randint(0, 2**32 - 1))
+
+    def train(self, train_sents):
+        self._word_freq = {}
+        for sent in train_sents:
+            for tok in sent:
+                tok = tok.lower()
+                self._word_freq[tok] = self._word_freq.get(tok, 0) + 1
+
+    def load_model(self, model_fname_pattern):
+        model_fname = re.sub(r'(.pickle)?(.gz)?$', '.wfreq', model_fname_pattern)
+        with file_stream(model_fname, 'rb', encoding=None) as fh:
+            self._word_freq = pickle.load(fh)
+
+    def save_model(self, model_fname_pattern):
+        if not self._word_freq:
+            log_warn('No lexicalizer model trained, skipping saving!')
+        model_fname = re.sub(r'(.pickle)?(.gz)?$', '.wfreq', model_fname_pattern)
+        with file_stream(model_fname, 'wb', encoding=None) as fh:
+            pickle.dump(self._word_freq, fh, pickle.HIGHEST_PROTOCOL)
+
+    def get_surface_form(self, sentence, pos, possible_forms):
+        scores = [self._word_freq.get(possible_form.lower(), 0) + 0.1
+                  for possible_form in possible_forms]
+        if self._sample:
+            probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
+            return np.random.choice(possible_forms, p=probs)
+        max_idx, _ = max(enumerate(scores), key=operator.itemgetter(1))
+        return possible_forms[max_idx]
+
+
 class KenLMFormSelect(FormSelect):
+    """A surface form selector based on KenLM n-gram language models, selecting according
+    to language model scores (or sampling from the corresponding softmax distribution)."""
 
     def __init__(self, cfg):
         super(KenLMFormSelect, self).__init__(cfg)
@@ -113,6 +157,8 @@ class KenLMFormSelect(FormSelect):
 
 
 class RNNLMFormSelect(FormSelect, TFModel):
+    """A form selector based on RNN LM (with configurable properties; with the option of
+    sampling from the RNN LM predictions)."""
 
     VOID = 0
     GO = 1
@@ -142,6 +188,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self.reverse_dict = {self.VOID: '<VOID>', self.GO: '<GO>',
                              self.STOP: '<STOP>', self.UNK: '<UNK>'}
         self.vocab_size = None
+        np.random.seed(rnd.randint(0, 2**32 - 1))
 
     def _init_training(self, train_sents):
         """Initialize training (prepare vocabulary, prepare training batches), initialize the
