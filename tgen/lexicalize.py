@@ -299,10 +299,10 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
     def get_surface_form(self, sentence, pos, possible_forms):
         # get unnormalized scores for the whole vocabulary
-        logits = self.session.run([self._logits],
-                                  {self._inputs: self._sent_to_ids(sentence)})
+        inputs = np.array([self._sent_to_ids(sentence)[:-1]], dtype=np.int32)
+        logits = self.session.run([self._logits], {self._inputs: inputs})
         # pick out scores for possible forms
-        scores = [logits[self.vocab.get(form.lower(), self.vocab.get('<UNK>'))]
+        scores = [logits[0][pos][self.vocab.get(form.lower(), self.vocab.get('<UNK>'))]
                   for form in possible_forms]
         probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
         # sample from the prob. dist.
