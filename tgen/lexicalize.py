@@ -374,7 +374,9 @@ class Lexicalizer(object):
         self._sf_by_tag = {}
         self._form_select = RandomFormSelect()
         if 'form_select_type' in cfg:
-            if cfg['form_select_type'] == 'kenlm':
+            if cfg['form_select_type'] == 'frequency':
+                self._form_select = FrequencyFormSelect(cfg)
+            elif cfg['form_select_type'] == 'kenlm':
                 self._form_select = KenLMFormSelect(cfg)
             elif cfg['form_select_type'] == 'rnnlm':
                 self._form_select = RNNLMFormSelect(cfg)
