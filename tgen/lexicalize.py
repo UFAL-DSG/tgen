@@ -61,7 +61,7 @@ class FrequencyFormSelect(FormSelect):
     It disregards any context completely."""
 
     def __init__(self, cfg):
-        super(KenLMFormSelect, self).__init__(cfg)
+        super(FrequencyFormSelect, self).__init__(cfg)
         self._sample = cfg.get('form_sample', False)
         self._word_freq = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
