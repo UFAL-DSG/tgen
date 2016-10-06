@@ -287,10 +287,11 @@ class RNNLMFormSelect(FormSelect, TFModel):
         model_fname = re.sub(r'(.pickle)?(.gz)?$', '.rnnlm', model_fname_pattern)
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             self.load_all_settings(pickle.load(fh))
+            self._init_neural_network()
             self.set_model_params(pickle.load(fh))
 
     def save_model(self, model_fname_pattern):
-        """Save the RNNLM model to a file.""""
+        """Save the RNNLM model to a file."""
         model_fname = re.sub(r'(.pickle)?(.gz)?$', '.rnnlm', model_fname_pattern)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, pickle.HIGHEST_PROTOCOL)
