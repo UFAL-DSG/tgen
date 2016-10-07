@@ -527,6 +527,7 @@ class Lexicalizer(object):
         @param mode: generator mode (acceptable string values: "trees"/"tokens"/"tagged_lemmas")
         @return: None
         """
+        import pudb; pudb.set_trace()
         abstss = read_absts(abst_file)
         for tree, absts in zip(gen_trees, abstss):
             sent = self._tree_to_sentence(tree)
@@ -541,18 +542,19 @@ class Lexicalizer(object):
                             tag = sent[idx+1] if idx < len(sent) - 1 else None
                             val = self._get_surface_form(sent, idx, slot, abst.value, tag=tag)
                             sent[idx] = val
-                            tree[idx/2] = NodeData(t_lemma=val, formeme='x')
+                            tree.nodes[idx/2+1] = NodeData(t_lemma=val, formeme='x')
                         # trees: one node with appropriate value, keep formeme
                         elif self.mode == 'trees':
                             formeme = sent[idx + 1] if idx < len(sent) - 1 else None
                             val = self._get_surface_form(sent, idx, slot, abst.value,
                                                          formeme=formeme)
-                            tree[idx/2] = NodeData(t_lemma=val, formeme=tree[idx/2].formeme)
+                            tree.nodes[idx/2+1] = NodeData(t_lemma=val,
+                                                           formeme=tree[idx/2+1].formeme)
                         # tokens: one token with all words from the value (postprocessed below)
                         else:
-                            value = self.get_surface_form(sent, idx, slot, abst.value)
+                            val = self.get_surface_form(sent, idx, slot, abst.value)
                             sent[idx] = val
-                            tree[idx] = NodeData(t_lemma=val, formeme='x')
+                            tree.nodes[idx+1] = NodeData(t_lemma=val, formeme='x')
             # postprocess tokens (split multi-word nodes)
             if self.mode == 'tokens':
                 idx = 1
