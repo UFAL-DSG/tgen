@@ -27,6 +27,12 @@ from tgen.logf import log_warn, log_info
 from tgen.tf_ml import TFModel
 
 
+def softmax(scores):
+    """Compute the softmax of the given scores, avoiding overflow of the exponential."""
+    discounted_exps = np.exp(scores - np.max(scores))
+    return discounted_exps / np.sum(discounted_exps)
+
+
 class FormSelect(object):
     """Interface for all surface form selector classes."""
 
@@ -89,7 +95,7 @@ class FrequencyFormSelect(FormSelect):
         scores = [self._word_freq.get(possible_form.lower(), 0) + 0.1
                   for possible_form in possible_forms]
         if self._sample:
-            probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
+            probs = softmax(scores)
             return np.random.choice(possible_forms, p=probs)
         max_idx, _ = max(enumerate(scores), key=operator.itemgetter(1))
         return possible_forms[max_idx]
@@ -109,19 +115,19 @@ class KenLMFormSelect(FormSelect):
         state, dummy_state = kenlm.State(), kenlm.State()
         self._lm.BeginSentenceWrite(state)
         for idx in xrange(pos):
-            self._lm.BaseScore(state, sentence[idx], state)
+            self._lm.BaseScore(state, sentence[idx].encode('utf-8'), state)
         best_form_idx = 0
         best_score = float('-inf')
         scores = []
         for form_idx, possible_form in enumerate(possible_forms):
-            possible_form = possible_form.lower().replace(' ', '^')
+            possible_form = possible_form.lower().replace(' ', '^').encode('utf-8')
             score = self._lm.BaseScore(state, possible_form, dummy_state)
             scores.append(score)
             if score > best_score:
                 best_score = score
                 best_form_idx = form_idx
         if self._sample:
-            probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
+            probs = softmax(scores)
             return np.random.choice(possible_forms, p=probs)
         return possible_forms[best_form_idx]
 
@@ -351,7 +357,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
         # pick out scores for possible forms
         scores = [logits[0][pos][self.vocab.get(form.lower(), self.vocab.get('<UNK>'))]
                   for form in possible_forms]
-        probs = np.exp(scores) / np.sum(np.exp(scores))  # softmax
+        probs = softmax(scores)
         # sample from the prob. dist.
         if self._sample:
             return np.random.choice(possible_forms, p=probs)
@@ -539,14 +545,14 @@ class Lexicalizer(object):
                         # tagged lemmas: one token with appropriate value
                         if self.mode == 'tagged_lemmas':
                             tag = sent[idx+1] if idx < len(sent) - 1 else None
-                            val = self._get_surface_form(sent, idx, slot, abst.value, tag=tag)
+                            val = self.get_surface_form(sent, idx, slot, abst.value, tag=tag)
                             sent[idx] = val
                             tree.nodes[idx/2+1] = NodeData(t_lemma=val, formeme='x')
                         # trees: one node with appropriate value, keep formeme
                         elif self.mode == 'trees':
                             formeme = sent[idx + 1] if idx < len(sent) - 1 else None
-                            val = self._get_surface_form(sent, idx, slot, abst.value,
-                                                         formeme=formeme)
+                            val = self.get_surface_form(sent, idx, slot, abst.value,
+                                                        formeme=formeme)
                             tree.nodes[idx/2+1] = NodeData(t_lemma=val,
                                                            formeme=tree[idx/2+1].formeme)
                         # tokens: one token with all words from the value (postprocessed below)
