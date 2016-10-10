@@ -527,7 +527,6 @@ class Lexicalizer(object):
         @param mode: generator mode (acceptable string values: "trees"/"tokens"/"tagged_lemmas")
         @return: None
         """
-        import pudb; pudb.set_trace()
         abstss = read_absts(abst_file)
         for tree, absts in zip(gen_trees, abstss):
             sent = self._tree_to_sentence(tree)
@@ -584,7 +583,8 @@ class Lexicalizer(object):
                 elif value_part == 'or':
                     out_value.append('nebo')
                 else:
-                    out_value.append(self.get_surface_form(slot, value_part, tag, formeme))
+                    out_value.append(self.get_surface_form(tree, idx,
+                                                           slot, value_part, tag, formeme))
             return ' '.join(out_value)
 
         # abstract away from numbers
