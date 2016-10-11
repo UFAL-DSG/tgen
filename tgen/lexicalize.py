@@ -547,10 +547,10 @@ class Lexicalizer(object):
                             tag = sent[idx+1] if idx < len(sent) - 1 else None
                             val = self.get_surface_form(sent, idx, slot, abst.value, tag=tag)
                             sent[idx] = val
-                            tree.nodes[idx/2+1] = NodeData(t_lemma=val, formeme='x')
+                            tree.nodes[idx+1] = NodeData(t_lemma=val, formeme='x')
                         # trees: one node with appropriate value, keep formeme
                         elif self.mode == 'trees':
-                            formeme = sent[idx + 1] if idx < len(sent) - 1 else None
+                            formeme = sent[idx+1] if idx < len(sent) - 1 else None
                             val = self.get_surface_form(sent, idx, slot, abst.value,
                                                         formeme=formeme)
                             tree.nodes[idx/2+1] = NodeData(t_lemma=val,
@@ -599,13 +599,14 @@ class Lexicalizer(object):
         form = None
 
         # find the appropriate form (by tag, formeme, backoff to any form)
-        # TODO better selection than random
         if tag is not None:
             if slot in self._sf_by_tag and value in self._sf_by_tag[slot]:
                 for tag_sub in self._get_tag_subsets(tag):
                     if tag_sub in self._sf_by_tag[slot][value]:
                         form = self._form_select.get_surface_form(
                                 tree, idx, self._sf_by_tag[slot][value][tag_sub])
+                        if form:
+                            break
 
         if form is None and formeme is not None:
             formeme = re.sub(r':.*\+', '', formeme)  # ignore prepositions/conjunctions
