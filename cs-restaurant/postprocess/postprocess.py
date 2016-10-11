@@ -40,8 +40,9 @@ def process_file(args):
                 'Util::Eval anode="$.set_form($.lemma);"', ] + scen
     elif mode == 'tagged_lemmas':
         scen = ['T2A::CopyTtree',
-                'Util::Eval atree="@as=$.get_descendants({ordered=>1}); ' +
-                'while (($l, $t) = splice @as, 0, 2){ $l->set_tag($t.lemma); $t->remove(); }"',
+                'Util::Eval atree=\'my @as=$.get_descendants({ordered=>1}); ' +
+                'while (my ($l, $t) = splice @as, 0, 2){ next if (!defined($t)); $l->set_tag($t->lemma); $t->remove(); }\'',
+                'Misc::TagToMorphcat',
                 'T2A::CS::GenerateWordforms', ] + scen
     else:
         scen = ['T2T::AssignDefaultGrammatemes grammateme_file="%s" da_file="%s"' % (args.grammatemes, args.input_das),
