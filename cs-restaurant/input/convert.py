@@ -49,9 +49,8 @@ class MorphoAnalyzer(object):
         for slot, values in data.iteritems():
             for value in values.keys():
                 for surface_form in values[value]:
-                    form, tag = surface_form.split("\t")
+                    lemma, form, tag = surface_form.split("\t")
                     form_toks = form.lower().split(" ")
-                    lemma = value
                     if slot == 'street':  # add street number placeholders to addresses
                         lemma += ' _'
                         form_toks.append('_')
