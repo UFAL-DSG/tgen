@@ -332,7 +332,8 @@ class RNNLMFormSelect(FormSelect, TFModel):
                                         self._learning_rate: pass_alpha, })
             pass_cost += cost
         duration = str(datetime.timedelta(seconds=(time.time() - pass_start_time)))
-        log_info("Pass %d: duration %s, cost %.3f" % (pass_no, duration, pass_cost))
+        log_info("Pass %d: alpha %.3f, duration %s, cost %.3f" % (pass_no, pass_alpha,
+                                                                  duration, pass_cost))
         return pass_cost
 
     def load_model(self, model_fname_pattern):
