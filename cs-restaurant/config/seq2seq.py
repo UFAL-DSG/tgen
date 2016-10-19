@@ -61,7 +61,7 @@ config = {
             'form_sample': False,
             'randomize': True,
             'passes': 50,
-            'alpha': 1,
+            'alpha': 0.005,
             'alpha_decay': 0.0,
             'batch_size': 20,
             'max_sent_len': 32,
