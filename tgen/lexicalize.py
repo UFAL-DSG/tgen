@@ -548,7 +548,7 @@ class Lexicalizer(object):
         for tree, absts in zip(gen_trees, abstss):
             sent = self._tree_to_sentence(tree)
             for idx, tok in enumerate(sent):
-                if tok.startswith('X-'):  # we would like to delexicalize
+                if tok and tok.startswith('X-'):  # we would like to delexicalize
                     slot = tok[2:]
                     # check if we have a value to substitute; if yes, do it
                     abst = self._first_abst(absts, slot)
@@ -619,7 +619,7 @@ class Lexicalizer(object):
                             break
 
         if form is None and formeme is not None:
-            formeme = re.sub(r':.*\+', '', formeme)  # ignore prepositions/conjunctions
+            formeme = re.sub(r':.*\+', ':', formeme)  # ignore prepositions/conjunctions
             formeme = re.sub(r':inf', r':fin', formeme)  # ignore finite/infinite verb distinction
             if slot in self._sf_by_formeme and value in self._sf_by_formeme[slot]:
                 if formeme in self._sf_by_formeme[slot][value]:
