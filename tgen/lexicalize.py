@@ -379,6 +379,7 @@ class Lexicalizer(object):
         self._sf_all = {}
         self._sf_by_formeme = {}
         self._sf_by_tag = {}
+        self._lemma_for_sf = {}
         self._form_select = RandomFormSelect()
         if 'form_select_type' in cfg:
             if cfg['form_select_type'] == 'frequency':
@@ -436,8 +437,12 @@ class Lexicalizer(object):
             # lexicalize the resulting sentence using abstraction instructions
             for idx, tok in enumerate(out_sent):
                 if tok.startswith('X-'):
-                    abst = self._first_abst(absts, tok[2:])
+                    slot = tok[2:]
+                    abst = self._first_abst(absts, slot)
                     form = re.sub(r'\b[0-9]+\b', '_', abst.surface_form)  # abstract numbers
+                    # in tree mode, use lemmas instead of surface forms
+                    if self.mode == 'trees' and slot in self._lemma_for_sf:
+                        form = self._lemma_for_sf[slot].get(form, form)
                     out_sent[idx] = form
             # store the result
             out_sents.append(out_sent)
@@ -478,23 +483,28 @@ class Lexicalizer(object):
             sf_all = {}
             sf_formeme = {}
             sf_tag = {}
+            lemma_for_sf = {}
             for value in values.keys():
                 for surface_form in values[value]:
-                    form, tag = surface_form.split("\t")
+                    lemma, form, tag = surface_form.split("\t")
                     if slot == 'street':  # add street number placeholders to addresses
                         value += ' _'
                         slot = 'address'
                     # store the value globally + for all possible tag subsets/formemes
+                    # store lemmas for formemes, forms for tags/global
                     sf_all[value] = sf_all.get(value, []) + [form]
                     sf_tag[value] = sf_tag.get(value, {})
                     sf_formeme[value] = sf_formeme.get(value, {})
                     for tag_subset in self._get_tag_subsets(tag):
                         sf_tag[value][tag_subset] = sf_tag[value].get(tag_subset, []) + [form]
                     for formeme in self._get_compatible_formemes(tag):
-                        sf_formeme[value][formeme] = sf_formeme[value].get(formeme, []) + [form]
+                        sf_formeme[value][formeme] = sf_formeme[value].get(formeme, []) + [lemma]
+                    # store lemma for form (for lexicalizing training sentences with trees)
+                    lemma_for_sf[form] = lemma
             self._sf_all[slot] = sf_all
             self._sf_by_formeme[slot] = sf_formeme
             self._sf_by_tag[slot] = sf_tag
+            self._lemma_for_sf[slot] = lemma_for_sf
 
     def _get_tag_subsets(self, tag):
         """Select important tag subsets along which surface forms should be matched.
@@ -547,7 +557,6 @@ class Lexicalizer(object):
                         if self.mode == 'tagged_lemmas':
                             tag = sent[idx+1] if idx < len(sent) - 1 else None
                             val = self.get_surface_form(sent, idx, slot, abst.value, tag=tag)
-                            sent[idx] = val
                             tree.nodes[idx+1] = NodeData(t_lemma=val, formeme='x')
                         # trees: one node with appropriate value, keep formeme
                         elif self.mode == 'trees':
@@ -559,8 +568,8 @@ class Lexicalizer(object):
                         # tokens: one token with all words from the value (postprocessed below)
                         else:
                             val = self.get_surface_form(sent, idx, slot, abst.value)
-                            sent[idx] = val
                             tree.nodes[idx+1] = NodeData(t_lemma=val, formeme='x')
+                        sent[idx] = val  # save value to be used in LM next time
             # postprocess tokens (split multi-word nodes)
             if self.mode == 'tokens':
                 idx = 1
