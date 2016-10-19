@@ -10,6 +10,7 @@ import pickle
 import sys
 from argparse import ArgumentParser
 import subprocess
+import re
 
 from tgen.futil import file_stream
 from tgen.debug import exc_info_hook
@@ -45,8 +46,22 @@ def process_file(args):
                 'Misc::TagToMorphcat',
                 'T2A::CS::GenerateWordforms', ] + scen
     else:
-        scen = ['T2T::AssignDefaultGrammatemes grammateme_file="%s" da_file="%s"' % (args.grammatemes, args.input_das),
-                'Scen::Synthesis::CS', ]
+        # get the canonical CS generation scenario
+        scen_dump_ps = subprocess.Popen('treex -d Scen::Synthesis::CS', shell=True, stdout=subprocess.PIPE)
+        scen, _ = scen_dump_ps.communicate()
+        scen = [block for block in scen.split("\n") if block and not block.startswith('#')]
+
+        # insert our custom morphological processing block into it
+        pos = next(i for i, block in enumerate(scen) if re.search(r'generateword', block, re.IGNORECASE))
+        scen.insert(pos, 'Misc::GenerateWordformsFromJSON surface_forms="%s"' % args.surface_forms)
+
+        # add grammatemes processing
+        scen = ['Util::Eval tnode="$.set_functor(\\"???\\"); ' +
+                '$.set_t_lemma(\\"\\") if (!defined($.t_lemma)); ' +
+                '$.set_formeme(\\"x\\") if (!defined($.formeme));"',
+                'T2T::AssignDefaultGrammatemes grammateme_file="%s" da_file="%s"' %
+                (args.grammatemes, args.input_das),
+                'T2T::SetClauseNumber'] + scen
 
     scen = ['Read::YAML from="%s"' % args.input_file] + scen
     scen += ['Write::Treex',
@@ -61,6 +76,7 @@ if __name__ == '__main__':
     ap.add_argument('-m', '--model', type=str, help='Seq2seq model pickle file (to get mode)')
     ap.add_argument('-i', '--input-das', type=str, help='Input DA file')
     ap.add_argument('-g', '--grammatemes', type=str, help='Default grammateme file')
+    ap.add_argument('-f', '--surface-forms', type=str, help='Surface forms file')
     ap.add_argument('-s', '--selector', type=str, help='Target selector')
     ap.add_argument('input_file', type=str, help='Input YAML file')
     ap.add_argument('output_file', type=str, help='Output SGM file')
