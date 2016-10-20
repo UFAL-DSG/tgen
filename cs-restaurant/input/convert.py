@@ -40,6 +40,7 @@ class MorphoAnalyzer(object):
         self._indices_buf = Indices()
 
         self._sf_dict = {}
+        self._rev_sf_dict = {}
         self._sf_max_len = 0
 
     def load_surface_forms(self, surface_forms_fname):
@@ -59,6 +60,7 @@ class MorphoAnalyzer(object):
                     if form_toks not in self._sf_dict:
                         self._sf_dict[form_toks] = []
                     self._sf_dict[form_toks].append((lemma, tag))
+                    self._rev_sf_dict[(form.lower(), lemma, tag)] = (slot, value)
 
     def _get_surface_form_taggedlemmas(self, forms_in):
         """Given a tokens deque, return the form & list of tagged lemmas (analyses)
@@ -230,10 +232,20 @@ class MorphoAnalyzer(object):
             absts = []
             # do the delexicalization, keep track of which slots we used
             for tok_idx, (form, lemma, tag) in enumerate(text):
-                slot = da.has_value(lemma)
-                if slot and slot in self._abst_slots:
+                # abstract away from numbers
+                abst_form = re.sub(r'( |^)[0-9]+( |$)', r'\1_\2', form.lower())
+                abst_lemma = re.sub(r'( |^)[0-9]+( |$)', r'\1_\2', lemma)
+                # try to find if the surface form belongs to some slot
+                slot, _ = self._rev_sf_dict.get((abst_form, abst_lemma, tag), (None, None))
+                # fall back to directly comparing against the DA value
+                if not slot:
+                    slot = da.has_value(lemma)
+                # if we found something, delexicalize it
+                if (slot and slot in self._abst_slots and
+                        da.value_for_slot(slot) not in [None, 'none', 'dont_care']):
                     delex_text.append(('X-' + slot, 'X-' + slot, tag))
                     absts.append(Abst(slot, lemma, form, tok_idx, tok_idx + 1))
+                # otherwise keep the token as it is
                 else:
                     delex_text.append((form, lemma, tag))
             # fix coordinated delexicalized values
