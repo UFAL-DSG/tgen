@@ -26,7 +26,8 @@ from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, \
     tagged_lemmas_from_doc
 from tgen.features import Features
 from tgen.ml import DictVectorizer
-from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract
+from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract, \
+    TaggedLemmasEmbeddingSeq2SeqExtract
 from tgen.tree import TreeData
 from alex.components.slu.da import DialogueAct
 from tgen.tf_ml import TFModel
@@ -197,7 +198,9 @@ class RerankingClassifier(TFModel):
         # initialize training
         self._init_training(das, trees, data_portion)
         if self.mode in ['tokens', 'tagged_lemmas'] and valid_trees is not None:
-            valid_trees = [self._tokens_to_flat_trees(paraphrases) for paraphrases in valid_trees]
+            valid_trees = [self._tokens_to_flat_trees(paraphrases,
+                                                      use_tags=self.mode == 'tagged_lemmas')
+                           for paraphrases in valid_trees]
 
         # start training
         top_comb_cost = float('nan')
@@ -296,11 +299,11 @@ class RerankingClassifier(TFModel):
                 trees = self._tokens_to_flat_trees(tokens)
             elif self.mode == 'tagged_lemmas':
                 tls = tagged_lemmas_from_doc(ttree_doc, self.language, self.selector)
-                trees = self._tokens_to_flat_trees(tls)
+                trees = self._tokens_to_flat_trees(tls, use_tags=True)
             else:
                 trees = trees_from_doc(ttree_doc, self.language, self.selector)
         elif self.mode in ['tokens', 'tagged_lemmas']:
-            trees = self._tokens_to_flat_trees(trees)
+            trees = self._tokens_to_flat_trees(trees, use_tags=self.mode == 'tagged_lemmas')
 
         # make training data smaller if necessary
         train_size = int(round(data_portion * len(trees)))
@@ -350,15 +353,19 @@ class RerankingClassifier(TFModel):
         # initialize the NN variables
         self.session.run(tf.initialize_all_variables())
 
-    def _tokens_to_flat_trees(self, sents):
+    def _tokens_to_flat_trees(self, sents, use_tags=False):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
         trees (each token has a node right under the root, lemma is the token, formeme is 'x').
         Uses TokenEmbeddingSeq2SeqExtract conversion there and back.
 
         @param sents: sentences to be converted
+        @param use_tags: use tags in the embeddings? (only for lemma-tag pairs in training, \
+            not testing)
         @return: a list of flat trees
         """
-        tree_embs = TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
+        tree_embs = (TokenEmbeddingSeq2SeqExtract(cfg=self.cfg)
+                     if not use_tags
+                     else TaggedLemmasEmbeddingSeq2SeqExtract(cfg=self.cfg))
         tree_embs.init_dict(sents)
         # no postprocessing, i.e. keep lowercasing/plural splitting if set in the configuration
         return [tree_embs.ids_to_tree(tree_embs.get_embeddings(sent), postprocess=False)
