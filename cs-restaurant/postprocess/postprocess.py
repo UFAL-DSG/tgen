@@ -61,6 +61,7 @@ def process_file(args):
                 '$.set_formeme(\\"x\\") if (!defined($.formeme));"',
                 'T2T::AssignDefaultGrammatemes grammateme_file="%s" da_file="%s"' %
                 (args.grammatemes, args.input_das),
+                'Misc::RestoreCoordNodes',
                 'T2T::SetClauseNumber'] + scen
 
     scen = ['Read::YAML from="%s"' % args.input_file] + scen
