@@ -195,6 +195,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
                              self.STOP: '<STOP>', self.UNK: '<UNK>'}
         self.vocab_size = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
+        tf.set_random_seed(rnd.randint(-sys.maxint, sys.maxint))
 
     def _init_training(self, train_sents):
         """Initialize training (prepare vocabulary, prepare training batches), initialize the
@@ -225,7 +226,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
         @return: list of IDs corresponding to the input tokens, padded to RNN length
         """
         ids = [self.vocab.get('<GO>')]
-        ids += [self.vocab.get(tok, self.vocab.get('<UNK>')) for tok in sent]
+        ids += [self.vocab.get(tok.lower(), self.vocab.get('<UNK>')) for tok in sent]
         ids = ids[:self.max_sent_len]
         ids += [self.vocab.get('<STOP>')]
         # actually using max_sent_len + 1 (inputs exclude last step, targets exclude the 1st)
