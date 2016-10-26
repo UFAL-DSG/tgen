@@ -216,7 +216,8 @@ class MorphoAnalyzer(object):
             for dai in da:
                 delex_dai = DAI(dai.da_type, dai.slot,
                                 'X-' + dai.slot
-                                if (dai.value and dai.slot in self._abst_slots)
+                                if (dai.value not in [None, 'none', 'dont_care'] and
+                                    dai.slot in self._abst_slots)
                                 else dai.value)
                 delex_da.append(delex_dai)
             out.append(delex_da)
