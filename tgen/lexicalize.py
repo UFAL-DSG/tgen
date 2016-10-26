@@ -19,6 +19,8 @@ import codecs
 import operator
 from subprocess import Popen, PIPE
 import tensorflow as tf
+import sys
+import math
 
 from tgen.tree import NodeData, TreeData
 from tgen.rnd import rnd
@@ -29,8 +31,8 @@ from tgen.tf_ml import TFModel
 
 def softmax(scores):
     """Compute the softmax of the given scores, avoiding overflow of the exponential."""
-    discounted_exps = np.exp(scores - np.max(scores))
-    return discounted_exps / np.sum(discounted_exps)
+    discounted_exps = np.exp(scores - np.max(scores, axis=0))
+    return discounted_exps / np.sum(discounted_exps, axis=0)
 
 
 class FormSelect(object):
@@ -72,7 +74,12 @@ class FrequencyFormSelect(FormSelect):
         self._word_freq = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
 
-    def train(self, train_sents):
+    def train(self, train_sents, valid_sents=None):
+        """Train the model (memorize the frequency of the various forms seen in the training data.
+        Validation data are ignored (parameter only used for compatibility).
+        @param train_sents: training sentences (list of lists of tokens)
+        @param valid_sents: unused
+        """
         self._word_freq = {}
         for sent in train_sents:
             for tok in sent:
@@ -143,7 +150,12 @@ class KenLMFormSelect(FormSelect):
         model_fname = re.sub(r'(\.pickle)?(\.gz)?$', '.kenlm.bin', model_fname_pattern)
         shutil.copyfile(self._trained_model, model_fname)
 
-    def train(self, train_sents):
+    def train(self, train_sents, valid_sents=None):
+        """Train the model, running KenLM over the training sentences.
+        Validation data are ignored (parameter only used for compatibility).
+        @param train_sents: training sentences (list of lists of tokens)
+        @param valid_sents: unused
+        """
         # create tempfile for output
         tmpfile, tmppath = tempfile.mkstemp(".kenlm.bin", "formselect-")
         # create processes
@@ -189,18 +201,23 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self.optimizer_type = cfg.get('optimizer_type', 'adam')
         self.max_cores = cfg.get('max_cores', 4)
         self.alpha_decay = cfg.get('alpha_decay', 0.0)
+        self.validation_freq = cfg.get('validation_freq', 1)
+        self.min_passes = cfg.get('min_passes', self.passes / 2)
         self.vocab = {'<VOID>': self.VOID, '<GO>': self.GO,
                       '<STOP>': self.STOP, '<UNK>': self.UNK}
         self.reverse_dict = {self.VOID: '<VOID>', self.GO: '<GO>',
                              self.STOP: '<STOP>', self.UNK: '<UNK>'}
         self.vocab_size = None
+        self._checkpoint_params = None
+        self._checkpoint_settings = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
         tf.set_random_seed(rnd.randint(-sys.maxint, sys.maxint))
 
-    def _init_training(self, train_sents):
+    def _init_training(self, train_sents, valid_sents=None):
         """Initialize training (prepare vocabulary, prepare training batches), initialize the
         RNN.
         @param train_sents: training data (list of lists of tokens, lexicalized)
+        @param valid_sents: validation data (list of lists of tokens, lexicalized)
         """
         # initialize embeddings
         dict_ord = self.MIN_VALID
@@ -216,6 +233,10 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self._train_data = []
         for sent in train_sents:
             self._train_data.append(self._sent_to_ids(sent))
+        self._valid_data = []
+        if valid_sents:
+            for sent in valid_sents:
+                self._valid_data.append(self._sent_to_ids(sent))
         self._init_neural_network()
         self.session.run(tf.initialize_all_variables())
 
@@ -233,11 +254,19 @@ class RNNLMFormSelect(FormSelect, TFModel):
         ids += [self.vocab.get('<VOID>') for _ in xrange(self.max_sent_len - len(ids) + 1)]
         return ids
 
-    def _batches(self):
+    def _train_batches(self):
         """Create batches from the input; use as iterator."""
         for batch_start in xrange(0, len(self._train_order), self.batch_size):
             sents = [self._train_data[idx]
                      for idx in self._train_order[batch_start: batch_start + self.batch_size]]
+            inputs = np.array([sent[:-1] for sent in sents], dtype=np.int32)
+            targets = np.array([sent[1:] for sent in sents], dtype=np.int32)
+            yield inputs, targets
+
+    def _valid_batches(self):
+        for batch_start in xrange(0, len(self._valid_data), self.batch_size):
+            sents = [self._valid_data[idx]
+                     for idx in xrange(batch_start, batch_start + self.batch_size)]
             inputs = np.array([sent[:-1] for sent in sents], dtype=np.int32)
             targets = np.array([sent[1:] for sent in sents], dtype=np.int32)
             yield inputs, targets
@@ -306,18 +335,36 @@ class RNNLMFormSelect(FormSelect, TFModel):
                 'reverse_dict': self.reverse_dict,
                 'vocab_size': self.vocab_size}
 
-    def train(self, train_sents):
+    def train(self, train_sents, valid_sents=None):
         """Train the RNNLM on the given data (list of lists of tokens).
         @param train_sents: training data (list of lists of tokens, lexicalized)
+        @param valid_sents: validation data (list of lists of tokens, lexicalized, may be None \
+            if no validation should be performed)
         """
-        self._init_training(train_sents)
+        self._init_training(train_sents, valid_sents)
+
+        top_perp = float('nan')
 
         for iter_no in xrange(1, self.passes + 1):
+            # preparing parameters
             iter_alpha = self.alpha * np.exp(-self.alpha_decay * iter_no)
             self._train_order = range(len(self._train_data))
             if self.randomize:
                 rnd.shuffle(self._train_order)
+            # training
             self._training_pass(iter_no, iter_alpha)
+
+            # validation
+            if (self.validation_freq and iter_no > self.min_passes and
+                    iter_no % self.validation_freq == 0):
+                perp = self._valid_perplexity()
+                log_info("Perplexity: %.3f" % perp)
+                # if we have the best model so far, save it as a checkpoint (overwrite previous)
+                if math.isnan(top_perp) or perp < top_perp:
+                    top_perp = perp
+                    self._save_checkpoint()
+
+        self._restore_checkpoint()  # restore the best parameters so far
 
     def _training_pass(self, pass_no, pass_alpha):
         """Run one pass over the training data (epoch).
@@ -326,7 +373,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
         """
         pass_start_time = time.time()
         pass_cost = 0
-        for batch_no, (inputs, targets) in enumerate(self._batches()):
+        for inputs, targets in self._train_batches():
             cost, _ = self.session.run([self._cost, self._train_func],
                                        {self._inputs: inputs,
                                         self._targets: targets,
@@ -351,6 +398,29 @@ class RNNLMFormSelect(FormSelect, TFModel):
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, pickle.HIGHEST_PROTOCOL)
             pickle.dump(self.get_model_params(), fh, pickle.HIGHEST_PROTOCOL)
+
+    def _valid_perplexity(self):
+        perp = 0
+        n_toks = 0
+        for inputs, targets in self._valid_batches():
+            logits = self.session.run([self._logits], {self._inputs: inputs})[0]
+            probs = softmax(logits)  # logits combine all sentences behind each other -- dimension
+                                     # is (self.max_sent_len * self.batch_size, self.vocab_size)
+            for tok_no in xrange(len(probs)):
+                perp += np.log2(probs[tok_no, targets[tok_no / self.max_sent_len,
+                                                      tok_no % self.max_sent_len]])
+            n_toks += np.prod(inputs.shape)
+        return np.exp2(- perp / float(n_toks))
+
+    def _save_checkpoint(self):
+        self._checkpoint_settings = self.get_all_settings()
+        self._checkpoint_params = self.get_model_params()
+
+    def _restore_checkpoint(self):
+        if not self._checkpoint_params:
+            return
+        self.load_all_settings(self._checkpoint_settings)
+        self.set_model_params(self._checkpoint_params)
 
     def get_surface_form(self, sentence, pos, possible_forms):
         # get unnormalized scores for the whole vocabulary
@@ -390,7 +460,7 @@ class Lexicalizer(object):
             elif cfg['form_select_type'] == 'rnnlm':
                 self._form_select = RNNLMFormSelect(cfg)
 
-    def train(self, fnames, train_trees):
+    def train(self, fnames, train_trees, valid_trees=None):
         """Train the lexicalizer (including its LM, if applicable).
         @param fnames: file names for surface forms (JSON) and training data lexicalization \
             instructions
@@ -400,15 +470,21 @@ class Lexicalizer(object):
         log_info('Training lexicalizer...')
         if not fnames:
             return
+        valid_abst_fname = None
         if ',' in fnames:
-            surface_forms_fname, train_abst_fname = fnames.split(',')
+            fnames = fnames.split(',')
+            if len(fnames) == 3:
+                surface_forms_fname, train_abst_fname, valid_abst_fname = fnames
+            else:
+                surface_forms_fname, train_abst_fname = fnames
         else:
             surface_forms_fname, train_abst_fname = fnames, None
 
         self.load_surface_forms(surface_forms_fname)
         if train_abst_fname and not isinstance(self._form_select, RandomFormSelect):
             log_info('Training lexicalization LM from training trees and %s...' % train_abst_fname)
-            self._form_select.train(self._prepare_train_toks(train_trees, train_abst_fname))
+            self._form_select.train(*self._prepare_train_toks(train_trees, train_abst_fname,
+                                                              valid_trees, valid_abst_fname))
 
     def _first_abst(self, absts, slot):
         """Get 1st abstraction instruction for a specific slot in the list, put it back to
@@ -421,7 +497,8 @@ class Lexicalizer(object):
         except StopIteration:
             return None
 
-    def _prepare_train_toks(self, train_trees, train_abstr_fname):
+    def _prepare_train_toks(self, train_trees, train_abstr_fname,
+                            valid_trees=None, valid_abstr_fname=None):
         """Prepare training data for form selection LM. Use training trees/tagged lemmas/tokens,
         apply lexicalization instructions including surface forms, and convert the output to a
         list of lists of tokens (sentences).
@@ -431,32 +508,34 @@ class Lexicalizer(object):
         """
         # load abstraction file
         abstss = read_absts(train_abstr_fname)
+        if valid_abstr_fname is not None:
+            abstss.extend(read_absts(valid_abstr_fname))
+        # concatenate training + validation data (will be handled in the same way)
+        trees = list(train_trees)
+        if valid_trees is not None:
+            trees.extend(valid_trees)
         out_sents = []
-        for tree, absts in zip(train_trees, abstss):
-            # create a list of tokens
-            out_sent = self._tree_to_sentence(tree)
-            # lexicalize the resulting sentence using abstraction instructions
-            for idx, tok in enumerate(out_sent):
-                if tok.startswith('X-'):
-                    slot = tok[2:]
-                    abst = self._first_abst(absts, slot)
-                    form = re.sub(r'\b[0-9]+\b', '_', abst.surface_form)  # abstract numbers
-                    # in tree mode, use lemmas instead of surface forms
-                    if self.mode == 'trees' and slot in self._lemma_for_sf:
-                        form = self._lemma_for_sf[slot].get(form, form)
-                    out_sent[idx] = form
-            # store the result
-            out_sents.append(out_sent)
-        return out_sents
+        for tree, absts in zip(trees, abstss):
+            # validation data may have more paraphrases -> treat them separately
+            if isinstance(tree[-1], list):
+                for tree_ in tree:
+                    out_sents.append(self._tree_to_sentence(tree_, absts))
+            # default: one paraphrase
+            else:
+                out_sents.append(self._tree_to_sentence(tree, absts))
+        # split training/validation data
+        return out_sents[:len(train_trees)], out_sents[len(train_trees):]
 
-    def _tree_to_sentence(self, tree):
+    def _tree_to_sentence(self, tree, absts):
         """Convert the given "tree" (i.e., tree, tagged lemmas, or tokens; represented as TreeData
-        or a list of tuples form/lemma-tag) into a sentence (i.e., always a plain list of tokens).
+        or a list of tuples form/lemma-tag) into a sentence (i.e., always a plain list of tokens)
+        and lexicalize it.
         @param tree: input sentence -- a tree, tagged lemmas, or tokens (as TreeData or lists of \
                 tuples)
-        @return: list of tokens in the sentence
+        @param absts: list of abstraction instructions for the given sentence
+        @return: list of lexicalized tokens in the sentence
         """
-        # based on embedding types
+        # create the sentence as a list of tokens
         out_sent = []
         if self.mode == 'trees':
             for node in tree.nodes[1:]:
@@ -473,6 +552,18 @@ class Lexicalizer(object):
                         out_sent.append(tag)
                 else:
                     out_sent = [form for form, _ in tree]
+
+        # lexicalize the sentence using abstraction instructions
+        for idx, tok in enumerate(out_sent):
+            if tok.startswith('X-'):
+                slot = tok[2:]
+                abst = self._first_abst(absts, slot)
+                form = re.sub(r'\b[0-9]+\b', '_', abst.surface_form)  # abstract numbers
+                # in tree mode, use lemmas instead of surface forms
+                if self.mode == 'trees' and slot in self._lemma_for_sf:
+                    form = self._lemma_for_sf[slot].get(form, form)
+                out_sent[idx] = form
+
         return out_sent
 
     def load_surface_forms(self, surface_forms_fname):

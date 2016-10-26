@@ -452,7 +452,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # train lexicalizer (store surface forms, possibly train LM)
         if self.lexicalizer:
-            self.lexicalizer.train(lexic_files, self.train_trees)
+            self.lexicalizer.train(lexic_files, self.train_trees, self.valid_trees)
 
         # train the classifier for filtering n-best lists
         if self.classif_filter:
