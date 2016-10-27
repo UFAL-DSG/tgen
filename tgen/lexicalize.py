@@ -517,7 +517,8 @@ class Lexicalizer(object):
         out_sents = []
         for tree, absts in zip(trees, abstss):
             # validation data may have more paraphrases -> treat them separately
-            if isinstance(tree[-1], list):
+            # (list of lists or list of TreeData's for self.mode == 'tree')
+            if isinstance(tree[-1], (list, TreeData)):
                 for tree_ in tree:
                     out_sents.append(self._tree_to_sentence(tree_, absts))
             # default: one paraphrase
