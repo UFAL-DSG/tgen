@@ -400,6 +400,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
             pickle.dump(self.get_model_params(), fh, pickle.HIGHEST_PROTOCOL)
 
     def _valid_perplexity(self):
+        """Compute perplexity of the RNNLM on validation data."""
         perp = 0
         n_toks = 0
         for inputs, targets in self._valid_batches():
@@ -410,13 +411,17 @@ class RNNLMFormSelect(FormSelect, TFModel):
                 perp += np.log2(probs[tok_no, targets[tok_no / self.max_sent_len,
                                                       tok_no % self.max_sent_len]])
             n_toks += np.prod(inputs.shape)
+        # perp = exp( -1/N * sum_i=1^N log p(x_i) )
         return np.exp2(- perp / float(n_toks))
 
     def _save_checkpoint(self):
+        """Store current model parameters in memory."""
         self._checkpoint_settings = self.get_all_settings()
         self._checkpoint_params = self.get_model_params()
 
     def _restore_checkpoint(self):
+        """Retrieve previously stored model parameters from memory (or do nothing if there are
+        no stored parameters."""
         if not self._checkpoint_params:
             return
         self.load_all_settings(self._checkpoint_settings)
