@@ -644,7 +644,7 @@ class Lexicalizer(object):
         """
         abstss = read_absts(abst_file)
         for tree, absts in zip(gen_trees, abstss):
-            sent = self._tree_to_sentence(tree)
+            sent = self._tree_to_sentence(tree, absts)
             for idx, tok in enumerate(sent):
                 if tok and tok.startswith('X-'):  # we would like to delexicalize
                     slot = tok[2:]
