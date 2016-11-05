@@ -532,13 +532,13 @@ class Lexicalizer(object):
         # split training/validation data
         return out_sents[:len(train_trees)], out_sents[len(train_trees):]
 
-    def _tree_to_sentence(self, tree, absts):
+    def _tree_to_sentence(self, tree, absts=None):
         """Convert the given "tree" (i.e., tree, tagged lemmas, or tokens; represented as TreeData
         or a list of tuples form/lemma-tag) into a sentence (i.e., always a plain list of tokens)
-        and lexicalize it.
+        and lexicalize it if required.
         @param tree: input sentence -- a tree, tagged lemmas, or tokens (as TreeData or lists of \
                 tuples)
-        @param absts: list of abstraction instructions for the given sentence
+        @param absts: list of abstraction instructions for the given sentence (not used if None)
         @return: list of lexicalized tokens in the sentence
         """
         # create the sentence as a list of tokens
@@ -559,16 +559,17 @@ class Lexicalizer(object):
                 else:
                     out_sent = [form for form, _ in tree]
 
-        # lexicalize the sentence using abstraction instructions
-        for idx, tok in enumerate(out_sent):
-            if tok.startswith('X-'):
-                slot = tok[2:]
-                abst = self._first_abst(absts, slot)
-                form = re.sub(r'\b[0-9]+\b', '_', abst.surface_form)  # abstract numbers
-                # in tree mode, use lemmas instead of surface forms
-                if self.mode == 'trees' and slot in self._lemma_for_sf:
-                    form = self._lemma_for_sf[slot].get(form, form)
-                out_sent[idx] = form
+        # lexicalize the sentence using abstraction instructions (if needed)
+        if absts:
+            for idx, tok in enumerate(out_sent):
+                if tok.startswith('X-'):
+                    slot = tok[2:]
+                    abst = self._first_abst(absts, slot)
+                    form = re.sub(r'\b[0-9]+\b', '_', abst.surface_form)  # abstract numbers
+                    # in tree mode, use lemmas instead of surface forms
+                    if self.mode == 'trees' and slot in self._lemma_for_sf:
+                        form = self._lemma_for_sf[slot].get(form, form)
+                    out_sent[idx] = form
 
         return out_sent
 
@@ -644,7 +645,7 @@ class Lexicalizer(object):
         """
         abstss = read_absts(abst_file)
         for tree, absts in zip(gen_trees, abstss):
-            sent = self._tree_to_sentence(tree, absts)
+            sent = self._tree_to_sentence(tree)
             for idx, tok in enumerate(sent):
                 if tok and tok.startswith('X-'):  # we would like to delexicalize
                     slot = tok[2:]
