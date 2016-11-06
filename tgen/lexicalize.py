@@ -25,14 +25,9 @@ import math
 from tgen.tree import NodeData, TreeData
 from tgen.rnd import rnd
 from tgen.futil import file_stream, read_absts
-from tgen.logf import log_warn, log_info
+from tgen.logf import log_warn, log_info, log_debug
 from tgen.tf_ml import TFModel
-
-
-def softmax(scores):
-    """Compute the softmax of the given scores, avoiding overflow of the exponential."""
-    discounted_exps = np.exp(scores - np.max(scores, axis=0))
-    return discounted_exps / np.sum(discounted_exps, axis=0)
+from tgen.ml import softmax
 
 
 class FormSelect(object):
@@ -428,13 +423,22 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self.set_model_params(self._checkpoint_params)
 
     def get_surface_form(self, sentence, pos, possible_forms):
+        log_debug("Pos: %d, forms: %s" % (pos, unicode(", ".join(possible_forms))))
         # get unnormalized scores for the whole vocabulary
+        if pos >= self.max_sent_len:  # don't use whole sentence if it's too long
+            pos -= pos - self.max_sent_len + 1
+            sentence = sentence[pos - self.max_sent_len + 1:]
         inputs = np.array([self._sent_to_ids(sentence)[:-1]], dtype=np.int32)
         logits = self.session.run([self._logits], {self._inputs: inputs})
         # pick out scores for possible forms
         scores = [logits[0][pos][self.vocab.get(form.lower(), self.vocab.get('<UNK>'))]
                   for form in possible_forms]
         probs = softmax(scores)
+        log_debug("Vocab: %s" % unicode(", ".join([self.vocab.get(form.lower(),
+                                                                  self.vocab.get('<UNK>'))
+                                                   for f in possible_forms])))
+        log_debug("Scores: %s, Probs: %s" % (unicode(", ".join(["%.3f" % s for s in scores])),
+                                             unicode(", ".join(["%.3f" % p for p in probs]))))
         # sample from the prob. dist.
         if self._sample:
             return np.random.choice(possible_forms, p=probs)
@@ -545,8 +549,8 @@ class Lexicalizer(object):
         out_sent = []
         if self.mode == 'trees':
             for node in tree.nodes[1:]:
-                out_sent.append(node.t_lemma)
-                out_sent.append(node.formeme)
+                out_sent.append(node.t_lemma if node.t_lemma is not None else '<None>')
+                out_sent.append(node.formeme if node.formeme is not None else '<None>')
         else:  # tokens or tagged lemmas are stored in t_lemmas
             if isinstance(tree, TreeData):
                 for node in tree.nodes[1:]:
@@ -644,8 +648,10 @@ class Lexicalizer(object):
         @return: None
         """
         abstss = read_absts(abst_file)
-        for tree, absts in zip(gen_trees, abstss):
+        for sent_no, (tree, absts) in enumerate(zip(gen_trees, abstss)):
+            log_debug("Lexicalizing sentence %d: %s" % ((sent_no + 1), unicode(tree)))
             sent = self._tree_to_sentence(tree)
+            log_debug(unicode(sent))
             for idx, tok in enumerate(sent):
                 if tok and tok.startswith('X-'):  # we would like to delexicalize
                     slot = tok[2:]

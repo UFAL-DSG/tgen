@@ -14,8 +14,17 @@ from bisect import bisect_left
 
 """
 Some helper modules from Scikit-learn 0.14.1, stripped of any SciPy usage
-(so that we can use PyPy).
+(so that we can use PyPy). Also other general, ML-related stuff.
 """
+
+
+def softmax(scores):
+    """Compute the softmax of the given scores, avoiding overflow of the exponential.
+    See http://stackoverflow.com/questions/34968722/softmax-function-python.
+    TODO use TF's softmax?
+    """
+    discounted_exps = np.exp(scores - np.max(scores, axis=0))
+    return discounted_exps / np.sum(discounted_exps, axis=0)
 
 
 # sklearn.base

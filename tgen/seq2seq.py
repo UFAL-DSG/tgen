@@ -30,6 +30,7 @@ from tgen.eval import Evaluator, SlotErrAnalyzer
 from tgen.bleu import BLEUMeasure
 from tgen.tfclassif import RerankingClassifier
 from tgen.tf_ml import TFModel, embedding_attention_seq2seq_context
+from tgen.ml import softmax
 from tgen.lexicalize import Lexicalizer
 
 
@@ -1021,8 +1022,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                                          feed_dict=self._beam_search_feed_dict)
 
         # softmax (normalize decoder outputs to obtain prob. distribution), assuming batches size 1
-        # http://stackoverflow.com/questions/34968722/softmax-function-python
-        out_probs = np.exp(output[0]) / np.sum(np.exp(output[0]), axis=0)
+        out_probs = softmax(output[0])
         return out_probs, state
 
     def lexicalize(self, trees, abstr_file):
