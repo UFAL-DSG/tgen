@@ -434,8 +434,8 @@ class RNNLMFormSelect(FormSelect, TFModel):
         scores = [logits[0][pos][self.vocab.get(form.lower(), self.vocab.get('<UNK>'))]
                   for form in possible_forms]
         probs = softmax(scores)
-        log_debug("Vocab: %s" % unicode(", ".join([self.vocab.get(form.lower(),
-                                                                  self.vocab.get('<UNK>'))
+        log_debug("Vocab: %s" % unicode(", ".join([unicode(self.vocab.get(form.lower(),
+                                                                          self.vocab.get('<UNK>')))
                                                    for f in possible_forms])))
         log_debug("Scores: %s, Probs: %s" % (unicode(", ".join(["%.3f" % s for s in scores])),
                                              unicode(", ".join(["%.3f" % p for p in probs]))))
