@@ -1,15 +1,19 @@
 
 SHELL=/bin/bash
-CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1
+CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1 -i
 
 ABSTRACTED = 'address,area,count,name,near,phone,postcode,price'
 ifdef AALL
-  ABSTRACTED = 'address,area,count,food,good_for_meal,name,near,phone,postcode,price,price_range,type'
+  ABSTRACTED = 'address,area,count,food,good_for_meal,goodformeal,name,near,phone,postcode,price,pricerange,price_range,type'
 endif
 
 ifdef TOKS
-    CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1 -m -n
+    CONVERT_SETTINGS = -a $(ABSTRACTED) -s 3:1:1 -m -n -i
 endif
+INPUT_FILE = sfxrestaurant.emnlp.json
+ifdef RNNLG
+    INPUT_FILE = sfxrestaurant.rnnlg.json
+endif 
 
 COORD_ADJUST = # Adjusting coordinations (deleting or transforming)
 ifeq ($(COORD),stanford)
@@ -55,7 +59,7 @@ endif
 
 # `%' using a pattern rule with multiple targets (even though we know the names and `%' stands just for `.')
 # so that it is only called once for all of these files (they are all created in one go)
-train-text%txt train-das%txt train-abst%txt train-conc%txt devel-text%txt devel-das%txt devel-abst%txt devel-conc%txt test-text%txt test-das%txt test-abst%txt test-conc%txt devel-ref%txt test-ref%txt: sfxrestaurant.emnlp.json
+train-text%txt train-das%txt train-abst%txt train-conc%txt devel-text%txt devel-das%txt devel-abst%txt devel-conc%txt test-text%txt test-das%txt test-abst%txt test-conc%txt devel-ref%txt test-ref%txt: $(INPUT_FILE) 
 	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
 grammatemes.tsv: train-text.treex.gz train-das.txt

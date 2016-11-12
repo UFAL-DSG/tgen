@@ -9,69 +9,18 @@ from __future__ import unicode_literals
 
 
 import json
-import sys
 import re
 import argparse
+from math import ceil
 
-from recordclass import recordclass
+from tgen.data import Abst, DA, DAI
 
+from tgen.debug import exc_info_hook
+import sys
+# Start IPdb on error in interactive mode
+sys.excepthook = exc_info_hook
 
-class DAI(recordclass('DAI', ['type', 'slot', 'value'])):
-    """Simple representation of a single dialogue act item."""
-
-    def __unicode__(self):
-        if self.slot is None:
-            return self.type + '()'
-        if self.value is None:
-            return self.type + '(' + self.slot + ')'
-        quote = '\'' if ' ' in self.value else ''
-        return self.type + '(' + self.slot + '=' + quote + self.value + quote + ')'
-
-
-class Abst(recordclass('Abst', ['slot', 'value', 'start', 'end'])):
-    """Simple representation of a single abstraction instruction."""
-
-    def __unicode__(self):
-        quote = '\'' if ' ' in self.value else ''
-        return (self.slot + '=' + quote + self.value + quote + ':' +
-                str(self.start) + '-' + str(self.end))
-
-    def __str__(self):
-        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
-
-    def __repr__(self):
-        return str(self)
-
-
-class DA(object):
-    """Dialogue act – basically a list of DAIs."""
-
-    def __init__(self):
-        self.dais = []
-
-    def __getitem__(self, idx):
-        return self.dais[idx]
-
-    def __setitem__(self, idx, value):
-        self.dais[idx] = value
-
-    def append(self, value):
-        self.dais.append(value)
-
-    def __unicode__(self):
-        return '&'.join([unicode(dai) for dai in self.dais])
-
-    def __str__(self):
-        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
-
-    def __repr__(self):
-        return str(self)
-
-    def __len__(self):
-        return len(self.dais)
-
-
-def parse_da(da_text):
+def parse_cambridge_da(da_text):
     """Parse a DA string into DAIs (DA types, slots, and values)."""
 
     da = DA()
@@ -84,7 +33,7 @@ def parse_da(da_text):
             continue
 
         # we have some slots/values – split them into DAIs
-        svps = re.split('(?<! ),', svps)
+        svps = re.split('(?<! )[,;]', svps)
         for svp in svps:
 
             if '=' not in svp:  # no value, e.g. '?request(near)'
@@ -200,7 +149,7 @@ def abstract_sent(da, conc, abst_slots, slot_names):
                       key=lambda dai: len(dai.value) if dai.value is not None else 0,
                       reverse=True):
         # first, create the 'abstracted' DAI as the copy of the current DAI
-        abst_da.append(DAI(dai.type, dai.slot, dai.value))
+        abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
         if dai.value is None:
             continue
         # try to find the value in the sentence (first exact, then fuzzy)
@@ -210,13 +159,16 @@ def abstract_sent(da, conc, abst_slots, slot_names):
         if pos is None:
             pos = find_substr_approx(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
         if pos is not None:
-            # save the abstraction instruction
-            absts.append(Abst(dai.slot, dai.value, pos[0], pos[1]))
             for idx in xrange(pos[0], pos[1]):  # mask found things so they're not found twice
                 toks_mask[idx] = False
-            # if the value is to be abstracted, replace the value in the abstracted DAI
-            if dai.slot in abst_slots and dai.value != 'dont_care':
-                abst_da[-1].value = 'X-' + dai.slot
+        if pos is None:  # default to -1 for unknown positions
+            pos = -1, -1
+        # if the value is to be abstracted, replace the value in the abstracted DAI
+        # and save abstraction instruction (even if not found in the sentence)
+        if dai.slot in abst_slots and dai.value != 'dont_care':
+            abst_da[-1].value = 'X-' + dai.slot
+            # save the abstraction instruction
+            absts.append(Abst(dai.slot, dai.value, start=pos[0], end=pos[1]))
 
     # go from the beginning of the sentence, replacing the values to be abstracted
     absts.sort(key=lambda a: a.start)
@@ -250,6 +202,8 @@ def relexicalize(texts, cur_abst):
         toks = text.split(' ')
         for a, c in zip(abst, cur_abst):
             assert a.slot == c.slot
+            if a.start < 0:  # skip values that are actually not realized on the surface
+                continue
             toks[a.start] = c.value
         ret.append(' '.join(toks))
     return ret
@@ -274,37 +228,55 @@ def convert(args):
     texts = []  # abstracted sentences
     absts = []  # abstraction descriptions
 
+    # statistics about different DAs
+    da_keys = {}
+    turns = 0
+
+    def process_instance(da, conc):
+        text, da, abst = abstract_sent(da, conc, slots_to_abstract, args.slot_names)
+        da.sort()
+
+        text = fix_capitalization(text)
+        conc = fix_capitalization(conc)
+
+        da_keys[unicode(da)] = da_keys.get(unicode(da), 0) + 1
+        das.append(da)
+        concs.append(conc)
+        absts.append(abst)
+        texts.append(text)
+
     # process the input data and store it in memory
     with open(args.in_file, 'r') as fh:
         data = json.load(fh, encoding='UTF-8')
-        turns = 0
         for dialogue in data:
-            for turn in dialogue['dial']:
-                da = parse_da(turn['S']['dact'])
-                conc = postprocess_sent(turn['S']['ref'])
-                text, da, abst = abstract_sent(da, conc, slots_to_abstract, args.slot_names)
-
-                text = fix_capitalization(text)
-                conc = fix_capitalization(conc)
-
-                das.append(da)
-                concs.append(conc)
-                absts.append(abst)
-                texts.append(text)
+            if isinstance(dialogue, dict):
+                for turn in dialogue['dial']:
+                    da = parse_cambridge_da(turn['S']['dact'])
+                    if args.skip_hello and len(da) == 1 and da[0].da_type == 'hello':
+                        continue  # skip hello() DAs
+                    conc = postprocess_sent(turn['S']['ref'])
+                    process_instance(da, conc)
+                    turns += 1
+            else:
+                da = parse_cambridge_da(dialogue[0])
+                conc = postprocess_sent(dialogue[1])
+                process_instance(da, conc)
                 turns += 1
 
         print 'Processed', turns, 'turns.'
+        print '%d different DAs.' % len(da_keys)
+        print '%.2f average DAIs per DA' % (sum([len(d) for d in das]) / float(len(das)))
 
     if args.split:
         # get file name prefixes and compute data sizes for all the parts to be split
         out_names = re.split(r'[, ]+', args.out_name)
         data_sizes = [int(part_size) for part_size in args.split.split(':')]
         assert len(out_names) == len(data_sizes)
-        # compute sizes for all but the 1st part (+ round them)
+        # compute sizes for all but the 1st part (+ round them up, as Wen does)
         total = float(sum(data_sizes))
         remain = turns
         for part_no in xrange(len(data_sizes) - 1, 0, -1):
-            part_size = int(round(turns * (data_sizes[part_no] / total)))
+            part_size = int(ceil(turns * (data_sizes[part_no] / total)))
             data_sizes[part_no] = part_size
             remain -= part_size
         # put whatever remained into the 1st part
@@ -368,14 +340,15 @@ def convert(args):
             del texts[0:part_size]
 
 
-
-if  __name__ == '__main__':
+if __name__ == '__main__':
     argp = argparse.ArgumentParser()
     argp.add_argument('in_file', help='Input JSON file')
     argp.add_argument('out_name', help='Output files name prefix(es - when used with -s, comma-separated)')
     argp.add_argument('-a', '--abstract', help='Comma-separated list of slots to be abstracted')
     argp.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
-    argp.add_argument('-m', '--multi-ref', help='Multiple reference mode: relexicalize all possible references', action='store_true')
+    argp.add_argument('-m', '--multi-ref',
+                      help='Multiple reference mode: relexicalize all possible references', action='store_true')
     argp.add_argument('-n', '--slot-names', help='Include slot names in delexicalized texts', action='store_true')
+    argp.add_argument('-i', '--skip-hello', help='Ignore hello() DAs', action='store_true')
     args = argp.parse_args()
     convert(args)
