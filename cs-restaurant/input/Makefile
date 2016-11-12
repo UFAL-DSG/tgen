@@ -22,6 +22,9 @@ ifeq ($(COORD),flat_trees)
   COORD_ADJUST = Util::Eval tnode='$$.set_parent($$.get_root);'
 endif
 
+# data target storage (for the "push" command)
+DATA_TARGET = ../data/training2
+
 all: train-text.pickle.gz train-das.txt train-das_l.txt train-abst.txt \
     train-text.txt train-text_l.txt train-tls.txt train-tls_l.txt \
     devel-text.pickle.gz devel-das.txt devel-das_l.txt devel-abst.txt \
@@ -67,3 +70,16 @@ grammatemes.tsv: train-text.treex.gz train-das.txt
 
 %-das.sgm: %-das.txt
 	treex -Lcs Read::Sentences from=$< Write::SgmMTEval to=- set_id=CsRest sys_id=source add_header=srcset | sed 's/docid="[^"]*"/docid="test"/' > $@
+
+# copy data to target storage
+push:
+	mkdir -p $(DATA_TARGET)-delex $(DATA_TARGET)-lex
+	cp train-* devel-* test-* grammatemes.tsv surface_forms.json $(DATA_TARGET)-delex
+	rm $(DATA_TARGET)-delex/{*.conll,*tls*,*das_l*}
+	cp train-* devel-* test-* grammatemes.tsv surface_forms.json $(DATA_TARGET)-lex
+	for file in *das_l*; do newname=`echo $$file | sed 's/das_l/das/'`; mv $$file $$newname; done
+	rm $(DATA_TARGET)-lex/{*.conll,*tls*}
+
+# clear all created files
+clean:
+	rm train-* devel-* test-* grammatemes.tsv
