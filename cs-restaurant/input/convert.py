@@ -9,7 +9,6 @@ import re
 from argparse import ArgumentParser
 from collections import deque
 from itertools import islice
-from recordclass import recordclass
 
 from ufal.morphodita import Tagger, Forms, TaggedLemma, TaggedLemmas, TokenRanges, Analyses, Indices
 
@@ -123,9 +122,13 @@ class MorphoAnalyzer(object):
                              in zip(self._forms_buf, self._analyses_buf, self._indices_buf)])
         return analyzed
 
-    def process_files(self, input_text_file, input_da_file):
+    def process_files(self, input_text_file, input_da_file, skip_hello=False):
         """Load DAs & sentences, obtain abstraction instructions, and store it all in member
-        variables (to be used later by writing methods)."""
+        variables (to be used later by writing methods).
+        @param input_text_file: path to the input file with sentences
+        @param input_da_file: path to the input file with DAs
+        @param skip_hello: skip hello() DAs (remove them from the output?)
+        """
         # load DAs
         self._das = []
         with codecs.open(input_da_file, 'r', encoding='UTF-8') as fh:
@@ -137,6 +140,16 @@ class MorphoAnalyzer(object):
             for line in fh:
                 self._sents.append(self.analyze(line.strip()))
         assert(len(self._das) == len(self._sents))
+        # skip hello() DAs, if required
+        if skip_hello:
+            pos = 0
+            while pos < len(self._das):
+                da = self._das[pos]
+                if len(da) == 1 and da[0].da_type == 'hello':
+                    del self._das[pos]
+                    del self._sents[pos]
+                else:
+                    pos += 1
         # delexicalize DAs and sentences
         self._delex_texts()
         self._delex_das()
@@ -286,13 +299,14 @@ class MorphoAnalyzer(object):
                 del absts[idx + 1]
             idx += 1
 
+
 def convert(args):
     """Main conversion function (using command-line arguments as parsed by Argparse)."""
     log_info('Loading...')
     analyzer = MorphoAnalyzer(args.tagger_model, args.abst_slots)
     analyzer.load_surface_forms(args.surface_forms)
     log_info('Processing input files...')
-    analyzer.process_files(args.input_text_file, args.input_da_file)
+    analyzer.process_files(args.input_text_file, args.input_da_file, args.skip_hello)
     log_info('Loaded %d data items.' % analyzer.buf_length())
 
     # outputs: plain delex, plain lex, interleaved delex & lex, CoNLL-U delex & lex, DAs, abstrs
@@ -348,6 +362,7 @@ if __name__ == '__main__':
     ap.add_argument('out_prefix', help='Output files name prefix(es - when used with -s, comma-separated)')
     ap.add_argument('-a', '--abst-slots', help='List of slots to delexicalize/abstract (comma-separated)')
     ap.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
+    ap.add_argument('-i', '--skip-hello', help='Ignore hello() DAs', action='store_true')
 
     args = ap.parse_args()
     convert(args)

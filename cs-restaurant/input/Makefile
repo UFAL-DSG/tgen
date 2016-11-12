@@ -1,7 +1,7 @@
 
 SHELL=/bin/bash
 ABSTRACTED = name,area,address,phone,good_for_meal,near,food,price_range,count,price,postcode
-CONVERT_SETTINGS = -s 3:1:1 -a $(ABSTRACTED)
+CONVERT_SETTINGS = -s 3:1:1 -a $(ABSTRACTED) -i
 TREEX_BASIC_SCEN = W2A::ResegmentSentences Misc::MoveNodesAfterResegment \
     Util::Eval anode='$$.set_tag($$.conll_pos); $$.set_deprel(undef);' \
     Scen::Analysis::CS tokenizer=none tagger=none \
