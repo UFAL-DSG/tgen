@@ -26,6 +26,38 @@ class DAI(object):
         quote = '\'' if (' ' in self.value or ':' in self.value) else ''
         return self.da_type + '(' + self.slot + '=' + quote + self.value + quote + ')'
 
+    def __str__(self):
+        return unicode(self).encode('ascii', errors='replace')
+
+    def __repr__(self):
+        return 'DA.parse("' + str(self) + '")'
+
+    def __eq__(self, other):
+        return (self.da_type == other.da_type and
+                self.slot == other.slot and
+                self.value == other.value)
+
+    def __lt__(self, other):
+        return (self.da_type < other.da_type or
+                (self.da_type == other.da_type and self.slot < other.slot) or
+                (self.da_type == other.da_type and self.slot == other.slot and
+                 self.value < other.value))
+
+    def __le__(self, other):
+        return (self.da_type < other.da_type or
+                (self.da_type == other.da_type and self.slot < other.slot) or
+                (self.da_type == other.da_type and self.slot == other.slot and
+                 self.value <= other.value))
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __gt__(self, other):
+        return not self <= other
+
+    def __ge__(self, other):
+        return not self < other
+
 
 class DA(object):
     """Dialogue act – basically a list of DAIs."""
@@ -50,6 +82,9 @@ class DA(object):
 
     def __len__(self):
         return len(self.dais)
+
+    def sort(self):
+        self.dais.sort()
 
     @staticmethod
     def parse(da_text):
