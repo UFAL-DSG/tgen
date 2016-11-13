@@ -250,7 +250,7 @@ gen_process:
 		$(SELECTOR_CONFIG) \
 		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
-		$(POSTPROCESS) -m $(GEN_MODEL) -i $(TRY_DIR)/test-das.txt \
+		$(POSTPROCESS) -m $(GEN_MODEL) -i $(TRY_DIR)/test-das.txt -f $(TRY_DIR)/surface_forms.json \
 			-g $(TRY_DIR)/grammatemes.tsv -s $(TARGET_SELECTOR) \
 			$(TRY_DIR)/out-trees.yaml.gz $(TRY_DIR)/out-text.sgm; \
 		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
