@@ -37,6 +37,7 @@ TGen is written in Python (version 2.7). For TGen to work properly, you need to 
 - [numpy](http://www.numpy.org/)
 - [rpyc](https://pypi.python.org/pypi/rpyc/)
 - [pudb](https://pypi.python.org/pypi/pudb)
+- [recordclass](https://pypi.python.org/pypi/recordclass)
 - [TensorFlow](https://www.tensorflow.org/), only version 0.6 is supported for the time being
 
 Manual installation:
