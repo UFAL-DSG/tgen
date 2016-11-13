@@ -234,6 +234,10 @@ class TreeData(object):
     def clone(self):
         return TreeData(nodes=self.nodes, parents=self.parents)
 
+    def to_tok_list(self):
+        """Convert the tree to a list of tokens -- (word, empty tag) pairs."""
+        return [(n.t_lemma, None) for n in self.nodes[1:]]
+
     def create_ttree(self):
         """Convert the TreeData structure to a regular t-tree."""
         tnodes = [T(data={'ord': 0})] + [T(data={'t_lemma': node.t_lemma,

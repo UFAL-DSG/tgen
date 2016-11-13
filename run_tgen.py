@@ -500,13 +500,14 @@ def seq2seq_gen(args):
 
     # evaluate the generated & lexicalized tokens (F1 and BLEU scores)
     if args.eval_file and args.eval_file.endswith('.txt'):
-        eval_tokens(das, read_tokens(args.eval_file, ref_mode=True), gen_trees)
+        eval_tokens(das, read_tokens(args.eval_file, ref_mode=True),
+                    [t.to_tok_list() for t in gen_trees])
 
     # write output .yaml.gz or .txt
     if args.output_file is not None:
         log_info('Writing output...')
         if args.output_file.endswith('.txt'):
-            write_tokens(gen_trees, args.output_file)
+            write_tokens([t.to_tok_list() for t in gen_trees], args.output_file)
         else:
             write_ttrees(create_ttree_doc(gen_trees, eval_doc, tgen.language,
                                           args.target_selector or tgen.selector),
