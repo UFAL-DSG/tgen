@@ -184,5 +184,8 @@ class Abst(object):
             surface_form, rest = rest.split(':', 1)
         else:
             surface_form = None
-        start, end = [int(part) for part in rest.split('-', 1)]
+        if rest == '-1--1':  # non-realized values
+            start, end = None, None
+        else:
+            start, end = [int(part) for part in rest.split('-', 1)]
         return Abst(slot, value, surface_form, start, end)

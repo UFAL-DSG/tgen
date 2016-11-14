@@ -97,7 +97,7 @@ def find_substr_approx(needle, haystack):
     """Try to find a sub-list in a list of tokens using fuzzy matching (skipping some
     common prepositions and punctuation, checking for similar-length substrings)"""
     # some common 'meaningless words'
-    stops = set(['and', 'or', 'in', 'of', 'the', 'to', ','])
+    stops = set(['and', 'or', 'in', 'of', 'the', 'to', ',', 'restaurant'])
     h = 0
     n = 0
     match_start = 0
@@ -137,7 +137,6 @@ def abstract_sent(da, conc, abst_slots, slot_names):
     @param abstr_slots: a set of slots to be abstracted
     @return: a tuple of the abstracted text, abstracted DA, and abstraction instructions
     """
-
     toks = conc.split(' ')
     absts = []
     abst_da = DA()
@@ -161,7 +160,7 @@ def abstract_sent(da, conc, abst_slots, slot_names):
         if pos is not None:
             for idx in xrange(pos[0], pos[1]):  # mask found things so they're not found twice
                 toks_mask[idx] = False
-        if pos is None:  # default to -1 for unknown positions
+        if pos is None or pos == (0, 0):  # default to -1 for unknown positions
             pos = -1, -1
         # if the value is to be abstracted, replace the value in the abstracted DAI
         # and save abstraction instruction (even if not found in the sentence)
@@ -175,7 +174,7 @@ def abstract_sent(da, conc, abst_slots, slot_names):
     shift = 0
     for abst in absts:
         # select only those that should actually be abstracted on the output
-        if abst.slot not in abst_slots or abst.value == 'dont_care':
+        if abst.slot not in abst_slots or abst.value == 'dont_care' or abst.start < 0:
             continue
         # replace the text
         if slot_names:
