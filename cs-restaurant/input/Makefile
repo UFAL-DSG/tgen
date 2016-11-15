@@ -77,7 +77,7 @@ push:
 	cp train-* devel-* test-* grammatemes.tsv surface_forms.json $(DATA_TARGET)-delex
 	rm $(DATA_TARGET)-delex/{*.conll,*tls*,*das_l*}
 	cp train-* devel-* test-* grammatemes.tsv surface_forms.json $(DATA_TARGET)-lex
-	for file in *das_l*; do newname=`echo $$file | sed 's/das_l/das/'`; mv $$file $$newname; done
+	for file in $(DATA_TARGET)-lex/*das_l*; do newname=`echo $$file | sed 's/das_l/das/'`; mv $$file $$newname; done
 	rm $(DATA_TARGET)-lex/{*.conll,*tls*}
 
 # clear all created files
