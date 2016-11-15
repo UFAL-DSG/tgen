@@ -76,7 +76,7 @@ TEST_CONC = data/$(TRAINING_SET)/devel-conc.sgm
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
   TEST_REF = data/$(TRAINING_SET)/test-das.sgm
-  TEST_REFTOKS = data/$(TRAINING_SET)/devel-ref.txt
+  TEST_REFTOKS = data/$(TRAINING_SET)/test-ref.txt
   TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
   TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
