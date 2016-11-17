@@ -71,7 +71,7 @@ class DAEmbeddingExtract(EmbeddingExtract):
         # DA embeddings (slot - value; size == 2x self.max_da_len)
         da_emb_idxs = []
         for dai in da[:self.max_da_len]:
-            da_emb_idxs.append([self.dict_slot.get(dai.slot self.UNK_SLOT),
+            da_emb_idxs.append([self.dict_slot.get(dai.slot, self.UNK_SLOT),
                                 self.dict_value.get(dai.value, self.UNK_VALUE)])
         # pad with "unknown"
         for _ in xrange(len(da_emb_idxs), self.max_da_len):
