@@ -249,11 +249,16 @@ class RerankingClassifier(TFModel):
         # normalize & binarize the result
         return np.array([[1. if r > 0 else 0. for r in result] for result in results])
 
-    def init_run(self, da):
-        """Remember the current DA for subsequent runs of `dist_to_cur_da`."""
+    def _normalize_da(self, da):
         if isinstance(da, tuple):  # if DA is actually context + DA, ignore context
             da = da[1]
-        self.cur_da = da
+        if self.delex_slots:  # delexicalize the DA if needed
+            da = da.get_delexicalized(self.delex_slots)
+        return da
+
+    def init_run(self, da):
+        """Remember the current DA for subsequent runs of `dist_to_cur_da`."""
+        self.cur_da = self._normalize_da(da)
         da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
         self.cur_da_bin = da_bin != 0
 
@@ -264,8 +269,7 @@ class RerankingClassifier(TFModel):
         @param trees: list of trees to measure the distance
         @return: list of Hamming distances for each tree
         """
-        if isinstance(da, tuple):  # if DA is actually context + DA, ignore context
-            da = da[1]
+        da = self._normalize_da(da)
         da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
         da_bin = da_bin != 0
         covered = self.classify(trees)
@@ -317,10 +321,9 @@ class RerankingClassifier(TFModel):
         # ignore contexts, if they are contained in the DAs
         if isinstance(self.train_das[0], tuple):
             self.train_das = [da for (context, da) in self.train_das]
-
         # delexicalize if DAs are lexicalized and we don't want that
         if self.delex_slots:
-            self.train_das = [da.delexicalized(self.delex_slots) for da in self.train_das]
+            self.train_das = [da.get_delexicalized(self.delex_slots) for da in self.train_das]
 
         # add empty tree + empty DA to training data
         # (i.e. forbid the network to keep any of its outputs "always-on")

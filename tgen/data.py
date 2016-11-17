@@ -60,7 +60,7 @@ class DAI(object):
 
 
 class DA(object):
-    """Dialogue act – basically a list of DAIs."""
+    """Dialogue act -- a list of DAIs with a few special functions for parsing etc.."""
 
     def __init__(self):
         self.dais = []
@@ -131,6 +131,23 @@ class DA(object):
                      re.match(r'^' + value + r' (and|or) ', dai.value))):
                 return dai.slot
         return None
+
+    def get_delexicalized(self, delex_slots):
+        """Return a delexicalized copy o fthe current DA (delexicalize slots that are in
+        the given parameter).
+
+        @param delex_slots: a set of names of slots to be delexicalized
+        @return: a new DA() object with delexicalized values
+        """
+        ret = DA()
+        for dai in self:
+            ret_dai = DAI(dai.da_type, dai.slot,
+                          'X-' + dai.slot
+                          if (dai.slot in delex_slots and
+                              dai.value not in ['none', None, 'dont_care'])
+                          else dai.value)
+            ret.append(ret_dai)
+        return ret
 
 
 class Abst(object):
