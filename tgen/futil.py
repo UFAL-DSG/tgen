@@ -12,9 +12,8 @@ import gzip
 from io import IOBase
 from codecs import StreamReader, StreamWriter
 
-from alex.components.slu.da import DialogueAct
 from tree import TreeData
-from data import Abst
+from data import Abst, DA
 
 
 def file_stream(filename, mode='r', encoding='UTF-8'):
@@ -43,8 +42,7 @@ def read_das(da_file):
     das = []
     with file_stream(da_file) as fh:
         for line in fh:
-            da = DialogueAct()
-            da.parse(line)
+            da = DA.parse(line)
             das.append(da)
     return das
 
@@ -248,7 +246,7 @@ def postprocess_tokens(tokens, das):
             sent.append((final_punct, None))
 
     for sent, da in zip(tokens, das):
-        final_punct = '?' if da[0].dat[0] == '?' else '.'  # '?' for '?request...'
+        final_punct = '?' if da[0].da_type[0] == '?' else '.'  # '?' for '?request...'
         if isinstance(sent[0], list):
             for sent_var in sent:  # multiple references
                 postprocess_sent(sent_var, final_punct)

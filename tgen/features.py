@@ -267,9 +267,9 @@ def svp_presence(tree, context):
     """
     ret = {}
     for dai in context['da']:
-        if dai.name is None:
+        if dai.slot is None:
             continue
-        ret[dai.name + '=' + str(dai.value)] = 1
+        ret[dai.slot + '=' + str(dai.value)] = 1
     return ret
 
 
@@ -279,7 +279,7 @@ def dat_presence(tree, context):
     @rtype: dict
     @return: dictionary with one key – DA type – and a value equal to 1
     """
-    return {context['da'][0].dat: 1}
+    return {context['da'][0].da_type: 1}
 
 
 def slot_presence(tree, context):
@@ -290,9 +290,9 @@ def slot_presence(tree, context):
     """
     ret = {}
     for dai in context['da']:
-        if dai.name is None:
+        if dai.slot is None:
             continue
-        ret[dai.name] = 1
+        ret[dai.slot] = 1
     return ret
 
 
@@ -304,9 +304,9 @@ def slot_count(tree, context):
     """
     ret = defaultdict(int)
     for dai in context['da']:
-        if dai.name is None:
+        if dai.slot is None:
             continue
-        ret[dai.name] += 1
+        ret[dai.slot] += 1
     return ret
 
 

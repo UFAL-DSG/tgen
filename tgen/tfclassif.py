@@ -29,7 +29,7 @@ from tgen.ml import DictVectorizer
 from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract, \
     TaggedLemmasEmbeddingSeq2SeqExtract
 from tgen.tree import TreeData
-from alex.components.slu.da import DialogueAct
+from tgen.data import DA
 from tgen.tf_ml import TFModel
 
 
@@ -117,6 +117,10 @@ class RerankingClassifier(TFModel):
         self.cur_da = None
         self.cur_da_bin = None
         self.checkpoint_path = None
+
+        self.delex_slots = cfg.get('delex_slots', None)
+        if self.delex_slots:
+            self.delex_slots = set(self.delex_slots.split(','))
 
     def save_to_file(self, model_fname):
         """Save the generator to a file (actually two files, one for configuration and one
@@ -314,12 +318,15 @@ class RerankingClassifier(TFModel):
         if isinstance(self.train_das[0], tuple):
             self.train_das = [da for (context, da) in self.train_das]
 
+        # delexicalize if DAs are lexicalized and we don't want that
+        if self.delex_slots:
+            self.train_das = [da.delexicalized(self.delex_slots) for da in self.train_das]
+
         # add empty tree + empty DA to training data
         # (i.e. forbid the network to keep any of its outputs "always-on")
         train_size += 1
         self.train_trees.append(TreeData())
-        empty_da = DialogueAct()
-        empty_da.parse('inform()')
+        empty_da = DA.parse('inform()')
         self.train_das.append(empty_da)
 
         self.train_order = range(len(self.train_trees))

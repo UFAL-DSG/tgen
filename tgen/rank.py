@@ -77,7 +77,7 @@ class BasePerceptronRanker(Ranker):
     def score(self, cand_tree, da):
         """Score the given tree in the context of the given dialogue act.
         @param cand_tree: the candidate tree to be scored, as a TreeData object
-        @param da: a DialogueAct object representing the input dialogue act
+        @param da: a DA object representing the input dialogue act
         """
         return self._score(self._extract_feats(cand_tree, da))
 

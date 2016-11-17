@@ -57,8 +57,8 @@ class DAEmbeddingExtract(EmbeddingExtract):
 
         for da in train_das:
             for dai in da:
-                if dai.name not in self.dict_slot:
-                    self.dict_slot[dai.name] = dict_ord
+                if dai.slot not in self.dict_slot:
+                    self.dict_slot[dai.slot] = dict_ord
                     dict_ord += 1
                 if dai.value not in self.dict_value:
                     self.dict_value[dai.value] = dict_ord
@@ -71,7 +71,7 @@ class DAEmbeddingExtract(EmbeddingExtract):
         # DA embeddings (slot - value; size == 2x self.max_da_len)
         da_emb_idxs = []
         for dai in da[:self.max_da_len]:
-            da_emb_idxs.append([self.dict_slot.get(dai.name, self.UNK_SLOT),
+            da_emb_idxs.append([self.dict_slot.get(dai.slot self.UNK_SLOT),
                                 self.dict_value.get(dai.value, self.UNK_VALUE)])
         # pad with "unknown"
         for _ in xrange(len(da_emb_idxs), self.max_da_len):
@@ -174,11 +174,11 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
         for da in train_das:
             for dai in da:
-                if dai.dat not in self.dict_act:
-                    self.dict_act[dai.dat] = dict_ord
+                if dai.da_type not in self.dict_act:
+                    self.dict_act[dai.da_type] = dict_ord
                     dict_ord += 1
-                if dai.name not in self.dict_slot:
-                    self.dict_slot[dai.name] = dict_ord
+                if dai.slot not in self.dict_slot:
+                    self.dict_slot[dai.slot] = dict_ord
                     dict_ord += 1
                 if dai.value not in self.dict_value:
                     self.dict_value[dai.value] = dict_ord
@@ -196,11 +196,10 @@ class DAEmbeddingSeq2SeqExtract(EmbeddingExtract):
         da_emb_idxs = []
         sorted_da = da
         if hasattr(self, 'sort') and self.sort:
-            sorted_da = sorted(da, cmp=lambda a, b:
-                               cmp(a.dat, b.dat) or cmp(a.name, b.name) or cmp(a.value, b.value))
+            sorted_da = sorted(da)
         for dai in sorted_da[:self.max_da_len]:
-            da_emb_idxs.append(self.dict_act.get(dai.dat, self.UNK_ACT))
-            da_emb_idxs.append(self.dict_slot.get(dai.name, self.UNK_SLOT))
+            da_emb_idxs.append(self.dict_act.get(dai.da_type, self.UNK_ACT))
+            da_emb_idxs.append(self.dict_slot.get(dai.slot, self.UNK_SLOT))
             da_emb_idxs.append(self.dict_value.get(dai.value, self.UNK_VALUE))
         # left-pad with unknown
         padding = []

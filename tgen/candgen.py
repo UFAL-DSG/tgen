@@ -169,7 +169,7 @@ class RandomCandidateGenerator(object):
         # The same for compatible DA slots
         if self.compatible_slots:
             self.compatible_slots = self._compatibility_table(das, ttrees,
-                                                              lambda da: [dai.name for dai in da.dais])
+                                                              lambda da: [dai.slot for dai in da.dais])
 
         if self.classif:
             self.classif.train(das_file, ttree_file)
@@ -294,7 +294,7 @@ class RandomCandidateGenerator(object):
         # Also check slot compatibility, if applicable
         if not self.compatible_slots:
             return True
-        return (len(set([dai.name for dai in da]) & self.compatible_slots[node_id]) >=
+        return (len(set([dai.slot for dai in da]) & self.compatible_slots[node_id]) >=
                 min((len(self.compatible_slots[node_id]), self.compatible_dais_limit)))
 
     def get_merged_limits(self, da):

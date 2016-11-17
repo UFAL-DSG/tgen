@@ -23,8 +23,7 @@ from tgen.ml import DictVectorizer
 from tgen.nn import ClassifNN, FeedForward, Flatten, Conv1D, Pool1D, Embedding
 from tgen.embeddings import TreeEmbeddingExtract
 from tgen.tree import TreeData
-from alex.components.slu.da import DialogueAct
-
+from tgen.data import DA
 
 class TreeClassifier(object):
     """A classifier for trees that decides which DAIs are currently represented
@@ -149,8 +148,7 @@ class TreeClassifier(object):
         # (i.e. forbid the network to keep any of its outputs "always-on")
         train_size += 1
         self.train_trees.append(TreeData())
-        empty_da = DialogueAct()
-        empty_da.parse('inform()')
+        empty_da = DA.parse('inform()')
         self.train_das.append(empty_da)
 
         self.train_order = range(len(self.train_trees))
