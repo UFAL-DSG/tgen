@@ -83,7 +83,7 @@ class Seq2SeqBase(SentencePlanner):
         if 'lexicalizer' in cfg:
             # build a lexicalizer with the given settings
             lexer_cfg = cfg['lexicalizer']
-            for setting in ['mode']:
+            for setting in ['mode', 'language']:
                 if setting in cfg:
                     lexer_cfg[setting] = cfg[setting]
             self.lexicalizer = Lexicalizer(lexer_cfg)

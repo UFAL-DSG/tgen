@@ -451,11 +451,15 @@ class Lexicalizer(object):
     """Main object controlling lexicalization, using a LM or random surface forms to replace
     slot placeholders in the outputs."""
 
+    OR_STRING = {'cs': 'nebo', 'en': 'or'}
+    AND_STRING = {'cs': 'a', 'en': 'and'}
+
     def __init__(self, cfg):
         """Read configuration, initialize internal buffers, create the surface form selection
         LM object (if required)."""
         self.cfg = cfg
         self.mode = cfg.get('mode', 'trees')
+        self.language = cfg.get('language', 'en')
         self._sf_all = {}
         self._sf_by_formeme = {}
         self._sf_by_tag = {}
@@ -698,11 +702,10 @@ class Lexicalizer(object):
         if len(value_parts) > 1:
             out_value = []
             for value_part in value_parts:
-                # TODO avoid hardcoded constants for "and" and "or" (now Czech-specific)
                 if value_part == 'and':
-                    out_value.append('a')
+                    out_value.append(self.AND_STRING.get(self.language, 'and'))
                 elif value_part == 'or':
-                    out_value.append('nebo')
+                    out_value.append(self.OR_STRING.get(self.language, 'or'))
                 else:
                     out_value.append(self.get_surface_form(tree, idx,
                                                            slot, value_part, tag, formeme))
