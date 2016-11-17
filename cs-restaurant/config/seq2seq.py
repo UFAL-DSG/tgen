@@ -54,6 +54,7 @@ config = {
               'emb_size': 50,
               'max_tree_len': 50,
               'validation_freq': 1,
+              'delex_slots': 'name,area,address,phone,good_for_meal,near,food,price_range,count,price,postcode',
               },
 
         'lexicalizer': {
