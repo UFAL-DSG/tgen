@@ -9,12 +9,9 @@ from __future__ import unicode_literals
 
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops import rnn
-from tensorflow.python.ops import rnn_cell
-from tensorflow.python.ops import variable_scope as vs
-from tensorflow.models.rnn.seq2seq import embedding_attention_decoder
+from tensorflow.python.ops import array_ops, control_flow_ops, rnn, rnn_cell
+from tensorflow import variable_scope as vs
+from tensorflow.python.ops.seq2seq import embedding_attention_decoder
 
 
 class TFModel(object):
@@ -77,17 +74,17 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
     with vs.variable_scope(scope or "embedding_attention_seq2seq_context"):
 
         # split context and real inputs into separate vectors
-        context_inputs = encoder_inputs[0:len(encoder_inputs)/2]
-        encoder_inputs = encoder_inputs[len(encoder_inputs)/2:]
+        context_inputs = encoder_inputs[0:len(encoder_inputs) / 2]
+        encoder_inputs = encoder_inputs[len(encoder_inputs) / 2:]
 
         # build separate encoders
         encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols)
         with vs.variable_scope("context_rnn") as scope:
             context_outputs, context_states = rnn.rnn(
-                    encoder_cell, context_inputs, dtype=dtype, scope=scope)
+                encoder_cell, context_inputs, dtype=dtype, scope=scope)
         with vs.variable_scope("input_rnn") as scope:
             encoder_outputs, encoder_states = rnn.rnn(
-                    encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
+                encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
 
         # concatenate outputs & states
         encoder_outputs = [array_ops.concat(1, [co, eo], name="context-and-encoder-output")
@@ -112,17 +109,17 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
 
         if isinstance(feed_previous, bool):
             return embedding_attention_decoder(
-                    decoder_inputs, encoder_states[-1], attention_states, cell,
-                    num_decoder_symbols, num_heads, output_size, output_projection,
-                    feed_previous)
+                decoder_inputs, encoder_states[-1], attention_states, cell,
+                num_decoder_symbols, num_heads, output_size, output_projection,
+                feed_previous)
         else:    # If feed_previous is a Tensor, we construct 2 graphs and use cond.
             outputs1, states1 = embedding_attention_decoder(
-                    decoder_inputs, encoder_states[-1], attention_states, cell,
-                    num_decoder_symbols, num_heads, output_size, output_projection, True)
+                decoder_inputs, encoder_states[-1], attention_states, cell,
+                num_decoder_symbols, num_heads, output_size, output_projection, True)
             vs.get_variable_scope().reuse_variables()
             outputs2, states2 = embedding_attention_decoder(
-                    decoder_inputs, encoder_states[-1], attention_states, cell,
-                    num_decoder_symbols, num_heads, output_size, output_projection, False)
+                decoder_inputs, encoder_states[-1], attention_states, cell,
+                num_decoder_symbols, num_heads, output_size, output_projection, False)
 
             outputs = control_flow_ops.cond(feed_previous,
                                             lambda: outputs1, lambda: outputs2)

@@ -446,12 +446,22 @@ class RerankingClassifier(TFModel):
         return Y
 
     def _rnn(self, name, enc_inputs):
-        encoder_cell = tf.nn.rnn_cell.EmbeddingWrapper(self.cell, self.dict_size)
-        _, encoder_states = tf.nn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
-        w = tf.get_variable(name + '-w', (self.cell.state_size, self.num_outputs),
+        encoder_cell = tf.nn.rnn_cell.EmbeddingWrapper(self.cell, self.dict_size, self.emb_size)
+        encoder_outputs, encoder_states = tf.nn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
+
+        # TODO for historical reasons, the last layer uses both output and state.
+        # try this just with outputs (might work exactly the same)
+        if isinstance(self.cell.state_size, tf.nn.rnn_cell.LSTMStateTuple):
+            state_size = self.cell.state_size.c + self.cell.state_size.h
+            final_input = tf.concat(1, (encoder_outputs[-1], encoder_states[-1]))
+        else:
+            state_size = self.cell.state_size
+            final_input = encoder_states[-1]
+
+        w = tf.get_variable(name + '-w', (state_size, self.num_outputs),
                             initializer=tf.random_normal_initializer(stddev=0.1))
         b = tf.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
-        return tf.matmul(encoder_states[-1], w) + b
+        return tf.matmul(final_input, w) + b
 
     def _batches(self):
         """Create batches from the input; use as iterator."""
