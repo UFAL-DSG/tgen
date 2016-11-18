@@ -8,7 +8,6 @@ Lexicalization functions (postprocessing generated trees).
 from __future__ import unicode_literals
 import json
 import re
-import kenlm  # needed only if KenLMFormSelect is used
 import cPickle as pickle
 import numpy as np
 import tempfile
@@ -109,6 +108,7 @@ class KenLMFormSelect(FormSelect):
 
     def __init__(self, cfg):
         super(KenLMFormSelect, self).__init__(cfg)
+        import kenlm  # needed only if KenLMFormSelect is used
         self._sample = cfg.get('form_sample', False)
         self._trained_model = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
