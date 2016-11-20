@@ -250,15 +250,21 @@ class MorphoAnalyzer(object):
                 abst_form = re.sub(r'( |^)[0-9]+( |$)', r'\1_\2', form.lower())
                 abst_lemma = re.sub(r'( |^)[0-9]+( |$)', r'\1_\2', lemma)
                 # try to find if the surface form belongs to some slot
-                slot, _ = self._rev_sf_dict.get((abst_form, abst_lemma, tag), (None, None))
+                slot, value = self._rev_sf_dict.get((abst_form, abst_lemma, tag), (None, None))
+                # if we found a slot, get back the numbers
+                if slot:
+                    for num_match in re.finditer(r'(?: |^)([0-9]+)(?: |$)', lemma):
+                        value = re.sub(r'_', num_match.group(1), value, count=1)
                 # fall back to directly comparing against the DA value
-                if not slot:
+                else:
                     slot = da.has_value(lemma)
+                    value = lemma
+
                 # if we found something, delexicalize it
                 if (slot and slot in self._abst_slots and
                         da.value_for_slot(slot) not in [None, 'none', 'dont_care']):
                     delex_text.append(('X-' + slot, 'X-' + slot, tag))
-                    absts.append(Abst(slot, lemma, form, tok_idx, tok_idx + 1))
+                    absts.append(Abst(slot, value, form, tok_idx, tok_idx + 1))
                 # otherwise keep the token as it is
                 else:
                     delex_text.append((form, lemma, tag))
