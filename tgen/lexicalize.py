@@ -135,6 +135,7 @@ class KenLMFormSelect(FormSelect):
 
     def load_model(self, model_fname_pattern):
         model_fname = re.sub(r'(.pickle)?(.gz)?$', '.kenlm.bin', model_fname_pattern)
+        import kenlm  # needed only if KenLMFormSelect is used
         self._lm = kenlm.Model(model_fname)
         self._trained_model = model_fname
 
