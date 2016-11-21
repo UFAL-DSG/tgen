@@ -674,6 +674,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 self.enc_inputs_drop if self.enc_inputs_drop else self.enc_inputs,
                 self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
+                self.emb_size,
                 scope=scope)
 
             scope.reuse_variables()
@@ -682,6 +683,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.dec_outputs, self.dec_states = rnn_func(
                 self.enc_inputs, self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
+                self.emb_size,
                 feed_previous=True, scope=scope)
 
         # TODO use output projection ???

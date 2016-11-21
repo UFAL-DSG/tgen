@@ -65,6 +65,7 @@ class TFModel(object):
 
 def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
                                         num_encoder_symbols, num_decoder_symbols,
+                                        embedding_size,
                                         num_heads=1, output_projection=None,
                                         feed_previous=False, dtype=dtypes.float32,
                                         scope=None):
@@ -78,7 +79,7 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
         encoder_inputs = encoder_inputs[len(encoder_inputs) / 2:]
 
         # build separate encoders
-        encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols)
+        encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
         with vs.variable_scope("context_rnn") as scope:
             context_outputs, context_states = rnn.rnn(
                 encoder_cell, context_inputs, dtype=dtype, scope=scope)
