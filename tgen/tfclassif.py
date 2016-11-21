@@ -123,7 +123,7 @@ class RerankingClassifier(TFModel):
             self.delex_slots = set(self.delex_slots.split(','))
 
     def save_to_file(self, model_fname):
-        """Save the generator to a file (actually two files, one for configuration and one
+        """Save the classifier  to a file (actually two files, one for configuration and one
         for the TensorFlow graph, which must be stored separately).
 
         @param model_fname: file name (for the configuration file); TF graph will be stored with a \
