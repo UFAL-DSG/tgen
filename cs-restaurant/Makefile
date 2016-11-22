@@ -146,6 +146,9 @@ desc:
 		cat $$file/$(SCOREFILE); \
 	done
 
+shortdesc:
+	make desc NUM_EXP=$(NUM_EXP) | sed 's/\s\+.*F ..\...\s*/ /;s/\s\+.*cv_run :\s*/ /;s/E50.*+sort//;s/+cf_rnn.*128//;'
+
 printvars:
 	$(foreach V, $(sort $(.VARIABLES)), $(if $(filter-out environment% default automatic, $(origin $V)), $(info $V=$($V) ($(value $V)))))
 
