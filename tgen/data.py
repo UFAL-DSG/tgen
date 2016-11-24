@@ -30,7 +30,7 @@ class DAI(object):
         return unicode(self).encode('ascii', errors='replace')
 
     def __repr__(self):
-        return 'DA.parse("' + str(self) + '")'
+        return 'DAI.parse("' + str(self) + '")'
 
     def __eq__(self, other):
         return (self.da_type == other.da_type and
@@ -58,6 +58,21 @@ class DAI(object):
     def __ge__(self, other):
         return not self < other
 
+    @staticmethod
+    def parse(dai_text):
+        da_type, svp = dai_text[:-1].split('(', 1)
+
+        if not svp:  # no slot + value (e.g. 'hello()')
+            return DAI(da_type)
+
+        if '=' not in svp:  # no value (e.g. 'request(to_stop)')
+            return DAI(da_type, svp)
+
+        slot, value = svp.split('=', 1)
+        if value.startswith('"'):  # remove quotes
+            value = value[1:-1]
+        return DAI(da_type, slot, value)
+
 
 class DA(object):
     """Dialogue act -- a list of DAIs with a few special functions for parsing etc.."""
@@ -80,6 +95,9 @@ class DA(object):
     def __str__(self):
         return unicode(self).encode('ascii', errors='xmlcharrefreplace')
 
+    def __repr__(self):
+        return 'DA.parse("' + str(self) + '")'
+
     def __len__(self):
         return len(self.dais)
 
@@ -90,25 +108,8 @@ class DA(object):
     def parse(da_text):
         """Parse a DA string into DAIs (DA types, slots, and values)."""
         da = DA()
-
-        # split acc. to DAIs, trim final bracket
         for dai_text in da_text[:-1].split(')&'):
-            da_type, svp = dai_text.split('(', 1)
-
-            if not svp:  # no slot + value (e.g. 'hello()')
-                da.append(DAI(da_type))
-                continue
-
-            if '=' not in svp:  # no value (e.g. 'request(to_stop)')
-                da.append(DAI(da_type, svp))
-                continue
-
-            slot, value = svp.split('=', 1)
-            if value.startswith('"'):  # remove quotes
-                value = value[1:-1]
-
-            da.append(DAI(da_type, slot, value))
-
+            da.append(DAI.parse(dai_text + ')'))
         return da
 
     def value_for_slot(self, slot):
