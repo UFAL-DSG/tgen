@@ -9,6 +9,7 @@ from __future__ import unicode_literals
 import cPickle as pickle
 import codecs
 import gzip
+import re
 from io import IOBase
 from codecs import StreamReader, StreamWriter
 
@@ -111,7 +112,32 @@ def create_ttree_doc(trees, base_doc, language, selector):
     return base_doc
 
 
-def read_tokens(tok_file, ref_mode=False):
+def tokenize(text):
+    """Tokenize the given text (i.e., insert spaces around all tokens)"""
+    toks = re.sub(r'([?.!;,:-]+)(?![0-9])', r' \1 ', text)  # enforce space around all punct
+
+    # most common contractions
+    toks = re.sub(r'([\'’´])(s|m|d|ll|re|ve)\s', r' \1\2 ', toks)  # I'm, I've etc.
+    toks = re.sub(r'(n[\'’´]t\s)', r' \1 ', toks)  # do n't
+
+    # other contractions, as implemented in Treex
+    toks = re.sub(r' ([Cc])annot\s', r' \1an not ', toks)
+    toks = re.sub(r' ([Dd])\'ye\s', r' \1\' ye ', toks)
+    toks = re.sub(r' ([Gg])imme\s', r' \1im me ', toks)
+    toks = re.sub(r' ([Gg])onna\s', r' \1on na ', toks)
+    toks = re.sub(r' ([Gg])otta\s', r' \1ot ta ', toks)
+    toks = re.sub(r' ([Ll])emme\s', r' \1em me ', toks)
+    toks = re.sub(r' ([Mm])ore\'n\s', r' \1ore \'n ', toks)
+    toks = re.sub(r' \'([Tt])is\s', r' \'\1 is ', toks)
+    toks = re.sub(r' \'([Tt])was\s', r' \'\1 was ', toks)
+    toks = re.sub(r' ([Ww])anna\s', r' \1an na ', toks)
+
+    # clean extra space
+    toks = re.sub(r'\s+', ' ', toks)
+    return toks
+
+
+def read_tokens(tok_file, ref_mode=False, do_tokenize=False):
     """Read sentences (one per line) from a file and return them as a list of tokens
     (forms with undefined POS tags)."""
     tokens = []
@@ -121,7 +147,10 @@ def read_tokens(tok_file, ref_mode=False):
         for line in fh:
             # split to tokens + ingore consecutive spaces (no empty tokens)
             # empty line results in empty list
-            line = filter(bool, line.strip().split(' '))
+            line = line.strip()
+            if do_tokenize:
+                line = tokenize(line)
+            line = filter(bool, line.split(' '))
             if not line:
                 empty_lines = True
             # TODO apply Morphodita here ?

@@ -13,7 +13,7 @@ import re
 import argparse
 
 from recordclass import recordclass
-
+from tgen.futil import tokenize
 
 class DAI(recordclass('DAI', ['type', 'slot', 'value'])):
     """Simple representation of a single dialogue act item."""
@@ -85,31 +85,6 @@ def parse_da(da_text):
         da.append(DAI(da_type, slot, value))
 
     return da
-
-
-def tokenize(text):
-    """Tokenize the text (i.e., insert spaces around all tokens)"""
-    toks = re.sub(r'([?.!;,:-]+)(?![0-9])', r' \1 ', text)  # enforce space around all punct
-
-    # most common contractions
-    toks = re.sub(r'([\'’´])(s|m|d|ll|re|ve)\s', r' \1\2 ', toks)  # I'm, I've etc.
-    toks = re.sub(r'(n[\'’´]t\s)', r' \1 ', toks)  # do n't
-
-    # other contractions, as implemented in Treex
-    toks = re.sub(r' ([Cc])annot\s', r' \1an not ', toks)
-    toks = re.sub(r' ([Dd])\'ye\s', r' \1\' ye ', toks)
-    toks = re.sub(r' ([Gg])imme\s', r' \1im me ', toks)
-    toks = re.sub(r' ([Gg])onna\s', r' \1on na ', toks)
-    toks = re.sub(r' ([Gg])otta\s', r' \1ot ta ', toks)
-    toks = re.sub(r' ([Ll])emme\s', r' \1em me ', toks)
-    toks = re.sub(r' ([Mm])ore\'n\s', r' \1ore \'n ', toks)
-    toks = re.sub(r' \'([Tt])is\s', r' \'\1 is ', toks)
-    toks = re.sub(r' \'([Tt])was\s', r' \'\1 was ', toks)
-    toks = re.sub(r' ([Ww])anna\s', r' \1an na ', toks)
-
-    # clean extra space
-    toks = re.sub(r'\s+', ' ', toks)
-    return toks
 
 
 def get_abstraction(text, conc_da):
