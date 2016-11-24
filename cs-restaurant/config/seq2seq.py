@@ -25,8 +25,11 @@ config = {
           #'average_models': True,
           #'average_models_top_k': 3,
 
-          'validation_size': 100,
+          'validation_size': 300,
           'validation_freq': 1,
+          'validation_use_all_refs': True,
+          'validation_use_train_refs': True,
+          'validation_delex_slots': 'name,area,address,phone,good_for_meal,near,food,price_range,count,price,postcode',
           #'multiple_refs': '3,parallel',
           #'ref_selectors': 'ref0,ref1,ref2',
           'passes': 1000,
