@@ -7,7 +7,7 @@ import re
 import numpy as np
 import tensorflow as tf
 import cPickle as pickle
-from itertools import izip_longest
+from itertools import izip_longest, groupby
 import sys
 import math
 import tempfile
@@ -595,6 +595,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 if da in da_groups:
                     da_groups[da].append(tree)
 
+        # deduplicate the references
+        for da_group in da_groups.itervalues():
+            da_group.sort()
+        da_groups = {da: [sent for sent, _ in groupby(da_group)]
+                     for da, da_group in da_groups.iteritems()}
+        # store the references in correct order
         self.valid_trees = [da_groups[da] for da in normalized_das]
 
     def _cut_valid_data(self):

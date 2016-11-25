@@ -32,6 +32,9 @@ class DAI(object):
     def __repr__(self):
         return 'DAI.parse("' + str(self) + '")'
 
+    def __hash__(self):
+        return hash(repr(self))
+
     def __eq__(self, other):
         return (self.da_type == other.da_type and
                 self.slot == other.slot and
@@ -98,8 +101,22 @@ class DA(object):
     def __repr__(self):
         return 'DA.parse("' + str(self) + '")'
 
+    def __hash__(self):
+        return hash(repr(self))
+
     def __len__(self):
         return len(self.dais)
+
+    def __eq__(self, other):
+        if not isinstance(other, DA):
+            return NotImplemented
+        for self_dai, other_dai in zip(self.dais, other.dais):
+            if self_dai != other_dai:
+                return False
+        return True
+
+    def __ne__(self, other):
+        return not self == other
 
     def sort(self):
         self.dais.sort()
