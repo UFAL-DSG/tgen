@@ -111,6 +111,36 @@ class DA(object):
 
         return da
 
+    @staticmethod
+    def parse_cambridge_da(da_text):
+        """Parse a Cambridge-style DA string a DA object."""
+        da = DA()
+
+        for dai_text in re.finditer(r'(\??[a-z_]+)\(([^)]*)\)', da_text):
+            da_type, svps = dai_text.groups()
+
+            if not svps:  # no slots/values (e.g. 'hello()')
+                da.append(DAI(da_type, None, None))
+                continue
+
+            # we have some slots/values – split them into DAIs
+            svps = re.split('(?<! )[,;]', svps)
+            for svp in svps:
+
+                if '=' not in svp:  # no value, e.g. '?request(near)'
+                    da.append(DAI(da_type, svp, None))
+                    continue
+
+                # we have a value
+                slot, value = svp.split('=', 1)
+                if re.match(r'^\'.*\'$', value):
+                    value = value[1:-1]
+                assert not re.match(r'^\'', value) and not re.match(r'\'$', value)
+
+                da.append(DAI(da_type, slot, value))
+
+        return da
+
     def value_for_slot(self, slot):
         """Return the value for the given slot (None if unset or not present at all)."""
         for dai in self.dais:
