@@ -43,7 +43,7 @@ def read_das(da_file):
     das = []
     with file_stream(da_file) as fh:
         for line in fh:
-            da = DA.parse(line)
+            da = DA.parse(line.strip())
             das.append(da)
     return das
 

@@ -259,7 +259,7 @@ class RerankingClassifier(TFModel):
     def init_run(self, da):
         """Remember the current DA for subsequent runs of `dist_to_cur_da`."""
         self.cur_da = self._normalize_da(da)
-        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
+        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': self.cur_da})])[0]
         self.cur_da_bin = da_bin != 0
 
     def dist_to_da(self, da, trees):

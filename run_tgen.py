@@ -507,7 +507,9 @@ def seq2seq_gen(args):
     if args.output_file is not None:
         log_info('Writing output...')
         if args.output_file.endswith('.txt'):
-            write_tokens([t.to_tok_list() for t in gen_trees], args.output_file)
+            gen_toks = [t.to_tok_list() for t in gen_trees]
+            postprocess_tokens(gen_toks, das)
+            write_tokens(gen_toks, args.output_file)
         else:
             write_ttrees(create_ttree_doc(gen_trees, eval_doc, tgen.language,
                                           args.target_selector or tgen.selector),
@@ -516,7 +518,6 @@ def seq2seq_gen(args):
 
 def eval_tokens(das, eval_tokens, gen_tokens):
     """Evaluate generated tokens and print out statistics."""
-    # TODO move this into evaluation
     postprocess_tokens(eval_tokens, das)
     postprocess_tokens(gen_tokens, das)
 

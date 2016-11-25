@@ -55,13 +55,14 @@ def process_file(args):
         pos = next(i for i, block in enumerate(scen) if re.search(r'generateword', block, re.IGNORECASE))
         scen.insert(pos, 'Misc::GenerateWordformsFromJSON surface_forms="%s"' % args.surface_forms)
 
-        # add grammatemes processing
+        # add grammatemes and clause number processing
         scen = ['Util::Eval tnode="$.set_functor(\\"???\\"); ' +
                 '$.set_t_lemma(\\"\\") if (!defined($.t_lemma)); ' +
                 '$.set_formeme(\\"x\\") if (!defined($.formeme));"',
                 'T2T::AssignDefaultGrammatemes grammateme_file="%s" da_file="%s"' %
                 (args.grammatemes, args.input_das),
                 'Misc::RestoreCoordNodes',
+                'T2T::CS2CS::MarkClauseHeads',
                 'T2T::SetClauseNumber'] + scen
 
     scen = ['Read::YAML from="%s"' % args.input_file] + scen
