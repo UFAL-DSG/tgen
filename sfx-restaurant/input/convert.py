@@ -14,41 +14,12 @@ import argparse
 from math import ceil
 
 from tgen.data import Abst, DA, DAI
+from tgen.delex import delex_sent
 
 from tgen.debug import exc_info_hook
 import sys
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
-
-def parse_cambridge_da(da_text):
-    """Parse a DA string into DAIs (DA types, slots, and values)."""
-
-    da = DA()
-
-    for dai_text in re.finditer(r'(\??[a-z_]+)\(([^)]*)\)', da_text):
-        da_type, svps = dai_text.groups()
-
-        if not svps:  # no slots/values (e.g. 'hello()')
-            da.append(DAI(da_type, None, None))
-            continue
-
-        # we have some slots/values – split them into DAIs
-        svps = re.split('(?<! )[,;]', svps)
-        for svp in svps:
-
-            if '=' not in svp:  # no value, e.g. '?request(near)'
-                da.append(DAI(da_type, svp, None))
-                continue
-
-            # we have a value
-            slot, value = svp.split('=', 1)
-            if re.match(r'^\'.*\'$', value):
-                value = value[1:-1]
-            assert not re.match(r'^\'', value) and not re.match(r'\'$', value)
-
-            da.append(DAI(da_type, slot, value))
-
-    return da
 
 
 def postprocess_sent(sent):
@@ -66,128 +37,6 @@ def fix_capitalization(sent):
     #sent = re.sub(r'\b(Ok|ok|i)\b', lambda m: m.group(1).upper(), sent)
     #sent = sent[0].upper() + sent[1:]
     return sent
-
-
-def find_substr(needle, haystack):
-    """Find a sub-list in a list of tokens.
-
-    @param haystack: the longer list of tokens – the list where we should search
-    @param needle: the shorter list – the list whose position is to be found
-    @return: a tuple of starting and ending position of needle in the haystack, \
-            or None if not found
-    """
-    h = 0
-    n = 0
-    while True:
-        if n >= len(needle):
-            return h - n, h
-        if h >= len(haystack):
-            return None
-        if haystack[h] == needle[n]:
-            n += 1
-            h += 1
-        else:
-            if n > 0:
-                n = 0
-            else:
-                h += 1
-
-
-def find_substr_approx(needle, haystack):
-    """Try to find a sub-list in a list of tokens using fuzzy matching (skipping some
-    common prepositions and punctuation, checking for similar-length substrings)"""
-    # some common 'meaningless words'
-    stops = set(['and', 'or', 'in', 'of', 'the', 'to', ',', 'restaurant'])
-    h = 0
-    n = 0
-    match_start = 0
-    while True:
-        n_orig = n  # remember that we skipped some stop words at beginning of needle
-                    # (since we check needle position before moving on in haystack)
-        # skip stop words (ignore stop words around haystack position)
-        while n < len(needle) and needle[n] in stops:
-            n += 1
-        while n > 0 and n < len(needle) and h < len(haystack) and haystack[h] in stops:
-            h += 1
-        if n >= len(needle):
-            return match_start, h
-        if h >= len(haystack):
-            return None
-        # fuzzy match: one may be substring of the other, with up to 2 chars difference
-        # (moderate/moderately etc.)
-        if (haystack[h] == needle[n] or
-            (haystack[h] != '' and
-             (haystack[h] in needle[n] or needle[n] in haystack[h]) and
-             abs(len(haystack[h]) - len(needle[n])) <= 2)):
-            n += 1
-            h += 1
-        else:
-            if n_orig > 0:
-                n = 0
-            else:
-                h += 1
-                match_start = h
-
-
-def abstract_sent(da, conc, abst_slots, slot_names):
-    """Abstract the given slots in the given sentence (replace them with X).
-
-    @param da: concrete DA
-    @param conc: concrete sentence text
-    @param abstr_slots: a set of slots to be abstracted
-    @return: a tuple of the abstracted text, abstracted DA, and abstraction instructions
-    """
-    toks = conc.split(' ')
-    absts = []
-    abst_da = DA()
-    toks_mask = [True] * len(toks)
-
-    # find all values in the sentence, building the abstracted DA along the way
-    # search first for longer values (so that substrings don't block them)
-    for dai in sorted(da,
-                      key=lambda dai: len(dai.value) if dai.value is not None else 0,
-                      reverse=True):
-        # first, create the 'abstracted' DAI as the copy of the current DAI
-        abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
-        if dai.value is None:
-            continue
-        # try to find the value in the sentence (first exact, then fuzzy)
-        # while masking tokens of previously found values
-        val_toks = dai.value.split(' ')
-        pos = find_substr(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
-        if pos is None:
-            pos = find_substr_approx(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
-        if pos is not None:
-            for idx in xrange(pos[0], pos[1]):  # mask found things so they're not found twice
-                toks_mask[idx] = False
-        if pos is None or pos == (0, 0):  # default to -1 for unknown positions
-            pos = -1, -1
-        # if the value is to be abstracted, replace the value in the abstracted DAI
-        # and save abstraction instruction (even if not found in the sentence)
-        if dai.slot in abst_slots and dai.value != 'dont_care':
-            abst_da[-1].value = 'X-' + dai.slot
-            # save the abstraction instruction
-            absts.append(Abst(dai.slot, dai.value, start=pos[0], end=pos[1]))
-
-    # go from the beginning of the sentence, replacing the values to be abstracted
-    absts.sort(key=lambda a: a.start)
-    shift = 0
-    for abst in absts:
-        # select only those that should actually be abstracted on the output
-        if abst.slot not in abst_slots or abst.value == 'dont_care' or abst.start < 0:
-            continue
-        # replace the text
-        if slot_names:
-            toks[abst.start - shift:abst.end - shift] = ['X-' + abst.slot]
-        else:
-            toks[abst.start - shift:abst.end - shift] = ['X']
-        # update abstraction instruction indexes
-        shift_add = abst.end - abst.start - 1
-        abst.start -= shift
-        abst.end = abst.start + 1
-        shift += shift_add
-
-    return ' '.join(toks), abst_da, absts
 
 
 def relexicalize(texts, cur_abst):
@@ -252,14 +101,14 @@ def convert(args):
         for dialogue in data:
             if isinstance(dialogue, dict):
                 for turn in dialogue['dial']:
-                    da = parse_cambridge_da(turn['S']['dact'])
+                    da = DA.parse_cambridge_da(turn['S']['dact'])
                     if args.skip_hello and len(da) == 1 and da[0].da_type == 'hello':
                         continue  # skip hello() DAs
                     conc = postprocess_sent(turn['S']['ref'])
                     process_instance(da, conc)
                     turns += 1
             else:
-                da = parse_cambridge_da(dialogue[0])
+                da = DA.parse_cambridge_da(dialogue[0])
                 conc = postprocess_sent(dialogue[1])
                 process_instance(da, conc)
                 turns += 1
