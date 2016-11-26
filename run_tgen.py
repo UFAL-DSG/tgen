@@ -483,6 +483,8 @@ def seq2seq_gen(args):
     for num, da in enumerate(das, start=1):
         log_debug("\n\nTREE No. %03d" % num)
         gen_trees.append(tgen.generate_tree(da))
+        if num % 100 == 0:
+            log_info("Generated tree %d" % num)
     log_info(tgen.get_slot_err_stats())
 
     # evaluate the generated trees against golden trees (delexicalized)
