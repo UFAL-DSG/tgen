@@ -219,7 +219,8 @@ class RerankingClassifier(TFModel):
 
                 valid_diff = 0
                 if valid_das:
-                    valid_diff = np.sum([self.dist_to_da(d, t) for d, t in zip(valid_das, valid_trees)])
+                    valid_diff = np.sum([np.sum(self.dist_to_da(d, t))
+                                         for d, t in zip(valid_das, valid_trees)])
 
                 # cost combining validation and training data performance
                 # (+ "real" cost with negligible weight)

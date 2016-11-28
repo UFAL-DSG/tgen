@@ -20,6 +20,7 @@ from subprocess import Popen, PIPE
 import tensorflow as tf
 import sys
 import math
+import kenlm
 
 from tgen.tree import NodeData, TreeData
 from tgen.rnd import rnd
@@ -108,7 +109,6 @@ class KenLMFormSelect(FormSelect):
 
     def __init__(self, cfg):
         super(KenLMFormSelect, self).__init__(cfg)
-        import kenlm  # needed only if KenLMFormSelect is used
         self._sample = cfg.get('form_sample', False)
         self._trained_model = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
@@ -135,7 +135,6 @@ class KenLMFormSelect(FormSelect):
 
     def load_model(self, model_fname_pattern):
         model_fname = re.sub(r'(.pickle)?(.gz)?$', '.kenlm.bin', model_fname_pattern)
-        import kenlm  # needed only if KenLMFormSelect is used
         self._lm = kenlm.Model(model_fname)
         self._trained_model = model_fname
 

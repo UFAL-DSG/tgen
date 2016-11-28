@@ -7,7 +7,7 @@ import re
 import numpy as np
 import tensorflow as tf
 import cPickle as pickle
-from itertools import izip_longest
+from itertools import izip_longest, groupby
 import sys
 import math
 import tempfile
@@ -381,6 +381,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.alpha_decay = cfg.get('alpha_decay', 0.0)
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
+        self.validation_use_all_refs = cfg.get('validation_use_all_refs', False)
+        self.validation_delex_slots = cfg.get('validation_delex_slots', set())
+        self.validation_use_train_refs = cfg.get('validation_use_train_refs', False)
+        if self.validation_delex_slots:
+            self.validation_delex_slots = set(self.validation_delex_slots.split(','))
         self.multiple_refs = cfg.get('multiple_refs', False)  # multiple references for validation
         self.ref_selectors = cfg.get('ref_selectors', None)  # selectors of validation trees (if in separate file)
         self.max_cores = cfg.get('max_cores')
@@ -421,6 +426,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # ... or save part of the training data for validation:
         elif self.validation_size > 0:
             self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
+
+        if self.validation_use_all_refs:  # try to use multiple references
+            self._regroup_valid_refs()
+
         log_info('Using %d training, %d validation instances.' %
                  (len(self.train_das), len(self.valid_das)))
 
@@ -564,6 +573,35 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         if data_size % num_refs != 0:
             raise Exception('Data length must be divisible by the number of references!')
         return num_refs, refs_stored
+
+    def _regroup_valid_refs(self):
+        """Group all validation trees/sentences according to the same DA (sorted and
+        possibly delexicalized).
+        """
+        normalized_das = [da.get_delexicalized(self.validation_delex_slots)
+                          for da in self.valid_das]
+        da_groups = {}
+        for trees, da in zip(self.valid_trees, normalized_das):
+            da.sort()
+            da_groups[da] = da_groups.get(da, [])
+            da_groups[da].extend(trees)
+
+        # use training trees as additional references if needed
+        if self.validation_use_train_refs:
+            normalized_train_das = [da.get_delexicalized(self.validation_delex_slots)
+                                    for da in self.train_das]
+            for tree, da in zip(self.train_trees, normalized_train_das):
+                da.sort()
+                if da in da_groups:
+                    da_groups[da].append(tree)
+
+        # deduplicate the references
+        for da_group in da_groups.itervalues():
+            da_group.sort()
+        da_groups = {da: [sent for sent, _ in groupby(da_group)]
+                     for da, da_group in da_groups.iteritems()}
+        # store the references in correct order
+        self.valid_trees = [da_groups[da] for da in normalized_das]
 
     def _cut_valid_data(self):
         """Put aside part of the training set for validation."""
