@@ -39,7 +39,7 @@ class TFModel(object):
         @return: all model parameters (variables), as numpy arrays, keyed in a dictionary under \
             their names
         """
-        all_vars = tf.all_variables()
+        all_vars = tf.global_variables()
         ret = {}
         for var in all_vars:
             if not var.name.startswith(self.scope_name):  # skip variables not in my scope
@@ -54,7 +54,7 @@ class TFModel(object):
         @param vals: a dictionary of new parameter values, as numpy arrays, keyed und their names \
             in a dictionary.
         """
-        all_vars = tf.all_variables()
+        all_vars = tf.global_variables()
         for var in all_vars:
             if not var.name.startswith(self.scope_name):  # skip variables not in my scope
                 continue
