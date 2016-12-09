@@ -24,7 +24,7 @@ endif
 MTEVAL = ../util/mteval-v11b.pl
 POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl
-GREP_SCORES = ../util/grep_scores.pl --bleu-range=30:50 --nist-range=4:5
+GREP_SCORES = ../util/grep_scores.pl --bleu-range=10:22 --nist-range=4:5
 DESC_EXP = ../util/describe_experiment.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
