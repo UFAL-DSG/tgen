@@ -260,8 +260,8 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
     def _valid_batches(self):
         for batch_start in xrange(0, len(self._valid_data), self.batch_size):
-            sents = [self._valid_data[idx]
-                     for idx in xrange(batch_start, batch_start + self.batch_size)]
+            batch_end = min(batch_start + self.batch_size, len(self._valid_data))
+            sents = [self._valid_data[idx] for idx in xrange(batch_start, batch_end)]
             inputs = np.array([sent[:-1] for sent in sents], dtype=np.int32)
             targets = np.array([sent[1:] for sent in sents], dtype=np.int32)
             yield inputs, targets
