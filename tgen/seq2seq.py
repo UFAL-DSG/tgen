@@ -337,7 +337,7 @@ class Seq2SeqBase(SentencePlanner):
 
     def get_slot_err_stats(self):
         """Return current slot error statistics, as a string."""
-        return ("Slot error: %.2f (M: %d, S: %d, T: %d)" %
+        return ("Slot error: %.6f (M: %d, S: %d, T: %d)" %
                 (self.slot_err_stats.slot_error(), self.slot_err_stats.missing,
                  self.slot_err_stats.superfluous, self.slot_err_stats.total))
 
