@@ -7,7 +7,7 @@ SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
 CPUS = 4
-QP = --queue troja-all.q
+QP = --queue ms-all.q
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
@@ -221,11 +221,14 @@ seq2seq_train:
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
 		cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
 		VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz\""; \
+		LEXIC_SPEC="$(TRY_DIR)/surface_forms.json,$(TRY_DIR)/train-abst.txt,$(TRY_DIR)/devel-abst.txt"; \
+	else \
+		LEXIC_SPEC="$(TRY_DIR)/surface_forms.json,$(TRY_DIR)/train-abst.txt"; \
 	fi; \
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" '"$$VALID_DATA_SPEC"' \
-		-l $(TRY_DIR)/surface_forms.json,$(TRY_DIR)/train-abst.txt \
+		-l '"$$LEXIC_SPEC"' \
 		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
