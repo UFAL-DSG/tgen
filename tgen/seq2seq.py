@@ -427,7 +427,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         elif self.validation_size > 0:
             self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
 
-        if self.validation_use_all_refs:  # try to use multiple references
+        self.valid_trees_for_lexic = self.valid_trees  # store original validation data
+        if self.validation_use_all_refs:  # try to use multiple references (not in lexicalizer)
             self._regroup_valid_refs()
 
         log_info('Using %d training, %d validation instances.' %
@@ -462,7 +463,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # train lexicalizer (store surface forms, possibly train LM)
         if self.lexicalizer:
-            self.lexicalizer.train(lexic_files, self.train_trees, self.valid_trees)
+            self.lexicalizer.train(lexic_files, self.train_trees, self.valid_trees_for_lexic)
 
         # train the classifier for filtering n-best lists
         if self.classif_filter:
