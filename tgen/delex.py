@@ -37,6 +37,9 @@ def find_substr(needle, haystack):
 def find_substr_approx(needle, haystack):
     """Try to find a sub-list in a list of tokens using fuzzy matching (skipping some
     common prepositions and punctuation, checking for similar-length substrings)"""
+    # lowercase both for ignore-case comparison
+    needle = [tok.lower() for tok in needle]
+    haystack = [tok.lower() for tok in haystack]
     # some common 'meaningless words'
     stops = set(['and', 'or', 'in', 'of', 'the', 'to', ',', 'restaurant'])
     h = 0
@@ -62,6 +65,14 @@ def find_substr_approx(needle, haystack):
              abs(len(haystack[h]) - len(needle[n])) <= 2)):
             n += 1
             h += 1
+        # allow a space somewhere in the middle of a word in one of the strings
+        elif n < len(needle) - 1 and haystack[h] == (needle[n] + needle[n + 1]):
+            n += 2
+            h += 1
+        elif h < len(haystack) - 1 and (haystack[h] + haystack[h + 1]) == needle[n]:
+            n += 1
+            h += 2
+        # nothing found
         else:
             if n_orig > 0:
                 n = 0
@@ -70,7 +81,27 @@ def find_substr_approx(needle, haystack):
                 match_start = h
 
 
-def delex_sent(da, conc, abst_slots, slot_names):
+def find_value(value, toks, toks_mask):
+    """try to find the value in the sentence (first exact, then fuzzy)
+    while masking tokens of previously found values.
+    @param value: the value to be find (string)
+    @param toks: the sentence where to search (as tokens)
+    @param toks_mask: boolean mask for used-up tokens (will be changed if something is found!)
+    @return: a tuple of starting and ending position of the find, or -1, -1
+    """
+    val_toks = value.split(' ')
+    pos = find_substr(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
+    if pos is None:
+        pos = find_substr_approx(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
+    if pos is not None:
+        for idx in xrange(pos[0], pos[1]):  # mask found things so they're not found twice
+            toks_mask[idx] = False
+    if pos is None or pos == (0, 0):  # default to -1 for unknown positions
+        pos = -1, -1
+    return pos
+
+
+def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False):
     """Abstract the given slots in the given sentence (replace them with X).
 
     @param da: concrete DA
@@ -99,23 +130,21 @@ def delex_sent(da, conc, abst_slots, slot_names):
         abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
         if dai.value is None:
             continue
-        # try to find the value in the sentence (first exact, then fuzzy)
-        # while masking tokens of previously found values
-        val_toks = dai.value.split(' ')
-        pos = find_substr(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
-        if pos is None:
-            pos = find_substr_approx(val_toks, [t if m else '' for t, m in zip(toks, toks_mask)])
-        if pos is not None:
-            for idx in xrange(pos[0], pos[1]):  # mask found things so they're not found twice
-                toks_mask[idx] = False
-        if pos is None or pos == (0, 0):  # default to -1 for unknown positions
-            pos = -1, -1
+        pos = find_value(dai.value, toks, toks_mask)
         # if the value is to be abstracted, replace the value in the abstracted DAI
         # and save abstraction instruction (even if not found in the sentence)
         if dai.slot in abst_slots and dai.value != 'dont_care':
             abst_da[-1].value = 'X-' + dai.slot
             # save the abstraction instruction
             absts.append(Abst(dai.slot, dai.value, start=pos[0], end=pos[1]))
+
+    if delex_slot_names:
+        for dai in sorted([dai for dai in da if dai.slot is not None],
+                          key=lambda dai: len(dai.slot),
+                          reverse=True):
+            pos = find_value(dai.slot.replace('_', ' '), toks, toks_mask)
+            if dai.slot in abst_slots:
+                absts.append(Abst(dai.slot, None, start=pos[0], end=pos[1]))
 
     # go from the beginning of the sentence, replacing the values to be abstracted
     absts.sort(key=lambda a: a.start)
@@ -124,11 +153,13 @@ def delex_sent(da, conc, abst_slots, slot_names):
         # select only those that should actually be abstracted on the output
         if abst.slot not in abst_slots or abst.value == 'dont_care' or abst.start < 0:
             continue
-        # replace the text
-        if slot_names:
+        # replace the text with the placeholder (X-slot/X-value, X-slot-name, X)
+        if delex_slot_names and abst.value is None:
+            toks[abst.start - shift:abst.end - shift] = ['X-slot']
+        elif use_slot_names:
             toks[abst.start - shift:abst.end - shift] = ['X-' + abst.slot]
         else:
-            toks[abst.start - shift:abst.end - shift] = ['X']
+            toks[abst.start - shift:abst.end - shift] = ['X' if not delex_slot_names else 'X-value']
         # update abstraction instruction indexes
         shift_add = abst.end - abst.start - 1
         abst.start -= shift
@@ -136,4 +167,3 @@ def delex_sent(da, conc, abst_slots, slot_names):
         shift += shift_add
 
     return ' '.join(toks) if return_string else toks, abst_da, absts
-
