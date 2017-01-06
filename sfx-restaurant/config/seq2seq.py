@@ -28,7 +28,7 @@ config = {
           'top_k': 10,
           'bleu_validation_weight': 1,
           'beam_size': 20,
-          'sample_top_k': 1,
+          'sample_top_k': 5,
           'length_norm_weight': 0,
           'alpha_decay': 0, # 0.03
 
