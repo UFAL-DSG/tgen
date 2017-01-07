@@ -697,9 +697,11 @@ class Lexicalizer(object):
         and/or formeme restrictions to select a matching one. Selects randomly among matching
         forms.
         """
+        non_num_value = re.sub(r'(^|\s+)([0-9]+)($|\s+)', r'\1_\3', value)
+
         # handle coordinated values
         value_parts = re.split(r'\s+(and|or)\s+', value)
-        if len(value_parts) > 1:
+        if len(value_parts) > 1 and non_num_value not in self._sf_all[slot]:
             out_value = []
             for value_part in value_parts:
                 if value_part == 'and':
@@ -713,7 +715,7 @@ class Lexicalizer(object):
 
         # abstract away from numbers
         nums = re.findall(r'(?:^|\s+)([0-9]+)(?:$|\s+)', value)
-        value = re.sub(r'(^|\s+)([0-9]+)($|\s+)', r'\1_\3', value)
+        value = non_num_value
         form = None
 
         # find the appropriate form (by tag, formeme, backoff to any form)
