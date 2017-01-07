@@ -7,7 +7,7 @@ SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
 CPUS = 4
-QP = --queue ms-all.q
+QP = --queue troja-all.q
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
