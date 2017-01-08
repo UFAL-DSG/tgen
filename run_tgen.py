@@ -258,7 +258,7 @@ def seq2seq_train(args):
     if args.debug_logfile:
         set_debug_stream(file_stream(args.debug_logfile, mode='w'))
     if args.random_seed:
-        rnd.seed(rnd.seed(args.random_seed))
+        rnd.seed(args.random_seed)
 
     log_info('Training sequence-to-sequence generator...')
 
