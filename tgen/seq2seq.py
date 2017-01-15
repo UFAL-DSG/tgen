@@ -994,8 +994,15 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # re-build TF graph and restore the TF session
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        param_dump_fname = re.sub(r'(.pickle)?(.gz)?$', '.params.gz', model_fname)
         ret._init_neural_network()
-        ret.saver.restore(ret.session, tf_session_fname)
+        if os.path.isfile(param_dump_fname):
+            log_info('Loading params dump from %s...' % param_dump_fname)
+            with file_stream(param_dump_fname, 'rb', encoding=None) as fh:
+                ret.set_model_params(pickle.load(fh))
+        else:
+            log_info('Loading saved TF session from %s...' % tf_session_fname)
+            ret.saver.restore(ret.session, tf_session_fname)
 
         return ret
 
