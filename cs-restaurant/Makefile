@@ -77,6 +77,7 @@ ifdef EVAL_TEST
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
   TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
 
+  VALID_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
   VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
   VALID_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
 endif
@@ -138,7 +139,7 @@ desc:
 			cat $$file/$(SCOREFILE) ; \
 			continue ; \
 		fi ; \
-		echo -ne $$file ":\t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/$(SCOREFILE);  \
+		echo -ne $$file ":  " | sed 's/runs\///;s/_/  /;s/_/ /;s/_/  /;s/  20/  /;s/-[0-9][0-9]  /  /;' > $$file/$(SCOREFILE);  \
 		$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
 		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
@@ -218,6 +219,7 @@ seq2seq_train:
 	cp $(TRAIN_ABSTR) $(TRY_DIR)/train-abst.txt
 	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
 	if [[ -n "$(EVAL_TEST)" ]]; then \
+		cp $(VALID_ABSTR) $(TRY_DIR)/devel-abst.txt ; \
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
 		cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
 		VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz\""; \
