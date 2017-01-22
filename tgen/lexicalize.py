@@ -591,12 +591,17 @@ class Lexicalizer(object):
             sf_formeme = {}
             sf_tag = {}
             lemma_for_sf = {}
+            if slot == 'street':  # this is domain-specific: street names -> street name + number
+                slot = 'address'  # TODO change this in the surface form file
             for value in values.keys():
-                for surface_form in values[value]:
+                orig_value = value  # TODO get rid of this
+                if slot == 'address':  # add street number placeholders to addresses
+                    value += ' _'  # TODO change this in the surface form file
+                for surface_form in values[orig_value]:
                     lemma, form, tag = surface_form.split("\t")
-                    if slot == 'street':  # add street number placeholders to addresses
-                        value += ' _'
-                        slot = 'address'
+                    if slot == 'address':  # add street number placeholders to addresses
+                        lemma += ' _'  # TODO change this in the surface form file
+                        form += ' _'
                     # store the value globally + for all possible tag subsets/formemes
                     # store lemmas for formemes, forms for tags/global
                     sf_all[value] = sf_all.get(value, []) + [form]
@@ -621,7 +626,12 @@ class Lexicalizer(object):
         """
         # TODO make this language-independent
         if tag[0] in ['N', 'A']:
-            return [tag[0:3] + tag[4], tag[0:2] + tag[4], tag[0:2]]
+            alt_pos = 'A' if tag[0] == 'N' else 'N'
+            return [tag[0:3] + tag[4],  # NNF.4....
+                    tag[0:2] + tag[4],  # NN..4....
+                    tag[0] + tag[4],  # N...4....
+                    alt_pos + tag[4],  # A...4...
+                    tag[0:2]]  # NN
         # TODO this is greatly simplified for verbs, but probably won't be a problem
         return tag[0:2]
 
@@ -648,7 +658,6 @@ class Lexicalizer(object):
 
         @param gen_trees: list of TreeData objects representing generated trees/tokens/tagged lemmas
         @param abst_file: abstraction/delexicalization instructions file path
-        @param mode: generator mode (acceptable string values: "trees"/"tokens"/"tagged_lemmas")
         @return: None
         """
         abstss = read_absts(abst_file)
@@ -694,14 +703,14 @@ class Lexicalizer(object):
 
     def get_surface_form(self, tree, idx, slot, value, tag=None, formeme=None):
         """Get the appropriate surface form for the given slot and value. Use morphological tag
-        and/or formeme restrictions to select a matching one. Selects randomly among matching
-        forms.
+        and/or formeme restrictions to select a matching one. Selects among matching forms using
+        the current form selection module (random, RNNLM, KenLM, frequency).
         """
         non_num_value = re.sub(r'(^|\s+)([0-9]+)($|\s+)', r'\1_\3', value)
 
         # handle coordinated values
         value_parts = re.split(r'\s+(and|or)\s+', value)
-        if len(value_parts) > 1 and non_num_value not in self._sf_all[slot]:
+        if len(value_parts) > 1 and non_num_value not in self._sf_all.get(slot, []):
             out_value = []
             for value_part in value_parts:
                 if value_part == 'and':
