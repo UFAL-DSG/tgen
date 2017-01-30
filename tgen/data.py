@@ -197,6 +197,23 @@ class DA(object):
             ret.append(ret_dai)
         return ret
 
+    def to_human_string(self):
+        out = ''
+        cur_dat = None
+        for dai in self:
+            if dai.da_type != cur_dat:
+                out += ('; ' if out else '') + dai.da_type.upper()
+                cur_dat = dai.da_type
+                if dai.slot:
+                    out += ': '
+            elif dai.slot:
+                out += ', '
+            if dai.slot:
+                out += dai.slot
+            if dai.value:
+                out += ' = ' + dai.value
+        return out
+
 
 class Abst(object):
     """Simple representation of a single abstraction/delexicalization instruction."""
