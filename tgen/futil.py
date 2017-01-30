@@ -134,6 +134,7 @@ def tokenize(text):
 
     # clean extra space
     toks = re.sub(r'\s+', ' ', toks)
+    toks = toks.strip()
     return toks
 
 
