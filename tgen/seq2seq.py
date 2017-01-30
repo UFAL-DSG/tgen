@@ -130,7 +130,7 @@ class Seq2SeqBase(SentencePlanner):
 
         # run the decoding per se
         dec_output_ids, dec_cost = self._get_greedy_decoder_output(
-                enc_inputs, dec_inputs, compute_cost=gold_trees is not None)
+            enc_inputs, dec_inputs, compute_cost=gold_trees is not None)
 
         return dec_output_ids, dec_cost
 
