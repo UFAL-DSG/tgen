@@ -136,7 +136,8 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
         if dai.slot in abst_slots and dai.value != 'dont_care':
             abst_da[-1].value = 'X-' + dai.slot
             # save the abstraction instruction
-            absts.append(Abst(dai.slot, dai.value, start=pos[0], end=pos[1]))
+            absts.append(Abst(dai.slot, dai.value, surface_form=' '.join(toks[pos[0]:pos[1]]),
+                              start=pos[0], end=pos[1]))
 
     if delex_slot_names:
         for dai in sorted([dai for dai in da if dai.slot is not None],
@@ -144,7 +145,8 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
                           reverse=True):
             pos = find_value(dai.slot.replace('_', ' '), toks, toks_mask)
             if dai.slot in abst_slots:
-                absts.append(Abst(dai.slot, None, start=pos[0], end=pos[1]))
+                absts.append(Abst(dai.slot, None, surface_form=' '.join(toks[pos[0]:pos[1]]),
+                                  start=pos[0], end=pos[1]))
 
     # go from the beginning of the sentence, replacing the values to be abstracted
     absts.sort(key=lambda a: a.start)
