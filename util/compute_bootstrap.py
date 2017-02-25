@@ -3,7 +3,7 @@
 
 
 from argparse import ArgumentParser
-import os.path
+import os
 import re
 from subprocess import call
 from tgen.logf import log_info
@@ -29,8 +29,8 @@ def get_confidence(metric, lines):
 
 def process_all(args):
     join_sets = os.path.join(MY_PATH, 'join_sets.pl')
-    gen_log = os.path.join(MY_PATH, 'generateLog-v11.pl')
-    bootstrap = os.path.join(MY_PATH, 'bootstrapCompare-v11.2.pl')
+    gen_log = os.path.join(MY_PATH, 'mteval-v13a-sig.pl')
+    bootstrap = os.path.join(MY_PATH, 'paired_bootstrap_resampling_bleu_v13a.pl')
 
     # create the test and source files
     lcall("%s %s/s*/test-conc.sgm > %s/test-conc.sgm" %
@@ -46,19 +46,19 @@ def process_all(args):
 
     os.chdir(args.target_dir)
     for exp_num in exp_nums:
-        lcall("%s -s test-das.sgm -r test-conc.sgm -t %d.sgm -m 1 > %d.log.txt" %
-              (gen_log, exp_num, exp_num))
+        lcall("%s -s test-das.sgm -r test-conc.sgm -t %d.sgm -f %d.log.txt > %d.score.txt" %
+              (gen_log, exp_num, exp_num, exp_num))
 
     for skip, exp_num1 in enumerate(exp_nums):
         for exp_num2 in exp_nums[skip + 1:]:
             # recompute only if not done already (TODO switch for this)
-            if not os.path.isfile('bootstrap.%dvs%d.txt' % (exp_num1, exp_num2)):
-                lcall("perl %s %s.log.txt %s.log.txt 1000 0.99 > bootstrap.%dvs%d.txt" %
-                      (bootstrap, exp_num1, exp_num2, exp_num1, exp_num2))
-            with open('bootstrap.%dvs%d.txt' % (exp_num1, exp_num2)) as fh:
+            out_file = 'bootstrap.%dvs%d.txt' % (exp_num1, exp_num2)
+            if not os.path.isfile(out_file) or os.stat(out_file).st_size == 0:
+                lcall("%s %s.log.txt %s.log.txt 1000 0.01 > %s" %
+                      (bootstrap, exp_num1, exp_num2, out_file))
+            with open(out_file) as fh:
                 bootstrap_data = fh.readlines()
-                print "%dvs%d BLEU: %s" % (exp_num1, exp_num2, get_confidence('Bleu', bootstrap_data))
-                print "%dvs%d NIST: %s" % (exp_num1, exp_num2, get_confidence('NIST', bootstrap_data))
+                print "%dvs%d BLEU: %s" % (exp_num1, exp_num2, bootstrap_data[0].strip())
 
 
 if __name__ == '__main__':
