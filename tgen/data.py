@@ -72,7 +72,9 @@ class DAI(object):
             return DAI(da_type, svp)
 
         slot, value = svp.split('=', 1)
-        if value.startswith('"'):  # remove quotes
+        if value.endswith('"#'):  # remove special '#' characters in Bagel data (TODO treat right)
+            value = value[:-1]
+        if value[0] in ['"', '\'']:  # remove quotes
             value = value[1:-1]
         return DAI(da_type, slot, value)
 
@@ -129,6 +131,48 @@ class DA(object):
             da.append(DAI.parse(dai_text + ')'))
         return da
 
+    @staticmethod
+    def parse_cambridge_da(da_text):
+        """Parse a Cambridge-style DA string a DA object."""
+        da = DA()
+
+        for dai_text in re.finditer(r'(\??[a-z_]+)\(([^)]*)\)', da_text):
+            da_type, svps = dai_text.groups()
+
+            if not svps:  # no slots/values (e.g. 'hello()')
+                da.append(DAI(da_type, None, None))
+                continue
+
+            # we have some slots/values – split them into DAIs
+            svps = re.split('(?<! )[,;]', svps)
+            for svp in svps:
+
+                if '=' not in svp:  # no value, e.g. '?request(near)'
+                    da.append(DAI(da_type, svp, None))
+                    continue
+
+                # we have a value
+                slot, value = svp.split('=', 1)
+                if re.match(r'^\'.*\'$', value):
+                    value = value[1:-1]
+                assert not re.match(r'^\'', value) and not re.match(r'\'$', value)
+
+                da.append(DAI(da_type, slot, value))
+
+        return da
+
+    @staticmethod
+    def parse_diligent_da(da_text):
+        """Parse a Diligent-style DA string into a DA object."""
+        da = DA()
+
+        for dai_text in re.finditer(r'([a-zA-Z]+)\[([^\]]*)\]', da_text):
+            slot, value = dai_text.groups()
+            slot = re.sub(r'([A-Z])', r'_\1', slot).lower()
+            da.append(DAI('inform', slot, value if value else None))
+
+        return da
+
     def value_for_slot(self, slot):
         """Return the value for the given slot (None if unset or not present at all)."""
         for dai in self.dais:
@@ -168,6 +212,7 @@ class DA(object):
         return ret
 
     def to_human_string(self):
+        """Return a string that is supposedly more human-readable than the standard DA form."""
         out = ''
         cur_dat = None
         for dai in self:
@@ -183,6 +228,25 @@ class DA(object):
             if dai.value:
                 out += ' = ' + dai.value
         return out
+
+    def to_cambridge_da_string(self):
+        """Convert to Cambridge-style DA string (opposite of parse_cambridge_da)."""
+        out = ''
+        cur_dat = None
+        for dai in self:
+            if dai.da_type != cur_dat:
+                out += (')&' if out else '') + dai.da_type + '('
+                cur_dat = dai.da_type
+            elif dai.slot:
+                out += ','
+            if dai.slot:
+                out += dai.slot
+            if dai.value:
+                quote = '\'' if (' ' in dai.value or ':' in dai.value) else ''
+                out += '=' + quote + dai.value + quote
+        out += ')' if out else ''
+        return out
+
 
 
 class Abst(object):
