@@ -12,79 +12,7 @@ import json
 import re
 import argparse
 
-from recordclass import recordclass
-
-
-class DAI(recordclass('DAI', ['type', 'slot', 'value'])):
-    """Simple representation of a single dialogue act item."""
-
-    def __unicode__(self):
-        if self.slot is None:
-            return self.type + '()'
-        if self.value is None:
-            return self.type + '(' + self.slot + ')'
-        quote = '\'' if (' ' in self.value or ':' in self.value) else ''
-        return self.type + '(' + self.slot + '=' + quote + self.value + quote + ')'
-
-
-class Abst(recordclass('Abst', ['slot', 'value', 'start', 'end'])):
-    """Simple representation of a single abstraction instruction."""
-
-    def __unicode__(self):
-        quote = '"' if ' ' in self.value or ':' in self.value else ''
-        return (self.slot + '=' + quote + self.value + quote + ':' +
-                str(self.start) + '-' + str(self.end))
-
-
-class DA(object):
-    """Dialogue act – basically a list of DAIs."""
-
-    def __init__(self):
-        self.dais = []
-
-    def __getitem__(self, idx):
-        return self.dais[idx]
-
-    def __setitem__(self, idx, value):
-        self.dais[idx] = value
-
-    def append(self, value):
-        self.dais.append(value)
-
-    def __unicode__(self):
-        return '&'.join([unicode(dai) for dai in self.dais])
-
-    def __str__(self):
-        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
-
-    def __len__(self):
-        return len(self.dais)
-
-
-def parse_da(da_text):
-    """Parse a DA string into DAIs (DA types, slots, and values)."""
-
-    da = DA()
-
-    for dai_text in da_text.split('&'):
-        da_type, svp = dai_text.split('(', 1)
-        svp = svp[:-1]  # remove closing paren
-
-        if not svp:  # no slot + value (e.g. 'hello()')
-            da.append(DAI(da_type, None, None))
-            continue
-
-        if '=' not in svp:  # no value (e.g. 'request(to_stop)')
-            da.append(DAI(da_type, svp, None))
-            continue
-
-        slot, value = svp.split('=', 1)
-        if value.startswith('"'):  # remove quotes
-            value = value[1:-1]
-
-        da.append(DAI(da_type, slot, value))
-
-    return da
+from tgen.data import DA, DAI, Abst
 
 
 def tokenize(text):
@@ -112,8 +40,9 @@ def tokenize(text):
     return toks
 
 
-def get_abstraction(text, conc_da):
-    """Get the abstraction instructions and convert the string (replace *SLOT with X)."""
+def get_abstraction(text, conc_da, slot_names=False):
+    """Get the abstraction instructions and convert the string (replace *SLOT with X).
+    If slot_names is true, "X-slot_name" is used instead."""
     abstr = []
     toks = tokenize(text).split(' ')
 
@@ -121,7 +50,7 @@ def get_abstraction(text, conc_da):
         slot_abst = '*' + dai.slot.upper()
         try:
             idx = toks.index(slot_abst)
-            toks[idx] = 'X'
+            toks[idx] = 'X' + ('-' + dai.slot if slot_names else '')
             abstr.append(Abst(dai.slot, dai.value, idx, idx + 1))
         except ValueError:
             continue
@@ -173,15 +102,15 @@ def convert(args):
     with open(args.in_file, 'r') as fh:
         data = json.load(fh, encoding='UTF-8')
         for item in data:
-            da = convert_abstr_da(parse_da(item['response_da']))
+            da = convert_abstr_da(DA.parse(item['response_da']))
             context = convert_abstractions(item['context_utt'])
             context_l = item['context_utt_l']
-            conc_da = parse_da(item['response_da_l'])
+            conc_da = DA.parse(item['response_da_l'])
             concs_ = [tokenize(s) for s in item['response_nl_l']]
             absts_ = []
             texts_ = []
             for abst_text in item['response_nl']:
-                text, abst = get_abstraction(abst_text, conc_da)  # convert *SLOT -> X
+                text, abst = get_abstraction(abst_text, conc_da, args.slot_names)  # convert *SLOT -> X
                 absts_.append(abst)
                 texts_.append(text)
 
@@ -240,5 +169,7 @@ if __name__ == '__main__':
     argp.add_argument('-m', '--multi-ref',
                       help='Multiple reference mode; i.e. do not repeat DA in devel and test parts',
                       action='store_true')
+    argp.add_argument('-n', '--slot-names', action='store_true',
+                      help='Include slot names in the abstracted sentences.')
     args = argp.parse_args()
     convert(args)
