@@ -420,6 +420,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
 
+        # get validation set (default to empty)
+        self.valid_trees = []
+        self.valid_das = []
         # load separate validation data files...
         if validation_files:
             self._load_valid_data(validation_files)
