@@ -37,12 +37,13 @@ seq2seq_gen -- evaluate the seq2seq generator
     - arguments: [-e eval-ttrees-file] [-r eval-ttrees-selector] [-t target-selector] [-d debug-output]
                  [-w output-ttrees] [-b beam-size-override] seq2seq-model test-das
 
-rerank_cl_train -- train the reranking classifier (part of seq2seq generator, accessible externally here)
+rerank_cl_train -- train the reranking classifier (part of seq2seq generator, accessible
+        externally here for debugging purposes)
     - arguments:  config train-das train-trees rerank-cl-model
 
-rerank_cl_eval -- evaluate the reranking classifier (part of seq2seq generator, accessible externally here)
-    - arguments: [-l language] [-s selector] [-t] rerank-cl-model test-das test-sents
-                 * -t = flatten trees to tokens
+rerank_cl_eval -- evaluate the reranking classifier (part of seq2seq generator, accessible
+        externally here for debugging purposes)
+    - arguments: [-l language] [-s selector] rerank-cl-model test-das test-sents
 """
 
 from __future__ import unicode_literals
@@ -124,29 +125,27 @@ def candgen_train(args):
 
 def rerank_cl_train(args):
 
-    opts, files = getopt(args, 'a:')
+    ap = ArgumentParser(prog=' '.join(sys.argv[0:2]))
+    ap.add_argument('-a', '--add-to-seq2seq', type=str,
+                    help='Replace trained classifier in an existing seq2seq model (path to file)')
+    ap.add_argument('fname_config', type=str, help='Reranking classifier configuration file path')
+    ap.add_argument('fname_da_train', type=str, help='Training DAs file path')
+    ap.add_argument('fname_trees_train', type=str, help='Training trees file path (must be trees!)')
+    ap.add_argument('fname_cl_model', type=str, help='Path for the output trained model')
+    args = ap.parse_args(args)
 
-    load_seq2seq_model = None
-    for opt, arg in opts:
-        if opt == '-a':
-            load_seq2seq_model = arg
+    if args.add_to_seq2seq:
+        tgen = Seq2SeqBase.load_from_file(args.add_to_seq2seq)
 
-    if len(files) != 4:
-        sys.exit("Invalid arguments.\n" + __doc__)
-    fname_config, fname_da_train, fname_trees_train, fname_cl_model = files
-
-    if load_seq2seq_model:
-        tgen = Seq2SeqBase.load_from_file(load_seq2seq_model)
-
-    config = Config(fname_config)
+    config = Config(args.fname_config)
     rerank_cl = RerankingClassifier(config)
-    rerank_cl.train(fname_da_train, fname_trees_train)
+    rerank_cl.train(args.fname_da_train, args.fname_trees_train)
 
-    if load_seq2seq_model:
+    if args.add_to_seq2seq:
         tgen.classif_filter = rerank_cl
-        tgen.save_to_file(fname_cl_model)
+        tgen.save_to_file(args.fname_cl_model)
     else:
-        rerank_cl.save_to_file(fname_cl_model)
+        rerank_cl.save_to_file(args.fname_cl_model)
 
 
 def treecl_train(args):
@@ -228,7 +227,7 @@ def percrank_train(args):
 
 def seq2seq_train(args):
 
-    ap = ArgumentParser()
+    ap = ArgumentParser(prog=' '.join(sys.argv[0:2]))
 
     ap.add_argument('-s', '--train-size', type=float,
                     help='Portion of the training data to use (default: 1.0)', default=1.0)
@@ -435,7 +434,7 @@ def asearch_gen(args):
 def seq2seq_gen(args):
     """Sequence-to-sequence generation"""
 
-    ap = ArgumentParser()
+    ap = ArgumentParser(prog=' '.join(sys.argv[0:2]))
 
     ap.add_argument('-e', '--eval-file', type=str, help='A ttree/text file for evaluation')
     ap.add_argument('-a', '--abstr-file', type=str,
@@ -466,6 +465,7 @@ def seq2seq_gen(args):
 
     # read input files
     das = read_das(args.da_test_file)
+    contexts = None
     if args.context_file:
         if not tgen.use_context and not tgen.context_bleu_weight:
             log_warn('Generator is not trained to use context, ignoring context input file.')
@@ -499,6 +499,10 @@ def seq2seq_gen(args):
     if args.abstr_file and tgen.lexicalizer:
         log_info('Lexicalizing...')
         tgen.lexicalize(gen_trees, args.abstr_file)
+
+    # we won't need contexts anymore, but we do need DAs
+    if contexts:
+        das = [da for _, da in das]
 
     # evaluate the generated & lexicalized tokens (F1 and BLEU scores)
     if args.eval_file and args.eval_file.endswith('.txt'):
@@ -540,36 +544,31 @@ def eval_tokens(das, eval_tokens, gen_tokens):
 
 
 def rerank_cl_eval(args):
-
-    opts, files = getopt(args, 's:l:t')
-
-    language = None
-    selector = None
-    for opt, arg in opts:
-        if opt == '-l':
-            language = arg
-        elif opt == '-s':
-            selector = arg
-
-    if len(files) != 3:
-        sys.exit("Invalid arguments.\n" + __doc__)
-    fname_cl_model, fname_test_da, fname_test_sent = files
+    ap = ArgumentParser(prog=' '.join(sys.argv[0:2]))
+    ap.add_argument('-l', '--language', type=str,
+                    help='Override classifier language (for t-tree input files)')
+    ap.add_argument('-s', '--selector', type=str,
+                    help='Override classifier selector (for t-tree input files)')
+    ap.add_argument('fname_cl_model', type=str, help='Path to trained reranking classifier model')
+    ap.add_argument('fname_test_da', type=str, help='Path to test DA file')
+    ap.add_argument('fname_test_sent', type=str, help='Path to test trees file (must be trees!)')
+    args = ap.parse_args(args)
 
     log_info("Loading reranking classifier...")
-    rerank_cl = RerankingClassifier.load_from_file(fname_cl_model)
-    if language is not None:
-        rerank_cl.language = language
-    if selector is not None:
-        rerank_cl.selector = selector
+    rerank_cl = RerankingClassifier.load_from_file(args.fname_cl_model)
+    if args.language is not None:
+        rerank_cl.language = args.language
+    if args.selector is not None:
+        rerank_cl.selector = args.selector
 
     log_info("Evaluating...")
-    tot_len, dist = rerank_cl.evaluate_file(fname_test_da, fname_test_sent)
+    tot_len, dist = rerank_cl.evaluate_file(args.fname_test_da, args.fname_test_sent)
     log_info("Penalty: %d, Total DAIs %d." % (dist, tot_len))
 
 
 if __name__ == '__main__':
 
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         sys.exit(__doc__)
 
     action = sys.argv[1]

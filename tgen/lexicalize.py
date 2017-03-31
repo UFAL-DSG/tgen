@@ -666,7 +666,7 @@ class Lexicalizer(object):
             sent = self._tree_to_sentence(tree)
             log_debug(unicode(sent))
             for idx, tok in enumerate(sent):
-                if tok and tok.startswith('X-'):  # we would like to delexicalize
+                if tok and tok.startswith('X-'):  # we would like to lexicalize
                     slot = tok[2:]
                     # check if we have a value to substitute; if yes, do it
                     abst = self._first_abst(absts, slot)

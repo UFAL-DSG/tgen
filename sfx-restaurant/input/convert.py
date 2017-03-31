@@ -71,6 +71,7 @@ def convert(args):
         slots_to_abstract.update(re.split(r'[, ]+', args.abstract))
 
     # initialize storage
+    conc_das = []
     das = []  # abstracted DAs
     concs = []  # concrete sentences
     texts = []  # abstracted sentences
@@ -83,6 +84,7 @@ def convert(args):
     def process_instance(da, conc):
         text, da, abst = delex_sent(da, conc, slots_to_abstract, args.slot_names)
         da.sort()
+        conc_das.append(da)
 
         text = fix_capitalization(text)
         conc = fix_capitalization(conc)
@@ -171,6 +173,11 @@ def convert(args):
             for da in das[0:part_size]:
                 fh.write(unicode(da).encode('utf-8') + "\n")
             del das[0:part_size]
+
+        with open(part_name + '-conc_das.txt', 'w') as fh:
+            for conc_da in conc_das[0:part_size]:
+                fh.write(unicode(conc_da).encode('utf-8') + "\n")
+            del conc_das[0:part_size]
 
         with open(part_name + '-conc.txt', 'w') as fh:
             for conc in concs[0:part_size]:
