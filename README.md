@@ -39,15 +39,15 @@ TGen is written in Python (version 2.7). For TGen to work properly, you need to 
 - [pudb](https://pypi.python.org/pypi/pudb)
 - [recordclass](https://pypi.python.org/pypi/recordclass)
 - [TensorFlow](https://www.tensorflow.org/), only version 0.6 is supported for the time being
+- [kenlm](https://github.com/kpu/kenlm)
 
 Manual installation:
 
-- [Alex](https://github.com/UFAL-DSG/alex)
 - [Flect](https://github.com/UFAL-DSG/flect)
 - [PyTreex](https://github.com/ufal/pytreex)
 - [Treex](http://ufal.cz/treex)
 
-From the manual modules, the first two ones can be avoided by just copying a few libraries; these will be integrated here in the future.
+Flect can be avoided by just copying a few libraries; these will be integrated here in the future.
 
 Additionally, some obsolete code depends on [Theano](http://deeplearning.net/software/theano/), but the imports are optional and the code will be probably removed in the future.
 
