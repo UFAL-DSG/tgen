@@ -30,14 +30,14 @@ Notice
 Installation
 ------------
 
-TGen is written in Python (version 2.7). You can install it simply by cloning this repository, then installing all dependencies:
+TGen is written in Python (version 2.7). You can install it simply by cloning this repository, then installing all Python dependencies using pip:
 ```
 git clone https://github.com/UFAL-DSG/tgen
 cd tgen
 pip install -r requirements.txt
 ```
 
-For most of the experiments in our papers, you will also need to install [Treex](http://ufal.cz/treex) (including the newest version from the Git repository as described in Step 5 of the [Treex installation guide](http://ufal.mff.cuni.cz/treex/install.html)).
+To replicate most of the experiments in our papers, you will also need to install [Treex](http://ufal.cz/treex) (including the newest version from the Git repository as described in Step 5 of the [Treex installation guide](http://ufal.mff.cuni.cz/treex/install.html)). It is, however, not needed for basic functionality (without using deep syntactic trees).
 
 Dependencies
 ------------
