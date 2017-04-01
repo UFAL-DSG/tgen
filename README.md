@@ -23,6 +23,7 @@ Notice
 ------
 
 * TGen is highly experimental and only tested on a few datasets. Use at your own risk.
+* If you do not need an exact version, it is recommended to install the current master version, which has the latest bugfixes and all the functionality of the ACL2016/SIGDIAL2016 version.
 * To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
 * To get the version used in our ACL 2016 and SIGDIAL 2016 papers (seq2seq approach for generating sentence plans or strings, optionally using previous context), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
 
