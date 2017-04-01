@@ -27,13 +27,13 @@ import numpy as np
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
 
-from flect.cluster import Job
 from pytreex.core.util import file_stream
 
 from logf import log_info, set_debug_stream, log_debug
 from tgen.logf import log_warn, is_debug_stream
 from tgen.rnd import rnd
 from tgen.rank import Ranker, PerceptronRanker
+from tgen.cluster import Job
 
 
 class ServiceConn(namedtuple('ServiceConn', ['host', 'port', 'conn'])):
