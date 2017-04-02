@@ -11,9 +11,8 @@ import codecs
 import sys
 import re
 import time
-from varutil import first
 import collections
-from logf import log_warn
+from tgen.logf import log_warn
 
 """\
 Interface for running any Python code as a job on the cluster
@@ -27,6 +26,17 @@ to remove an otherwise unneccessary dependency.
 
 __author__ = "Ondřej Dušek"
 __date__ = "2012"
+
+
+def first(condition_function, sequence, default=None):
+    """\
+    Return first item in sequence where condition_function(item) == True,
+    or None if no such item exists.
+    """
+    for item in sequence:
+        if condition_function(item):
+            return item
+    return default
 
 
 class Job(object):
