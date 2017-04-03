@@ -12,6 +12,9 @@ import json
 import re
 import argparse
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath('../../'))  # add tgen main directory to modules path
 from tgen.data import DA, DAI, Abst
 
 

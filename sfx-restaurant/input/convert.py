@@ -13,13 +13,11 @@ import re
 import argparse
 from math import ceil
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath('../../'))  # add tgen main directory to modules path
 from tgen.data import Abst, DA, DAI
 from tgen.delex import delex_sent
-
-from tgen.debug import exc_info_hook
-import sys
-# Start IPdb on error in interactive mode
-sys.excepthook = exc_info_hook
 
 
 def postprocess_sent(sent):
