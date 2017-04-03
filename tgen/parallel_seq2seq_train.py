@@ -20,7 +20,6 @@ import hashlib
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
 
-from flect.cluster import Job
 from pytreex.core.util import file_stream
 
 from logf import log_info, set_debug_stream, log_debug
@@ -29,6 +28,7 @@ from tgen.rnd import rnd
 from tgen.parallel_percrank_train import ServiceConn
 from tgen.seq2seq import Seq2SeqGen
 from tgen.seq2seq_ensemble import Seq2SeqEnsemble
+from tgen.cluster import Job
 
 
 def get_worker_registrar_for(head):
