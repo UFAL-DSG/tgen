@@ -82,10 +82,14 @@ def convert(args):
     turns = 0
 
     def process_instance(da, conc):
-        text, da, abst = delex_sent(da, conc, slots_to_abstract, args.slot_names)
         da.sort()
-        conc_das.append(da)
+        conc_das.append(da)  # store the non-delexicalized version of the DA
 
+        # delexicalize
+        text, da, abst = delex_sent(da, conc, slots_to_abstract, args.slot_names)
+        da.sort()  # delexicalization does not keep DAI order, need to sort again
+
+        # store the DA
         text = fix_capitalization(text)
         conc = fix_capitalization(conc)
 
