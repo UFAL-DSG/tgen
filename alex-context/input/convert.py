@@ -15,7 +15,7 @@ import argparse
 import sys
 import os
 sys.path.insert(0, os.path.abspath('../../'))  # add tgen main directory to modules path
-from tgen.data import DA, DAI, Abst
+from tgen.data import DA, Abst
 
 
 def tokenize(text):
@@ -54,11 +54,11 @@ def get_abstraction(text, conc_da, slot_names=False):
         try:
             idx = toks.index(slot_abst)
             toks[idx] = 'X' + ('-' + dai.slot if slot_names else '')
-            abstr.append(Abst(dai.slot, dai.value, idx, idx + 1))
+            abstr.append(Abst(slot=dai.slot, value=dai.value, start=idx, end=idx + 1))
         except ValueError:
             continue
 
-    return ' '.join(toks), abstr
+    return ' '.join(toks), "\t".join([unicode(a) for a in abstr])
 
 
 def convert_abstractions(abstr_str):
