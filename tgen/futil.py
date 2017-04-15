@@ -9,7 +9,7 @@ from __future__ import unicode_literals
 import cPickle as pickle
 import codecs
 import gzip
-import re
+import regex
 from io import IOBase
 from codecs import StreamReader, StreamWriter
 
@@ -114,26 +114,35 @@ def create_ttree_doc(trees, base_doc, language, selector):
 
 def tokenize(text):
     """Tokenize the given text (i.e., insert spaces around all tokens)"""
-    toks = re.sub(r'([?.!;,:-]+)(?![0-9])', r' \1 ', text)  # enforce space around all punct
+    toks = ' ' + text + ' '  # for easier regexes
 
-    # most common contractions
-    toks = re.sub(r'([\'’´])(s|m|d|ll|re|ve)\s', r' \1\2 ', toks)  # I'm, I've etc.
-    toks = re.sub(r'(n[\'’´]t\s)', r' \1 ', toks)  # do n't
+    # enforce space around all punct
+    toks = regex.sub(r'(([^\p{IsAlnum}\s\.\,−\-])\2*)', r' \1 ', toks)  # all punct (except ,-.)
+    toks = regex.sub(r'([^\p{N}])([,.])([^\p{N}])', r'\1 \2 \3', toks)  # ,. & no numbers
+    toks = regex.sub(r'([^\p{N}])([,.])([\p{N}])', r'\1 \2 \3', toks)  # ,. preceding numbers
+    toks = regex.sub(r'([^\p{N}])([,.])([^\p{N}])', r'\1 \2 \3', toks)  # ,. following numbers
+    toks = regex.sub(r'(–-)([^\p{N}])', r'\1 \2', toks)  # -/– & no number following
+    toks = regex.sub(r'(\p{N} *|[^ ])(-)', r'\1\2 ', toks)  # -/– & preceding number/no-space
+    toks = regex.sub(r'([-−])', r' \1', toks)  # -/– : always space before
+
+    # keep apostrophes together with words in most common contractions
+    toks = regex.sub(r'([\'’´]) (s|m|d|ll|re|ve)\s', r' \1\2 ', toks)  # I 'm, I 've etc.
+    toks = regex.sub(r'(n [\'’´]) (t\s)', r' \1\2 ', toks)  # do n't
 
     # other contractions, as implemented in Treex
-    toks = re.sub(r' ([Cc])annot\s', r' \1an not ', toks)
-    toks = re.sub(r' ([Dd])\'ye\s', r' \1\' ye ', toks)
-    toks = re.sub(r' ([Gg])imme\s', r' \1im me ', toks)
-    toks = re.sub(r' ([Gg])onna\s', r' \1on na ', toks)
-    toks = re.sub(r' ([Gg])otta\s', r' \1ot ta ', toks)
-    toks = re.sub(r' ([Ll])emme\s', r' \1em me ', toks)
-    toks = re.sub(r' ([Mm])ore\'n\s', r' \1ore \'n ', toks)
-    toks = re.sub(r' \'([Tt])is\s', r' \'\1 is ', toks)
-    toks = re.sub(r' \'([Tt])was\s', r' \'\1 was ', toks)
-    toks = re.sub(r' ([Ww])anna\s', r' \1an na ', toks)
+    toks = regex.sub(r' ([Cc])annot\s', r' \1an not ', toks)
+    toks = regex.sub(r' ([Dd]) \' ye\s', r' \1\' ye ', toks)
+    toks = regex.sub(r' ([Gg])imme\s', r' \1im me ', toks)
+    toks = regex.sub(r' ([Gg])onna\s', r' \1on na ', toks)
+    toks = regex.sub(r' ([Gg])otta\s', r' \1ot ta ', toks)
+    toks = regex.sub(r' ([Ll])emme\s', r' \1em me ', toks)
+    toks = regex.sub(r' ([Mm])ore\'n\s', r' \1ore \'n ', toks)
+    toks = regex.sub(r' \' ([Tt])is\s', r' \'\1 is ', toks)
+    toks = regex.sub(r' \' ([Tt])was\s', r' \'\1 was ', toks)
+    toks = regex.sub(r' ([Ww])anna\s', r' \1an na ', toks)
 
     # clean extra space
-    toks = re.sub(r'\s+', ' ', toks)
+    toks = regex.sub(r'\s+', ' ', toks)
     toks = toks.strip()
     return toks
 
@@ -266,10 +275,10 @@ def postprocess_tokens(tokens, das):
         # merge plurals and adverbial "-ly"
         for idx, (tok, pos) in enumerate(sent):
             if tok == '-ly' or tok == '-s':
-                if tok == '-s' and idx > 0 and sent[idx-1][0] == 'child':  # irregular plural
+                if tok == '-s' and idx > 0 and sent[idx - 1][0] == 'child':  # irregular plural
                     tok = '-ren'
                 if idx > 0:
-                    sent[idx-1] = (sent[idx-1][0] + tok[1:], sent[idx-1][1])
+                    sent[idx - 1] = (sent[idx - 1][0] + tok[1:], sent[idx - 1][1])
                 del sent[idx]
         # add final punctuation, if not present
         if sent[-1][0] not in ['?', '!', '.']:
