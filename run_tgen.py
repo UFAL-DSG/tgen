@@ -53,8 +53,7 @@ import platform
 import os
 from argparse import ArgumentParser
 
-from flect.config import Config
-
+from tgen.config import Config
 from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
 from tgen.futil import file_stream, read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens, \
