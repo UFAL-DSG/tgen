@@ -10,6 +10,7 @@ import numpy as np
 from unidecode import unidecode
 from tgen.data import DA, DAI, Abst
 
+
 def find_substr(needle, haystack):
     """Find a sub-list in a list of tokens.
 
@@ -33,6 +34,7 @@ def find_substr(needle, haystack):
                 n = 0
             else:
                 h += 1
+
 
 def levenshtein_dist(s, t):
     """Compute Levenshtein distance between two strings."""
@@ -99,8 +101,10 @@ def find_substr_approx(needle, haystack):
         elif h < len(haystack) - 1 and (haystack[h] + haystack[h + 1]) == needle[n]:
             n += 1
             h += 2
-        # allow one typo
-        elif levenshtein_dist(haystack[h], needle[n]) <= 1:
+        # allow one typo, with words longer than 3
+        elif (len(haystack[h]) >= 3 and len(needle[n]) >= 3 and
+                len(needle[n]) - 1 <= len(haystack[h]) <= len(needle[n]) + 1 and
+                levenshtein_dist(haystack[h], needle[n]) <= 1):
             n += 1
             h += 1
         # nothing found
