@@ -136,7 +136,7 @@ def find_value(value, toks, toks_mask):
     return pos
 
 
-def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False):
+def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False, repeated=False):
     """Abstract the given slots in the given sentence (replace them with X).
 
     @param da: concrete DA
@@ -165,14 +165,23 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
         abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
         if dai.value is None:
             continue
-        pos = find_value(dai.value, toks, toks_mask)
-        # if the value is to be abstracted, replace the value in the abstracted DAI
-        # and save abstraction instruction (even if not found in the sentence)
-        if dai.slot in abst_slots and dai.value != 'dont_care':
-            abst_da[-1].value = 'X-' + dai.slot
-            # save the abstraction instruction
-            absts.append(Abst(dai.slot, dai.value, surface_form=' '.join(toks[pos[0]:pos[1]]),
-                              start=pos[0], end=pos[1]))
+
+        # search for the 1st or all occurrences
+        found = 0
+        pos = (-1, -1)
+        while found < 1 or (repeated and pos != (-1, -1)):
+            pos = find_value(dai.value, toks, toks_mask)
+            # if the value is to be abstracted, replace the value in the abstracted DAI
+            # and save abstraction instruction (even if not found in the sentence)
+            if (dai.slot in abst_slots and
+                    dai.value != 'dont_care' and
+                    (found == 0 or pos != (-1, -1))):
+
+                abst_da[-1].value = 'X-' + dai.slot
+                # save the abstraction instruction
+                absts.append(Abst(dai.slot, dai.value, surface_form=' '.join(toks[pos[0]:pos[1]]),
+                                  start=pos[0], end=pos[1]))
+            found += 1
 
     if delex_slot_names:
         for dai in sorted([dai for dai in da if dai.slot is not None],
