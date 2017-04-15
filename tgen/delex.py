@@ -6,8 +6,9 @@ Delexicalization functions.
 """
 from __future__ import unicode_literals
 
+import numpy as np
+from unidecode import unidecode
 from tgen.data import DA, DAI, Abst
-
 
 def find_substr(needle, haystack):
     """Find a sub-list in a list of tokens.
@@ -33,13 +34,39 @@ def find_substr(needle, haystack):
             else:
                 h += 1
 
+def levenshtein_dist(s, t):
+    """Compute Levenshtein distance between two strings."""
+    def match(s, t, i, j):
+        """Simple match function (testing positions i,j in s,t respectively)."""
+        return 1 if s[i] == t[j] else 0
+
+    # creating traverse matrix
+    H = np.zeros((len(s) + 1, len(t) + 1), dtype=int)
+    for (j, tj) in enumerate(' ' + t):
+        for (i, si) in enumerate('_' + s):
+            # compute score for all directions
+            (left, up, diag) = (float('-Inf'), float('-Inf'), float('-Inf'))
+            if i > 0:  # look up
+                up = H[i - 1, j]
+            if j > 0:  # look left
+                left = H[i, j - 1]
+            if i > 0 and j > 0:  # look diagonally
+                diag = H[i - 1, j - 1] + match(s, t, i - 1, j - 1)
+            # find the best score and remember it along with the direction
+            best_score = max(left, up, diag)
+            if best_score > float('-Inf'):  # i.e. not upper-up corner
+                H[i, j] = best_score
+
+    # return the distance
+    return max(len(s), len(t)) - H[len(s), len(t)]
+
 
 def find_substr_approx(needle, haystack):
     """Try to find a sub-list in a list of tokens using fuzzy matching (skipping some
     common prepositions and punctuation, checking for similar-length substrings)"""
-    # lowercase both for ignore-case comparison
-    needle = [tok.lower() for tok in needle]
-    haystack = [tok.lower() for tok in haystack]
+    # lowercase both for ignore-case comparison, strip accented characters
+    needle = [unidecode(tok.lower()) for tok in needle]
+    haystack = [unidecode(tok.lower()) for tok in haystack]
     # some common 'meaningless words'
     stops = set(['and', 'or', 'in', 'of', 'the', 'to', ',', 'restaurant'])
     h = 0
@@ -72,6 +99,10 @@ def find_substr_approx(needle, haystack):
         elif h < len(haystack) - 1 and (haystack[h] + haystack[h + 1]) == needle[n]:
             n += 1
             h += 2
+        # allow one typo
+        elif levenshtein_dist(haystack[h], needle[n]) <= 1:
+            n += 1
+            h += 1
         # nothing found
         else:
             if n_orig > 0:
