@@ -212,7 +212,6 @@ seq2seq_train:
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
 		cp $(VALID_TEXTS) $(TRY_DIR)/devel-text.txt ; \
 		VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.txt\""; \
-	else \
 	fi; \
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
