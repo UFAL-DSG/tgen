@@ -486,7 +486,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self._init_neural_network()
 
         # initialize the NN variables
-        self.session.run(tf.initialize_all_variables())
+        self.session.run(tf.global_variables_initializer())
 
     def _load_trees(self, ttree_file, selector=None):
         """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
@@ -998,7 +998,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 ret.lexicalizer = None
 
         # re-build TF graph and restore the TF session
-        tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        tf_session_fname = os.path.abspath(re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname))
         param_dump_fname = re.sub(r'(.pickle)?(.gz)?$', '.params.gz', model_fname)
         ret._init_neural_network()
         if os.path.isfile(param_dump_fname):

@@ -14,6 +14,7 @@ import re
 import math
 import tempfile
 import shutil
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -133,7 +134,9 @@ class RerankingClassifier(TFModel):
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
-        if self.checkpoint_path:
+        if (self.checkpoint_path and
+                os.path.isfile(self.checkpoint_path) and
+                os.stat(self.checkpoint_path).st_size > 0):
             shutil.copyfile(self.checkpoint_path, tf_session_fname)
         else:
             self.saver.save(self.session, tf_session_fname)
@@ -182,7 +185,7 @@ class RerankingClassifier(TFModel):
             ret.load_all_settings(data)
 
         # re-build TF graph and restore the TF session
-        tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        tf_session_fname = os.path.abspath(re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname))
         ret._init_neural_network()
         ret.saver.restore(ret.session, tf_session_fname)
         return ret
@@ -363,7 +366,7 @@ class RerankingClassifier(TFModel):
         # initialize NN classifier
         self._init_neural_network()
         # initialize the NN variables
-        self.session.run(tf.initialize_all_variables())
+        self.session.run(tf.global_variables_initializer())
 
     def _tokens_to_flat_trees(self, sents, use_tags=False):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
