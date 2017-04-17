@@ -286,6 +286,8 @@ def postprocess_tokens(tokens, das):
 
     for sent, da in zip(tokens, das):
         final_punct = '?' if da[0].da_type[0] == '?' else '.'  # '?' for '?request...'
+        if not sent:
+            return  # ignore empty sentences
         if isinstance(sent[0], list):
             for sent_var in sent:  # multiple references
                 postprocess_sent(sent_var, final_punct)
