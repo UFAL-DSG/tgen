@@ -351,6 +351,7 @@ class RerankingClassifier(TFModel):
         self.da_vect = DictVectorizer(sparse=False, binarize_numeric=True)
         self.y = [self.da_feats.get_features(None, {'da': da}) for da in self.train_das]
         self.y = self.da_vect.fit_transform(self.y)
+        log_info('Number of binary classes: %d.' % len(self.da_vect.get_feature_names))
 
         # initialize I/O shapes
         if not self.tree_embs:
