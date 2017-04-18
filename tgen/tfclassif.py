@@ -414,7 +414,7 @@ class RerankingClassifier(TFModel):
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
         # (or is computed as if there were a sigmoid layer on top)
         self.cost = tf.reduce_mean(tf.reduce_sum(
-                 tf.nn.sigmoid_cross_entropy_with_logits(self.outputs, self.targets, name='CE'), 1))
+            tf.nn.sigmoid_cross_entropy_with_logits(self.outputs, self.targets, name='CE'), 1))
 
         # NB: this would have been the "true" cost function, if there were a "real" sigmoid layer on top.
         # However, it is not numerically stable in practice, so we have to use the TF function.
@@ -441,9 +441,9 @@ class RerankingClassifier(TFModel):
         activ = (num_layers * [tf.nn.tanh]) + [tf.identity]
         Y = X
         for i in xrange(num_layers + 1):
-            w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i+1]),
+            w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i + 1]),
                                 initializer=tf.random_normal_initializer(stddev=0.1))
-            b = tf.get_variable(name + ('-b%d' % i), (width[i+1],),
+            b = tf.get_variable(name + ('-b%d' % i), (width[i + 1],),
                                 initializer=tf.constant_initializer())
             Y = activ[i](tf.matmul(Y, w) + b)
         return Y
