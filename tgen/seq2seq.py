@@ -765,7 +765,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.session = tf.Session(config=session_config)
 
         # this helps us load/save the model
-        self.saver = tf.train.Saver(tf.all_variables())
+        self.saver = tf.train.Saver(tf.global_variables())
 
     def _training_pass(self, iter_no):
         """Perform one pass through the training data (epoch).
