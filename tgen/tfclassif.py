@@ -134,12 +134,10 @@ class RerankingClassifier(TFModel):
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
-        if (self.checkpoint_path and
-                os.path.isfile(self.checkpoint_path) and
-                os.stat(self.checkpoint_path).st_size > 0):
-            shutil.copyfile(self.checkpoint_path, tf_session_fname)
-        else:
-            self.saver.save(self.session, tf_session_fname)
+        if hasattr(self, 'checkpoint_path') and self.checkpoint_path:
+            self.restore_checkpoint()
+            shutil.rmtree(os.path.dirname(self.checkpoint_path))
+        self.saver.save(self.session, tf_session_fname)
 
     def get_all_settings(self):
         """Get all settings except the trained model parameters (to be stored in a pickle)."""
@@ -160,8 +158,8 @@ class RerankingClassifier(TFModel):
         """Save a checkpoint to a temporary path; set `self.checkpoint_path` to the path
         where it is saved; if called repeatedly, will always overwrite the last checkpoint."""
         if not self.checkpoint_path:
-            fh, path = tempfile.mkstemp(".ckpt", "tftreecl-", self.checkpoint_path)
-            self.checkpoint_path = path
+            path = tempfile.mkdtemp(suffix="", prefix="tftreecl-")
+            self.checkpoint_path = os.path.join(path, "ckpt")
         log_info('Saving checkpoint to %s' % self.checkpoint_path)
         self.saver.save(self.session, self.checkpoint_path)
 
