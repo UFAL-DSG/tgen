@@ -32,6 +32,7 @@ from tgen.tfclassif import RerankingClassifier
 from tgen.tf_ml import TFModel, embedding_attention_seq2seq_context
 from tgen.ml import softmax
 from tgen.lexicalize import Lexicalizer
+import tgen.externals.seq2seq as tf06s2s
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -699,11 +700,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
 
-            rnn_func = tf.nn.seq2seq.embedding_rnn_seq2seq
+            rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
-                rnn_func = tf.nn.seq2seq.embedding_attention_seq2seq
+                rnn_func = tf06s2s.embedding_attention_seq2seq
             elif self.nn_type == 'emb_attention2_seq2seq':
-                rnn_func = partial(tf.nn.seq2seq.embedding_attention_seq2seq, num_heads=2)
+                rnn_func = partial(tf06s2s.embedding_attention_seq2seq, num_heads=2)
             elif self.nn_type == 'emb_attention_seq2seq_context':
                 rnn_func = embedding_attention_seq2seq_context
             elif self.nn_type == 'emb_attention2_seq2seq_context':
@@ -736,10 +737,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                              for trg in self.targets]
 
         # cost
-        self.tf_cost = tf.nn.seq2seq.sequence_loss(self.outputs, self.targets,
-                                                   self.cost_weights, self.tree_dict_size)
-        self.dec_cost = tf.nn.seq2seq.sequence_loss(self.dec_outputs, self.targets,
-                                                    self.cost_weights, self.tree_dict_size)
+        self.tf_cost = tf06s2s.sequence_loss(self.outputs, self.targets,
+                                             self.cost_weights, self.tree_dict_size)
+        self.dec_cost = tf06s2s.sequence_loss(self.dec_outputs, self.targets,
+                                              self.cost_weights, self.tree_dict_size)
         if self.use_dec_cost:
             self.cost = 0.5 * (self.tf_cost + self.dec_cost)
         else:

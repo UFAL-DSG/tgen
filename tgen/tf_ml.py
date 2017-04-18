@@ -11,7 +11,7 @@ import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops, control_flow_ops, rnn, rnn_cell
 from tensorflow import variable_scope as vs
-from tensorflow.python.ops.seq2seq import embedding_attention_decoder
+import tgen.externals.seq2seq as tf06s2s
 
 
 class TFModel(object):
@@ -81,10 +81,10 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
         # build separate encoders
         encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
         with vs.variable_scope("context_rnn") as scope:
-            context_outputs, context_states = rnn.rnn(
+            context_outputs, context_states = tf06s2s.rnn(
                 encoder_cell, context_inputs, dtype=dtype, scope=scope)
         with vs.variable_scope("input_rnn") as scope:
-            encoder_outputs, encoder_states = rnn.rnn(
+            encoder_outputs, encoder_states = tf06s2s.rnn(
                 encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
 
         # concatenate outputs & states
@@ -109,18 +109,20 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
             output_size = num_decoder_symbols
 
         if isinstance(feed_previous, bool):
-            return embedding_attention_decoder(
+            return tf06s2s.embedding_attention_decoder(
                 decoder_inputs, encoder_states[-1], attention_states, cell,
-                num_decoder_symbols, num_heads, output_size, output_projection,
-                feed_previous)
+                num_decoder_symbols, embedding_size, num_heads, output_size,
+                output_projection, feed_previous)
         else:    # If feed_previous is a Tensor, we construct 2 graphs and use cond.
-            outputs1, states1 = embedding_attention_decoder(
+            outputs1, states1 = tf06s2s.embedding_attention_decoder(
                 decoder_inputs, encoder_states[-1], attention_states, cell,
-                num_decoder_symbols, num_heads, output_size, output_projection, True)
+                num_decoder_symbols, embedding_size, num_heads, output_size,
+                output_projection, True)
             vs.get_variable_scope().reuse_variables()
-            outputs2, states2 = embedding_attention_decoder(
+            outputs2, states2 = tf06s2s.embedding_attention_decoder(
                 decoder_inputs, encoder_states[-1], attention_states, cell,
-                num_decoder_symbols, num_heads, output_size, output_projection, False)
+                num_decoder_symbols, embedding_size, num_heads, output_size,
+                output_projection, False)
 
             outputs = control_flow_ops.cond(feed_previous,
                                             lambda: outputs1, lambda: outputs2)
