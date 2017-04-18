@@ -232,7 +232,7 @@ def seq2seq_train(args):
                     help='Portion of the training data to use (default: 1.0)', default=1.0)
     ap.add_argument('-d', '--debug-logfile', type=str, help='Debug output file name')
     ap.add_argument('-j', '--jobs', type=int, help='Number of parallel jobs to use')
-    ap.add_argument('-w', '--work-dir', type=str, help='Main working for parallel jobs')
+    ap.add_argument('-w', '--work-dir', type=str, help='Main working directory for parallel jobs')
     ap.add_argument('-e', '--experiment-id', type=str,
                     help='Experiment ID for parallel jobs (used as job name prefix)')
     ap.add_argument('-r', '--random-seed', type=str,
