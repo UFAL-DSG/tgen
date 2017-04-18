@@ -450,16 +450,16 @@ class RerankingClassifier(TFModel):
 
     def _rnn(self, name, enc_inputs):
         encoder_cell = tf.nn.rnn_cell.EmbeddingWrapper(self.cell, self.dict_size, self.emb_size)
-        encoder_outputs, encoder_states = tf.nn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
+        encoder_outputs, encoder_state = tf.nn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
 
         # TODO for historical reasons, the last layer uses both output and state.
         # try this just with outputs (might work exactly the same)
         if isinstance(self.cell.state_size, tf.nn.rnn_cell.LSTMStateTuple):
             state_size = self.cell.state_size.c + self.cell.state_size.h
-            final_input = tf.concat(1, (encoder_outputs[-1], encoder_states[-1]))
+            final_input = tf.concat(1, encoder_state)  # concat c + h
         else:
             state_size = self.cell.state_size
-            final_input = encoder_states[-1]
+            final_input = encoder_state
 
         w = tf.get_variable(name + '-w', (state_size, self.num_outputs),
                             initializer=tf.random_normal_initializer(stddev=0.1))
