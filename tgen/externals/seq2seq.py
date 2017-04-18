@@ -27,10 +27,104 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import embedding_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
-from tensorflow.python.ops import rnn
 from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.ops import variable_scope as vs
+
+# TODO(ebrevdo): Remove once _linear is fully deprecated.
+linear = rnn_cell._linear  # pylint: disable=protected-access
+
+
+def rnn(cell, inputs, initial_state=None, dtype=None,
+        sequence_length=None, scope=None):
+  """Creates a recurrent neural network specified by RNNCell "cell".
+
+  The simplest form of RNN network generated is:
+    state = cell.zero_state(...)
+    outputs = []
+    states = []
+    for input_ in inputs:
+      output, state = cell(input_, state)
+      outputs.append(output)
+      states.append(state)
+    return (outputs, states)
+
+  However, a few other options are available:
+
+  An initial state can be provided.
+  If sequence_length is provided, dynamic calculation is performed.
+
+  Dynamic calculation returns, at time t:
+    (t >= max(sequence_length)
+        ? (zeros(output_shape), zeros(state_shape))
+        : cell(input, state)
+
+  Thus saving computational time when unrolling past the max sequence length.
+
+  Args:
+    cell: An instance of RNNCell.
+    inputs: A length T list of inputs, each a tensor of shape
+      [batch_size, cell.input_size].
+    initial_state: (optional) An initial state for the RNN.  This must be
+      a tensor of appropriate type and shape [batch_size x cell.state_size].
+    dtype: (optional) The data type for the initial state.  Required if
+      initial_state is not provided.
+    sequence_length: An int64 vector (tensor) size [batch_size].
+    scope: VariableScope for the created subgraph; defaults to "RNN".
+
+  Returns:
+    A pair (outputs, states) where:
+      outputs is a length T list of outputs (one for each input)
+      states is a length T list of states (one state following each input)
+
+  Raises:
+    TypeError: If "cell" is not an instance of RNNCell.
+    ValueError: If inputs is None or an empty list.
+  """
+
+  if not isinstance(cell, rnn_cell.RNNCell):
+    raise TypeError("cell must be an instance of RNNCell")
+  if not isinstance(inputs, list):
+    raise TypeError("inputs must be a list")
+  if not inputs:
+    raise ValueError("inputs must not be empty")
+
+  outputs = []
+  states = []
+  with vs.variable_scope(scope or "RNN"):
+    batch_size = array_ops.shape(inputs[0])[0]
+    if initial_state is not None:
+      state = initial_state
+    else:
+      if not dtype:
+        raise ValueError("If no initial_state is provided, dtype must be.")
+      state = cell.zero_state(batch_size, dtype)
+
+    if sequence_length:  # Prepare variables
+      zero_output_state = (
+          array_ops.zeros(array_ops.pack([batch_size, cell.output_size]),
+                          inputs[0].dtype),
+          array_ops.zeros(array_ops.pack([batch_size, cell.state_size]),
+                          state.dtype))
+      max_sequence_length = math_ops.reduce_max(sequence_length)
+
+    for time, input_ in enumerate(inputs):
+      if time > 0: vs.get_variable_scope().reuse_variables()
+      # pylint: disable=cell-var-from-loop
+      def output_state():
+        return cell(input_, state)
+      # pylint: enable=cell-var-from-loop
+      if sequence_length:
+        (output, state) = control_flow_ops.cond(
+            time >= max_sequence_length,
+            lambda: zero_output_state, output_state)
+      else:
+        (output, state) = output_state()
+
+      outputs.append(output)
+      states.append(state)
+
+    return (outputs, states)
 
 
 def rnn_decoder(decoder_inputs, initial_state, cell, loop_function=None,
@@ -103,7 +197,7 @@ def basic_rnn_seq2seq(
       Each item is a 2D Tensor of shape [batch_size x cell.state_size].
   """
   with vs.variable_scope(scope or "basic_rnn_seq2seq"):
-    _, enc_states = rnn.rnn(cell, encoder_inputs, dtype=dtype)
+    _, enc_states = rnn(cell, encoder_inputs, dtype=dtype)
     return rnn_decoder(decoder_inputs, enc_states[-1], cell)
 
 
@@ -134,7 +228,7 @@ def tied_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
   """
   with vs.variable_scope("combined_tied_rnn_seq2seq"):
     scope = scope or "tied_rnn_seq2seq"
-    _, enc_states = rnn.rnn(
+    _, enc_states = rnn(
         cell, encoder_inputs, dtype=dtype, scope=scope)
     vs.get_variable_scope().reuse_variables()
     return rnn_decoder(decoder_inputs, enc_states[-1], cell,
@@ -247,7 +341,7 @@ def embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
   with vs.variable_scope(scope or "embedding_rnn_seq2seq"):
     # Encoder.
     encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols)
-    _, encoder_states = rnn.rnn(encoder_cell, encoder_inputs, dtype=dtype)
+    _, encoder_states = rnn(encoder_cell, encoder_inputs, dtype=dtype)
 
     # Decoder.
     if output_projection is None:
@@ -433,7 +527,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
       ds = []  # Results of attention reads will be stored here.
       for a in xrange(num_heads):
         with vs.variable_scope("Attention_%d" % a):
-          y = rnn_cell.linear(query, attention_vec_size, True)
+          y = linear(query, attention_vec_size, True)
           y = array_ops.reshape(y, [-1, 1, 1, attention_vec_size])
           # Attention mask is a softmax of v^T * tanh(...).
           s = math_ops.reduce_sum(
@@ -462,14 +556,17 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
         with vs.variable_scope("loop_function", reuse=True):
           inp = array_ops.stop_gradient(loop_function(prev, i))
       # Merge input and previous attentions into one vector of the right size.
-      x = rnn_cell.linear([inp] + attns, cell.input_size, True)
+      input_size = inp.get_shape().with_rank(2)[1]
+      if input_size.value is None:
+        raise ValueError("Could not infer input size from input: %s" % inp.name)
+      x = linear([inp] + attns, input_size, True)
       # Run the RNN.
       cell_output, new_state = cell(x, states[-1])
       states.append(new_state)
       # Run the attention mechanism.
       attns = attention(new_state)
       with vs.variable_scope("AttnOutputProjection"):
-        output = rnn_cell.linear([cell_output] + attns, output_size, True)
+        output = linear([cell_output] + attns, output_size, True)
       if loop_function is not None:
         # We do not propagate gradients over the loop function.
         prev = array_ops.stop_gradient(output)
@@ -479,7 +576,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
 
 
 def embedding_attention_decoder(decoder_inputs, initial_state, attention_states,
-                                cell, num_symbols, num_heads=1,
+                                cell, num_symbols, embedding_size, num_heads=1,
                                 output_size=None, output_projection=None,
                                 feed_previous=False, dtype=dtypes.float32,
                                 scope=None):
@@ -528,7 +625,7 @@ def embedding_attention_decoder(decoder_inputs, initial_state, attention_states,
 
   with vs.variable_scope(scope or "embedding_attention_decoder"):
     with ops.device("/cpu:0"):
-      embedding = vs.get_variable("embedding", [num_symbols, cell.input_size])
+      embedding = vs.get_variable("embedding", [num_symbols, embedding_size])
 
     def extract_argmax_and_embed(prev, _):
       """Loop_function that extracts the symbol from prev and embeds it."""
@@ -552,6 +649,7 @@ def embedding_attention_decoder(decoder_inputs, initial_state, attention_states,
 
 def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
                                 num_encoder_symbols, num_decoder_symbols,
+                                embedding_size,
                                 num_heads=1, output_projection=None,
                                 feed_previous=False, dtype=dtypes.float32,
                                 scope=None):
@@ -593,8 +691,8 @@ def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
   """
   with vs.variable_scope(scope or "embedding_attention_seq2seq"):
     # Encoder.
-    encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols)
-    encoder_outputs, encoder_states = rnn.rnn(
+    encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
+    encoder_outputs, encoder_states = rnn(
         encoder_cell, encoder_inputs, dtype=dtype)
 
     # First calculate a concatenation of encoder outputs to put attention on.
@@ -611,16 +709,18 @@ def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
     if isinstance(feed_previous, bool):
       return embedding_attention_decoder(
           decoder_inputs, encoder_states[-1], attention_states, cell,
-          num_decoder_symbols, num_heads, output_size, output_projection,
-          feed_previous)
+          num_decoder_symbols, embedding_size, num_heads, output_size,
+          output_projection, feed_previous)
     else:  # If feed_previous is a Tensor, we construct 2 graphs and use cond.
       outputs1, states1 = embedding_attention_decoder(
           decoder_inputs, encoder_states[-1], attention_states, cell,
-          num_decoder_symbols, num_heads, output_size, output_projection, True)
+          num_decoder_symbols, embedding_size, num_heads, output_size,
+          output_projection, True)
       vs.get_variable_scope().reuse_variables()
       outputs2, states2 = embedding_attention_decoder(
           decoder_inputs, encoder_states[-1], attention_states, cell,
-          num_decoder_symbols, num_heads, output_size, output_projection, False)
+          num_decoder_symbols, embedding_size, num_heads, output_size,
+          output_projection, False)
 
       outputs = control_flow_ops.cond(feed_previous,
                                       lambda: outputs1, lambda: outputs2)
@@ -654,8 +754,7 @@ def sequence_loss_by_example(logits, targets, weights, num_decoder_symbols,
   if len(targets) != len(logits) or len(weights) != len(logits):
     raise ValueError("Lengths of logits, weights, and targets must be the same "
                      "%d, %d, %d." % (len(logits), len(weights), len(targets)))
-  with ops.op_scope(logits + targets + weights, name,
-                    "sequence_loss_by_example"):
+  with ops.name_scope(name, "sequence_loss_by_example", logits + targets + weights):
     batch_size = array_ops.shape(targets[0])[0]
     log_perp_list = []
     length = batch_size * num_decoder_symbols
@@ -708,7 +807,7 @@ def sequence_loss(logits, targets, weights, num_decoder_symbols,
   Raises:
     ValueError: if len(logits) is different from len(targets) or len(weights).
   """
-  with ops.op_scope(logits + targets + weights, name, "sequence_loss"):
+  with ops.name_scope(name, "sequence_loss", logits + targets + weights):
     cost = math_ops.reduce_sum(sequence_loss_by_example(
         logits, targets, weights, num_decoder_symbols,
         average_across_timesteps=average_across_timesteps,
@@ -763,7 +862,7 @@ def model_with_buckets(encoder_inputs, decoder_inputs, targets, weights,
   all_inputs = encoder_inputs + decoder_inputs + targets + weights
   losses = []
   outputs = []
-  with ops.op_scope(all_inputs, name, "model_with_buckets"):
+  with ops.name_scope(name, "model_with_buckets", all_inputs):
     for j in xrange(len(buckets)):
       if j > 0:
         vs.get_variable_scope().reuse_variables()
