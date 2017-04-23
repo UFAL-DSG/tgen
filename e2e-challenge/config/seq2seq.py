@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 
 config = {
-          'language': 'cs',
+          'language': 'en',
           'selector': '',
           'alpha': 5e-4,
           'randomize': True,
@@ -30,15 +30,15 @@ config = {
           'validation_freq': 1,
           'validation_use_all_refs': True,
           'validation_use_train_refs': True,
-          'validation_delex_slots': 'name,area,address,phone,good_for_meal,near,food,price_range,count,price,postcode',
+          'validation_delex_slots': 'name,near',
           #'multiple_refs': '3,parallel',
           #'ref_selectors': 'ref0,ref1,ref2',
-          'passes': 300,
-          'min_passes': 50,
-          'improve_interval': 50,
-          'top_k': 10,
+          'passes': 20,
+          'min_passes': 5,
+          'improve_interval': 5,
+          'top_k': 3,
           'bleu_validation_weight': 1,
-          'beam_size': 20,
+          'beam_size': 10,
           'alpha_decay': 0, # 0.03
 
          'classif_filter': {
@@ -50,8 +50,8 @@ config = {
               'nn_shape': 'rnn',
               'num_hidden_units': 128,
               #'passes': 200,
-              'passes': 100,
-              'min_passes': 10,
+              'passes': 20,
+              'min_passes': 5,
               'randomize': True,
               'batch_size': 20,
               'alpha': 1e-3,
