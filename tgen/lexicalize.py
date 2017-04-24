@@ -24,7 +24,7 @@ import kenlm
 
 from tgen.tree import NodeData, TreeData
 from tgen.rnd import rnd
-from tgen.futil import file_stream, read_absts
+from tgen.futil import file_stream, read_absts, smart_load_absts
 from tgen.logf import log_warn, log_info, log_debug
 from tgen.tf_ml import TFModel
 from tgen.ml import softmax
@@ -661,7 +661,7 @@ class Lexicalizer(object):
         @param abst_file: abstraction/delexicalization instructions file path
         @return: None
         """
-        abstss = read_absts(abst_file)
+        abstss = smart_load_absts(abst_file)
         for sent_no, (tree, absts) in enumerate(zip(gen_trees, abstss)):
             log_debug("Lexicalizing sentence %d: %s" % ((sent_no + 1), unicode(tree)))
             sent = self._tree_to_sentence(tree)

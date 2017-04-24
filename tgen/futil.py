@@ -10,7 +10,8 @@ import cPickle as pickle
 import codecs
 import gzip
 import regex
-from io import IOBase
+import re
+from io import IOBase, BytesIO
 from codecs import StreamReader, StreamWriter
 
 from tree import TreeData
@@ -63,6 +64,34 @@ def read_absts(abst_file):
                     absts.append(Abst.parse(abst_str))
             abstss.append(absts)
     return abstss
+
+
+def smart_load_absts(fname):
+    """Load lexicalization instructions in a smart way, i.e., be able to detect DA files
+    or abstraction files with multi-reference mode."""
+    with file_stream(fname) as fh:
+        contents = fh.read()
+        buf = BytesIO(contents.encode('UTF-8'))
+        # read DAs and convert them to Absts
+        if not re.search(r'\t', contents):
+            return [[Abst(dai.slot, dai.value) for dai in da
+                     if dai.value not in [None, 'dont_care', 'dontcare']]
+                    for da in read_das(buf)]
+        # multi-reference mode: read all but only output Absts for 1st reference of each instance
+        elif re.search(r'(\n\n|\r\n\r\n|\r\r)', contents):
+            abstss = read_absts(buf)
+            out_abstss = []
+            ref1st = True
+            for absts in abstss:
+                if not absts:
+                    ref1st = True
+                elif ref1st:
+                    out_abstss.append(absts)
+                    ref1st = False
+            return out_abstss
+        # plain 1-reference abstraction file
+        else:
+            return read_absts(buf)
 
 
 def read_ttrees(ttree_file):
