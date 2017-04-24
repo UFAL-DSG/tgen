@@ -20,7 +20,7 @@ def convert(args):
             line = line.strip()
             if args.multi_ref:
                 if not line:
-                    for ilist in insts[cur_no + 1:]:
+                    for ilist in insts[cur_no:]:  # no more refs for this instance: add empty
                         ilist.append('')
                     cur_no = 0
                 else:
