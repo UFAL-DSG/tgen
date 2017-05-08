@@ -98,6 +98,7 @@ def convert(args):
 
     # initialize storage
     items = 0
+    conc_das = [] # concrete DAs
     das = []  # abstracted DAs
     concs = []  # concrete sentences
     texts = []  # abstracted sentences
@@ -122,6 +123,7 @@ def convert(args):
                 texts_.append(text)
 
             das.append(da)
+            conc_das.append(conc_da)
             contexts.append(context)
             conc_contexts.append(context_l)
             concs.append(concs_)
@@ -159,6 +161,7 @@ def convert(args):
 
         # repeat DAs and contexts for synonymous paraphrases, unless for test data in multi-ref mode
         write_part(part_name + '-das.txt', das, part_size, repeat_num)
+        write_part(part_name + '-conc_das.txt', conc_das, part_size, repeat_num)
         write_part(part_name + '-context.txt', contexts, part_size, repeat_num)
         write_part(part_name + '-conc_context.txt', conc_contexts, part_size, repeat_num)
 
