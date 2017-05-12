@@ -851,7 +851,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self._training_pass(iter_no)
 
             # validate every couple iterations
-            if self.validation_size > 0 and iter_no % self.validation_freq == 0 :
+            if self.validation_size > 0 and iter_no % self.validation_freq == 0:
 
                 cur_train_out = self.process_das(self.train_das[:self.batch_size])
                 log_info("Current train output:\n" +
