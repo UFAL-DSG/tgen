@@ -57,12 +57,12 @@ You can run the program with `seq2seq_train -h` and `seq2seq_gen -h` to see more
 The file parameters for training are:
 
 * `config-file.py` -- a configuration file, containing a Python dictionary with all generator
-    parameters. A default configuration file can be found in every experiment directory (see below).
+    parameters. A default configuration file can be found in every experiment directory (see [below](#experiments)).
 
-* `train-das.txt` -- training DAs, one DA per line (see below).
+* `train-das.txt` -- training DAs, one DA per line (see [below](#data-formats)).
 
 * `train-text.txt` -- training natural language texts or trees (in a Treex YAML file) as example 
-    outputs for the generator. Text files should contain one instance per line.
+    outputs for the generator (see [below](#data-formats)). Text files should contain one instance per line.
 
 * `model.pickle.gz` -- the output destination for the model. Note that several additional files 
     with different extensions will be created.
