@@ -121,6 +121,11 @@ The default configuration file for each dataset is stored in the `config/seq2seq
 This is typically the baseline variant, with improved versions requiring slight configuration 
 changes.
 
+The main experiment directory always has a basic experiment management in the `Makefile`, where 
+`make help` can list the main commands. Note that some of the code in the Makefiles is also 
+site-specific, especially all parts related to computing grid batch job submission, and requires 
+some tweaking to get working. The code in the `Makefile` also assumes that Treex is installed.
+
 If you need help running some of the experiments, feel free to 
 [contact me](http://github.com/tuetschek).
 
