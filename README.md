@@ -19,18 +19,18 @@ For more details on the algorithms, please refer to our papers:
 * For seq2seq generation, see our [ACL 2016 paper](http://aclweb.org/anthology/P16-2008).
 * For an improved version of the seq2seq generation that takes previous user utterance into account to generate a more contextually-appropriate response, see our [SIGDIAL 2016 paper](http://www.sigdial.org/workshops/conference17/proceedings/pdf/SIGDIAL22.pdf).
 
-Notice
-------
-
-* TGen is highly experimental and only tested on a few datasets. Use at your own risk.
-* If you do not require a specific version of TGen, we recommended to install the current master version, which has the latest bugfixes and all the functionality of the ACL2016/SIGDIAL2016 version.
-* To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
-* To get the version used in our ACL 2016 and SIGDIAL 2016 papers (seq2seq approach for generating sentence plans or strings, optionally using previous context), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
-
 Installation and Usage
 ----------------------
 
-Please refer to [USAGE.md](USAGE.md).
+Please refer to [USAGE.md](USAGE.md) for instructions on how to use TGen.
+
+Notice
+------
+
+* TGen is highly experimental and only tested on a few datasets, so bugs are inevitable. If you find a bug, feel free to [contact me](https://github.com/tuetschek) or [open an issue](https://github.com/UFAL-DSG/tgen/issues).
+* If you do not require a specific version of TGen, we recommended to install the current master version, which has the latest bugfixes and all the functionality of the ACL2016/SIGDIAL2016 version.
+  * To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
+  * To get the version used in our ACL 2016 and SIGDIAL 2016 papers (seq2seq approach for generating sentence plans or strings, optionally using previous context), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
 
 Citing TGen
 -----------
