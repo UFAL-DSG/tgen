@@ -27,40 +27,10 @@ Notice
 * To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
 * To get the version used in our ACL 2016 and SIGDIAL 2016 papers (seq2seq approach for generating sentence plans or strings, optionally using previous context), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
 
-Installation
-------------
+Installation and Usage
+----------------------
 
-TGen is written in Python (version 2.7). You can install it simply by cloning this repository, then installing all Python dependencies using pip:
-```
-git clone https://github.com/UFAL-DSG/tgen
-cd tgen
-pip install -r requirements.txt
-```
-
-To replicate most of the experiments in our papers, you will also need to install [Treex](http://ufal.cz/treex) (including the newest version from the Git repository as described in Step 5 of the [Treex installation guide](http://ufal.mff.cuni.cz/treex/install.html)). It is, however, not needed for basic functionality (without using deep syntactic trees).
-
-Dependencies
-------------
-
-Required Python modules (installed using pip and the [requirements file](requirements.txt)):
-
-- [enum34](https://pypi.python.org/pypi/enum34)
-- [numpy](http://www.numpy.org/)
-- [rpyc](https://pypi.python.org/pypi/rpyc/)
-- [pudb](https://pypi.python.org/pypi/pudb)
-- [recordclass](https://pypi.python.org/pypi/recordclass)
-- [TensorFlow](https://www.tensorflow.org/), only version 0.6 is supported for the time being
-- [kenlm](https://github.com/kpu/kenlm)
-- [PyTreex](https://github.com/ufal/pytreex)
-
-
-Optional, manual installation (Perl code):
-
-- [Treex](http://ufal.cz/treex)
-
-Additionally, some obsolete code depends on [Theano](http://deeplearning.net/software/theano/), but it is currently not used and will be probably removed in the future.
-
-Parallel training on the cluster is using [SGE](https://arc.liv.ac.uk/trac/SGE)'s `qsub`.
+Please refer to [USAGE.md](USAGE.md).
 
 Citing TGen
 -----------
