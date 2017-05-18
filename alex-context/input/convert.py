@@ -50,6 +50,8 @@ def get_abstraction(text, conc_da, slot_names=False):
     toks = tokenize(text).split(' ')
 
     for dai in conc_da:
+        if not dai.slot:
+            continue
         slot_abst = '*' + dai.slot.upper()
         try:
             idx = toks.index(slot_abst)
