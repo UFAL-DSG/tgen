@@ -83,12 +83,12 @@ def write_part(file_name, data, part_size, repeat=1, trunc=True, separate=False)
         for inst in data[0:part_size]:
             if isinstance(inst, list):
                 for inst_part in inst:
-                    fh.write(unicode(inst_part).encode('utf-8') + "\n")
+                    fh.write(unicode(inst_part).encode('utf-8') + b"\n")
                 if separate:
                     fh.write("\n")
             else:
                 for _ in xrange(repeat):
-                    fh.write(unicode(inst).encode('utf-8') + "\n")
+                    fh.write(unicode(inst).encode('utf-8') + b"\n")
     if trunc:
         del data[0:part_size]
 
