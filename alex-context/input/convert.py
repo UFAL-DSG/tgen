@@ -50,7 +50,7 @@ def get_abstraction(text, conc_da, slot_names=False):
     toks = tokenize(text).split(' ')
 
     for dai in conc_da:
-        if not dai.slot:
+        if not dai.slot or dai.value in [None, 'none', 'dontcare', 'dont_care', 'yes', 'no']:
             continue
         slot_abst = '*' + dai.slot.upper()
         try:
