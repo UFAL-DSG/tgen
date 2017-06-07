@@ -32,6 +32,7 @@ from tgen.tfclassif import RerankingClassifier
 from tgen.tf_ml import TFModel, embedding_attention_seq2seq_context
 from tgen.ml import softmax
 from tgen.lexicalize import Lexicalizer
+import tgen.externals.seq2seq as tf06s2s
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -130,7 +131,7 @@ class Seq2SeqBase(SentencePlanner):
 
         # run the decoding per se
         dec_output_ids, dec_cost = self._get_greedy_decoder_output(
-                enc_inputs, dec_inputs, compute_cost=gold_trees is not None)
+            enc_inputs, dec_inputs, compute_cost=gold_trees is not None)
 
         return dec_output_ids, dec_cost
 
@@ -486,7 +487,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self._init_neural_network()
 
         # initialize the NN variables
-        self.session.run(tf.initialize_all_variables())
+        self.session.run(tf.global_variables_initializer())
 
     def _load_trees(self, ttree_file, selector=None):
         """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
@@ -699,11 +700,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
 
-            rnn_func = tf.nn.seq2seq.embedding_rnn_seq2seq
+            rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
-                rnn_func = tf.nn.seq2seq.embedding_attention_seq2seq
+                rnn_func = tf06s2s.embedding_attention_seq2seq
             elif self.nn_type == 'emb_attention2_seq2seq':
-                rnn_func = partial(tf.nn.seq2seq.embedding_attention_seq2seq, num_heads=2)
+                rnn_func = partial(tf06s2s.embedding_attention_seq2seq, num_heads=2)
             elif self.nn_type == 'emb_attention_seq2seq_context':
                 rnn_func = embedding_attention_seq2seq_context
             elif self.nn_type == 'emb_attention2_seq2seq_context':
@@ -716,6 +717,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 self.enc_inputs_drop if self.enc_inputs_drop else self.enc_inputs,
                 self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
+                self.emb_size,
                 scope=scope)
 
             scope.reuse_variables()
@@ -724,6 +726,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.dec_outputs, self.dec_states = rnn_func(
                 self.enc_inputs, self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
+                self.emb_size,
                 feed_previous=True, scope=scope)
 
         # TODO use output projection ???
@@ -734,10 +737,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                              for trg in self.targets]
 
         # cost
-        self.tf_cost = tf.nn.seq2seq.sequence_loss(self.outputs, self.targets,
-                                                   self.cost_weights, self.tree_dict_size)
-        self.dec_cost = tf.nn.seq2seq.sequence_loss(self.dec_outputs, self.targets,
-                                                    self.cost_weights, self.tree_dict_size)
+        self.tf_cost = tf06s2s.sequence_loss(self.outputs, self.targets,
+                                             self.cost_weights, self.tree_dict_size)
+        self.dec_cost = tf06s2s.sequence_loss(self.dec_outputs, self.targets,
+                                              self.cost_weights, self.tree_dict_size)
         if self.use_dec_cost:
             self.cost = 0.5 * (self.tf_cost + self.dec_cost)
         else:
@@ -762,7 +765,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.session = tf.Session(config=session_config)
 
         # this helps us load/save the model
-        self.saver = tf.train.Saver(tf.all_variables())
+        self.saver = tf.train.Saver(tf.global_variables())
 
     def _training_pass(self, iter_no):
         """Perform one pass through the training data (epoch).
@@ -939,9 +942,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
         if hasattr(self, 'checkpoint_path') and self.checkpoint_path:
-            shutil.copyfile(self.checkpoint_path, tf_session_fname)
-        else:
-            self.saver.save(self.session, tf_session_fname)
+            self.saver.restore(self.session, self.checkpoint_path)
+            shutil.rmtree(os.path.dirname(self.checkpoint_path))
+        self.saver.save(self.session, tf_session_fname)
 
     def get_all_settings(self):
         """Get all settings except the trained model parameters (to be stored in a pickle)."""
@@ -960,8 +963,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Save a checkpoint to a temporary path; set `self.checkpoint_path` to the path
         where it is saved; if called repeatedly, will always overwrite the last checkpoint."""
         if not self.checkpoint_path:
-            fh, path = tempfile.mkstemp(".ckpt", "tgen-", self.checkpoint_path)
-            self.checkpoint_path = path
+            path = tempfile.mkdtemp(suffix="", prefix="tgen-")
+            self.checkpoint_path = os.path.join(path, "ckpt")
         log_info('Saving checkpoint to %s' % self.checkpoint_path)
         self.saver.save(self.session, self.checkpoint_path)
 
@@ -996,7 +999,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 ret.lexicalizer = None
 
         # re-build TF graph and restore the TF session
-        tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        tf_session_fname = os.path.abspath(re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname))
         param_dump_fname = re.sub(r'(.pickle)?(.gz)?$', '.params.gz', model_fname)
         ret._init_neural_network()
         if os.path.isfile(param_dump_fname):

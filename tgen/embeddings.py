@@ -450,6 +450,7 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
         self.rev_dict = {self.VOID: '<VOID>', self.GO: '<GO>',
                          self.STOP: '<STOP>', self.UNK: '<UNK>',
                          self.PLURAL_S: '<-s>'}
+        self.reverse = cfg.get('reverse', False)
 
     def init_dict(self, train_sents, dict_ord=None):
         """Initialize embedding dictionary (word -> id)."""
@@ -518,6 +519,8 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
         elif len(embs) < self.max_sent_len + 2:
             embs += [self.VOID] * (self.max_sent_len + 2 - len(embs))
 
+        if self.reverse:
+            return list(reversed(embs))
         return embs
 
     def get_embeddings_shape(self):

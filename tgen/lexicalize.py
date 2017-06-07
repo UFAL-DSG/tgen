@@ -24,10 +24,11 @@ import kenlm
 
 from tgen.tree import NodeData, TreeData
 from tgen.rnd import rnd
-from tgen.futil import file_stream, read_absts
+from tgen.futil import file_stream, read_absts, smart_load_absts
 from tgen.logf import log_warn, log_info, log_debug
 from tgen.tf_ml import TFModel
 from tgen.ml import softmax
+import tgen.externals.seq2seq as tf06s2s
 
 
 class FormSelect(object):
@@ -299,7 +300,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
             # cost
             targets_1d = tf.reshape(self._targets, [-1])
-            self._loss = tf.nn.seq2seq.sequence_loss_by_example(
+            self._loss = tf06s2s.sequence_loss_by_example(
                     [self._logits], [targets_1d],
                     [tf.ones_like(targets_1d, dtype=tf.float32)], self.vocab_size)
             self._cost = tf.reduce_mean(self._loss)
@@ -660,7 +661,7 @@ class Lexicalizer(object):
         @param abst_file: abstraction/delexicalization instructions file path
         @return: None
         """
-        abstss = read_absts(abst_file)
+        abstss = smart_load_absts(abst_file)
         for sent_no, (tree, absts) in enumerate(zip(gen_trees, abstss)):
             log_debug("Lexicalizing sentence %d: %s" % ((sent_no + 1), unicode(tree)))
             sent = self._tree_to_sentence(tree)
