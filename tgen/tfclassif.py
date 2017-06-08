@@ -408,13 +408,13 @@ class RerankingClassifier(TFModel):
                 self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
                 self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
                                for i in xrange(self.input_shape[0])]
-                self.cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
+                self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
                 self.outputs = self._rnn('rnn', self.inputs)
 
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
         # (or is computed as if there were a sigmoid layer on top)
         self.cost = tf.reduce_mean(tf.reduce_sum(
-            tf.nn.sigmoid_cross_entropy_with_logits(self.outputs, self.targets, name='CE'), 1))
+            tf.nn.sigmoid_cross_entropy_with_logits(labels=self.outputs, logits=self.targets, name='CE'), 1))
 
         # NB: this would have been the "true" cost function, if there were a "real" sigmoid layer on top.
         # However, it is not numerically stable in practice, so we have to use the TF function.
@@ -438,7 +438,7 @@ class RerankingClassifier(TFModel):
         width = [np.prod(self.input_shape)] + (num_layers * [self.num_hidden_units]) + [self.num_outputs]
         # the last layer should be a sigmoid, but TF simulates it for us in cost computation
         # so the output is "unnormalized sigmoids"
-        activ = (num_layers * [tf.nn.tanh]) + [tf.identity]
+        activ = (num_layers * [tf.tanh]) + [tf.identity]
         Y = X
         for i in xrange(num_layers + 1):
             w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i + 1]),
@@ -449,14 +449,14 @@ class RerankingClassifier(TFModel):
         return Y
 
     def _rnn(self, name, enc_inputs):
-        encoder_cell = tf.nn.rnn_cell.EmbeddingWrapper(self.cell, self.dict_size, self.emb_size)
-        encoder_outputs, encoder_state = tf.nn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
+        encoder_cell = tf.contrib.rnn.EmbeddingWrapper(self.cell, self.dict_size, self.emb_size)
+        encoder_outputs, encoder_state = tf.contrib.rnn.static_rnn(encoder_cell, enc_inputs, dtype=tf.float32)
 
         # TODO for historical reasons, the last layer uses both output and state.
         # try this just with outputs (might work exactly the same)
-        if isinstance(self.cell.state_size, tf.nn.rnn_cell.LSTMStateTuple):
+        if isinstance(self.cell.state_size, tf.contrib.rnn.LSTMStateTuple):
             state_size = self.cell.state_size.c + self.cell.state_size.h
-            final_input = tf.concat(1, encoder_state)  # concat c + h
+            final_input = tf.concat(axis=1, values=encoder_state)  # concat c + h
         else:
             state_size = self.cell.state_size
             final_input = encoder_state

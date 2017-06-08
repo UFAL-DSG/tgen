@@ -690,12 +690,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # prepare cells
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
-            self.cell = tf.nn.rnn_cell.GRUCell(self.emb_size)
+            self.cell = tf.contrib.rnn.GRUCell(self.emb_size)
         else:
-            self.cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
+            self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
 
         if self.cell_type.endswith('/2'):
-            self.cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * 2)
+            self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
