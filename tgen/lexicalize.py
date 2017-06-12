@@ -321,10 +321,14 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
         # initialize TF session
         session_config = None
+        session_config = tf.ConfigProto()
+        session_config.gpu_options.allow_growth = True
+        session_config.gpu_options.per_process_gpu_memory_fraction = 0.2
+
         if self.max_cores:
-            session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
-                                            intra_op_parallelism_threads=self.max_cores)
-        self.session = tf.Session(config=session_config)
+            session_config.inter_op_parallelism_threads=self.max_cores
+            session_config.intra_op_parallelism_threads=self.max_cores
+	self.session = tf.Session(config=session_config)
 
     def get_all_settings(self):
         return {'vocab': self.vocab,

@@ -414,7 +414,7 @@ class RerankingClassifier(TFModel):
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
         # (or is computed as if there were a sigmoid layer on top)
         self.cost = tf.reduce_mean(tf.reduce_sum(
-            tf.nn.sigmoid_cross_entropy_with_logits(labels=self.outputs, logits=self.targets, name='CE'), 1))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.outputs, labels=self.targets, name='CE'), 1))
 
         # NB: this would have been the "true" cost function, if there were a "real" sigmoid layer on top.
         # However, it is not numerically stable in practice, so we have to use the TF function.
@@ -426,6 +426,9 @@ class RerankingClassifier(TFModel):
 
         # initialize session
         session_config = None
+	session_config = tf.ConfigProto()                                
+	session_config.gpu_options.allow_growth = True 
+	session_config.gpu_options.per_process_gpu_memory_fraction = 0.2 
         if self.max_cores:
             session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
                                             intra_op_parallelism_threads=self.max_cores)
