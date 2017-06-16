@@ -38,7 +38,7 @@ TRY_NUM   := $(shell perl -e '$$m=0; for(<$(RUNS_DIR)/*>){/\/(\d+)_/ and $$1 > $
 RUN_NAME  := experiment# default name, to be overridden by targets
 DATE      := $(shell date +%Y-%m-%d_%H-%M-%S)
 TRY_DIR    = $(RUNS_DIR)/$(TRY_NUM)_$(DATE)_$(RUN_NAME)# experiment output directory
-TRAINING_SET := training-delex_v1
+TRAINING_SET := training-delex_v2
 
 ifdef D # Shortcut D -> DESC
   DESC := $(D)
@@ -59,19 +59,17 @@ TRAIN_PORTION = 1.0
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TEXTS = data/$(TRAINING_SET)/train-text.txt
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
-TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
+TRAIN_CONC = data/$(TRAINING_SET)/train-conc.txt
 
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
-TEST_REF = data/$(TRAINING_SET)/devel-das.sgm
 TEST_TEXTS = data/$(TRAINING_SET)/devel-text.txt
 TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
-TEST_CONC = data/$(TRAINING_SET)/devel-conc.sgm
+TEST_CONC = data/$(TRAINING_SET)/devel-conc.txt
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
-  TEST_REF = data/$(TRAINING_SET)/test-das.sgm
   TEST_TEXTS = data/$(TRAINING_SET)/test-text.txt
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
-  TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
+  TEST_CONC = data/$(TRAINING_SET)/test-conc.txt
 
   VALID_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
   VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
@@ -225,9 +223,8 @@ seq2seq_gen_cv:
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
 	cp $(TEST_TEXTS) $(TRY_DIR)/test-text.txt
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
+	cp $(TEST_CONC) $(TRY_DIR)/test-conc.txt
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
@@ -240,9 +237,7 @@ gen_process:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.txt $(DEBUG_LOG_GEN) \
 			-w $(TRY_DIR)/out-text.txt $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
-		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
-		$(POSTPROCESS) $(TRY_DIR)/out-text.txt $(TRY_DIR)/out-text.sgm; \
-		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
+		$(GEN_MODEL) $(TRY_DIR)/test-das.txt' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
 # Rerun an experiment (TRY_DIR, TRY_NUM, RUN_NAME must be set!)
