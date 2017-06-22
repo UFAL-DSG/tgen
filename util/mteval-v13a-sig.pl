@@ -727,6 +727,7 @@ sub score_document
 sub brevity_penalty_shortest
 {
 	my ( $currentLength, $referenceSentenceLength, $candidateSentenceLength ) = @_;
+        return $currentLength if (!$referenceSentenceLength);
 	return ( $referenceSentenceLength < $currentLength ? $referenceSentenceLength : $currentLength );
 }
 
@@ -752,6 +753,7 @@ sub brevity_penalty_shortest
 sub brevity_penalty_closest
 {
 	my ( $currentLength, $referenceSentenceLength, $candidateSentenceLength ) = @_;
+        return $currentLength if (!$referenceSentenceLength);
 	my $result = $currentLength;
 	if ( abs( $candidateSentenceLength - $referenceSentenceLength ) <= abs( $candidateSentenceLength - $currentLength ) )
 	{
