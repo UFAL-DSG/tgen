@@ -29,7 +29,6 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.ops import variable_scope as vs
-#from tensorflow.contrib import rnn
 from tensorflow.contrib.rnn.python.ops import rnn_cell
 from tensorflow.contrib.rnn import EmbeddingWrapper, RNNCell, OutputProjectionWrapper
 
