@@ -462,9 +462,8 @@ def seq2seq_gen(args):
     if args.beam_size is not None:
         tgen.beam_size = args.beam_size
 
-    # read input files
+    # read input files (DAs, contexts)
     das = read_das(args.da_test_file)
-    contexts = None
     if args.context_file:
         if not tgen.use_context and not tgen.context_bleu_weight:
             log_warn('Generator is not trained to use context, ignoring context input file.')
@@ -475,6 +474,10 @@ def seq2seq_gen(args):
                 contexts = tokens_from_doc(read_ttrees(args.context_file),
                                            tgen.language, tgen.selector)
             das = [(context, da) for context, da in zip(contexts, das)]
+    elif tgen.use_context or tgen.context_bleu_weight:
+        log_warn('Generator is trained to use context. ' +
+                 'Using empty contexts, expect lower performance.')
+        das = [([], da) for da in das]
 
     # generate
     log_info('Generating...')
@@ -500,7 +503,7 @@ def seq2seq_gen(args):
         tgen.lexicalize(gen_trees, args.abstr_file)
 
     # we won't need contexts anymore, but we do need DAs
-    if contexts:
+    if tgen.use_context or tgen.context_bleu_weight:
         das = [da for _, da in das]
 
     # evaluate the generated & lexicalized tokens (F1 and BLEU scores)

@@ -50,6 +50,8 @@ def get_abstraction(text, conc_da, slot_names=False):
     toks = tokenize(text).split(' ')
 
     for dai in conc_da:
+        if not dai.slot or dai.value in [None, 'none', 'dontcare', 'dont_care', 'yes', 'no']:
+            continue
         slot_abst = '*' + dai.slot.upper()
         try:
             idx = toks.index(slot_abst)
@@ -74,19 +76,23 @@ def convert_abstr_da(abstr_da):
     return abstr_da
 
 
-def write_part(file_name, data, part_size, repeat=1):
+def write_part(file_name, data, part_size, repeat=1, trunc=True, separate=False):
     """Write part of the dataset to a file (if the data instances are lists, unroll them, if not,
-    repeat each instance `repeat` times). Delete the written instances from the `data` list
-    at the end."""
+    repeat each instance `repeat` times). Separate the lists by an empty line if `separate`
+    is True (not by default). Delete the written instances from the `data` list at the end,
+    if `trunc` is True (default)."""
     with open(file_name, 'w') as fh:
         for inst in data[0:part_size]:
             if isinstance(inst, list):
                 for inst_part in inst:
-                    fh.write(unicode(inst_part).encode('utf-8') + "\n")
+                    fh.write(unicode(inst_part).encode('utf-8') + b"\n")
+                if separate:
+                    fh.write("\n")
             else:
                 for _ in xrange(repeat):
-                    fh.write(unicode(inst).encode('utf-8') + "\n")
-    del data[0:part_size]
+                    fh.write(unicode(inst).encode('utf-8') + b"\n")
+    if trunc:
+        del data[0:part_size]
 
 
 def convert(args):
@@ -94,6 +100,7 @@ def convert(args):
 
     # initialize storage
     items = 0
+    conc_das = [] # concrete DAs
     das = []  # abstracted DAs
     concs = []  # concrete sentences
     texts = []  # abstracted sentences
@@ -118,6 +125,7 @@ def convert(args):
                 texts_.append(text)
 
             das.append(da)
+            conc_das.append(conc_da)
             contexts.append(context)
             conc_contexts.append(context_l)
             concs.append(concs_)
@@ -155,10 +163,12 @@ def convert(args):
 
         # repeat DAs and contexts for synonymous paraphrases, unless for test data in multi-ref mode
         write_part(part_name + '-das.txt', das, part_size, repeat_num)
+        write_part(part_name + '-conc_das.txt', conc_das, part_size, repeat_num)
         write_part(part_name + '-context.txt', contexts, part_size, repeat_num)
         write_part(part_name + '-conc_context.txt', conc_contexts, part_size, repeat_num)
 
         # write all other just once (here, each instance is a list, it will be unrolled)
+        write_part(part_name + '-ref.txt', concs, part_size, trunc=False, separate=True)
         write_part(part_name + '-conc.txt', concs, part_size)
         write_part(part_name + '-abst.txt', absts, part_size)
         write_part(part_name + '-text.txt', texts, part_size)

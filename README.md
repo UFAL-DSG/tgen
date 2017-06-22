@@ -19,48 +19,18 @@ For more details on the algorithms, please refer to our papers:
 * For seq2seq generation, see our [ACL 2016 paper](http://aclweb.org/anthology/P16-2008).
 * For an improved version of the seq2seq generation that takes previous user utterance into account to generate a more contextually-appropriate response, see our [SIGDIAL 2016 paper](http://www.sigdial.org/workshops/conference17/proceedings/pdf/SIGDIAL22.pdf).
 
+Installation and Usage
+----------------------
+
+Please refer to [USAGE.md](USAGE.md) for instructions on how to use TGen.
+
 Notice
 ------
 
-* TGen is highly experimental and only tested on a few datasets. Use at your own risk.
+* TGen is highly experimental and only tested on a few datasets, so bugs are inevitable. If you find a bug, feel free to [contact me](https://github.com/tuetschek) or [open an issue](https://github.com/UFAL-DSG/tgen/issues).
 * If you do not require a specific version of TGen, we recommended to install the current master version, which has the latest bugfixes and all the functionality of the ACL2016/SIGDIAL2016 version.
-* To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
-* To get the version used in our ACL 2016 and SIGDIAL 2016 papers (seq2seq approach for generating sentence plans or strings, optionally using previous context), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
-
-Installation
-------------
-
-TGen is written in Python (version 2.7). You can install it simply by cloning this repository, then installing all Python dependencies using pip:
-```
-git clone https://github.com/UFAL-DSG/tgen
-cd tgen
-pip install -r requirements.txt
-```
-
-To replicate most of the experiments in our papers, you will also need to install [Treex](http://ufal.cz/treex) (including the newest version from the Git repository as described in Step 5 of the [Treex installation guide](http://ufal.mff.cuni.cz/treex/install.html)). It is, however, not needed for basic functionality (without using deep syntactic trees).
-
-Dependencies
-------------
-
-Required Python modules (installed using pip and the [requirements file](requirements.txt)):
-
-- [enum34](https://pypi.python.org/pypi/enum34)
-- [numpy](http://www.numpy.org/)
-- [rpyc](https://pypi.python.org/pypi/rpyc/)
-- [pudb](https://pypi.python.org/pypi/pudb)
-- [recordclass](https://pypi.python.org/pypi/recordclass)
-- [TensorFlow](https://www.tensorflow.org/), only version 0.6 is supported for the time being
-- [kenlm](https://github.com/kpu/kenlm)
-- [PyTreex](https://github.com/ufal/pytreex)
-
-
-Optional, manual installation (Perl code):
-
-- [Treex](http://ufal.cz/treex)
-
-Additionally, some obsolete code depends on [Theano](http://deeplearning.net/software/theano/), but it is currently not used and will be probably removed in the future.
-
-Parallel training on the cluster is using [SGE](https://arc.liv.ac.uk/trac/SGE)'s `qsub`.
+  * To get the version used in our ACL 2015 paper (A*-search only), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2015).
+  * To get the version used in our ACL 2016 and SIGDIAL 2016 papers (seq2seq approach for generating sentence plans or strings, optionally using previous context), see [this release](https://github.com/UFAL-DSG/tgen/releases/tag/ACL2016).
 
 Citing TGen
 -----------
