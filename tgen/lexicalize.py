@@ -321,10 +321,9 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
         # initialize TF session
         session_config = None
-
         if self.max_cores:
             session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
-            				    intra_op_parallelism_threads=self.max_cores)
+					    intra_op_parallelism_threads=self.max_cores)
 	self.session = tf.Session(config=session_config)
 
     def get_all_settings(self):
