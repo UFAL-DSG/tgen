@@ -50,9 +50,8 @@ def convert(args):
     def process_instance(da, conc):
         da.sort()
         conc_das.append(da)
-        conc = tokenize(conc)
 
-        text, da, abst = delex_sent(da, conc, slots_to_abstract, args.slot_names, repeated=True)
+        text, da, abst = delex_sent(da, tokenize(conc), slots_to_abstract, args.slot_names, repeated=True)
         text = text.lower().replace('x-', 'X-')  # lowercase all but placeholders
         da.sort()
 
