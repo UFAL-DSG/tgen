@@ -7,3 +7,5 @@
 *.pyc
 .*.swp
 *.backup
+*/input
+

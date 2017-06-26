@@ -1,3 +1,4 @@
+regex
 enum34
 numpy
 rpyc
