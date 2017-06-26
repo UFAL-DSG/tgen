@@ -9,7 +9,8 @@ from __future__ import unicode_literals
 
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
-from tensorflow.python.ops import array_ops, control_flow_ops, rnn, rnn_cell
+from tensorflow.python.ops import array_ops, control_flow_ops
+from tensorflow.contrib.rnn import EmbeddingWrapper, OutputProjectionWrapper
 from tensorflow import variable_scope as vs
 import tgen.externals.seq2seq as tf06s2s
 
@@ -79,7 +80,7 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
         encoder_inputs = encoder_inputs[len(encoder_inputs) / 2:]
 
         # build separate encoders
-        encoder_cell = rnn_cell.EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
+        encoder_cell = EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
         with vs.variable_scope("context_rnn") as scope:
             context_outputs, context_states = tf06s2s.rnn(
                 encoder_cell, context_inputs, dtype=dtype, scope=scope)
@@ -105,7 +106,7 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
         # Decoder.
         output_size = None
         if output_projection is None:
-            cell = rnn_cell.OutputProjectionWrapper(cell, num_decoder_symbols)
+            cell = OutputProjectionWrapper(cell, num_decoder_symbols)
             output_size = num_decoder_symbols
 
         if isinstance(feed_previous, bool):
