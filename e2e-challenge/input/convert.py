@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Converting the SFX data sets (Cambridge, Wen et al. NAACL 2015) to our data format.
+Converting the E2E Challenge dataset (http://www.macs.hw.ac.uk/InteractionLab/E2E/) to our data format.
 """
 
 from __future__ import unicode_literals
@@ -12,8 +12,11 @@ import re
 import argparse
 import unicodecsv as csv
 import codecs
-import os, sys
+import os
+import sys
+
 sys.path.insert(0, os.path.abspath('../../'))
+
 from tgen.data import DA
 from tgen.delex import delex_sent
 from tgen.futil import tokenize
