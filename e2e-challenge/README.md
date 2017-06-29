@@ -40,7 +40,7 @@ To train and evaluate the baseline, you need to:
 
 4. __Postprocess the outputs.__
    This basically amounts to a simple detokenization.
-   The script changes the outputs in-place, or you can specify a target file name.
+   The [script](postprocess/postprocess.py) changes the outputs in-place, or you can specify a target file name.
 ```
 ./postprocess/postprocess.py outputs.txt
 ```
