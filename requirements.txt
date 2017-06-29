@@ -1,4 +1,5 @@
 regex
+unicodecsv
 enum34
 numpy
 rpyc
