@@ -27,7 +27,7 @@ Required Python modules (installed using pip and the [requirements file](require
 - [rpyc](https://pypi.python.org/pypi/rpyc/)
 - [pudb](https://pypi.python.org/pypi/pudb)
 - [recordclass](https://pypi.python.org/pypi/recordclass)
-- [TensorFlow](https://www.tensorflow.org/), only version 0.6 is supported for the time being
+- [TensorFlow](https://www.tensorflow.org/), only version 1.0.1 is supported
 - [kenlm](https://github.com/kpu/kenlm)
 - [PyTreex](https://github.com/ufal/pytreex)
 

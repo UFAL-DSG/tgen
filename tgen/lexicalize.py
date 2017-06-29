@@ -24,10 +24,11 @@ import kenlm
 
 from tgen.tree import NodeData, TreeData
 from tgen.rnd import rnd
-from tgen.futil import file_stream, read_absts
+from tgen.futil import file_stream, read_absts, smart_load_absts
 from tgen.logf import log_warn, log_info, log_debug
 from tgen.tf_ml import TFModel
 from tgen.ml import softmax
+import tgen.externals.seq2seq as tf06s2s
 
 
 class FormSelect(object):
@@ -233,7 +234,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
             for sent in valid_sents:
                 self._valid_data.append(self._sent_to_ids(sent))
         self._init_neural_network()
-        self.session.run(tf.initialize_all_variables())
+        self.session.run(tf.global_variables_initializer())
 
     def _sent_to_ids(self, sent):
         """Convert tokens in a sentence to integer IDs to be used as an input to the RNN.
@@ -277,29 +278,29 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
             # RNN cell type
             if self.cell_type.startswith('gru'):
-                self._cell = tf.nn.rnn_cell.GRUCell(self.emb_size)
+                self._cell = tf.contrib.rnn.GRUCell(self.emb_size)
             else:
-                self._cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
+                self._cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
             if re.match(r'/[0-9]$', self.cell_type):
-                self._cell = tf.nn.rnn_cell.MultiRNNCell([self.cell] * int(self.cell_type[-1]))
+                self._cell = tf.contrib.rnn.MultiRNNCell([self.cell] * int(self.cell_type[-1]))
             self._initial_state = self._cell.zero_state(tf.shape(self._inputs)[0], tf.float32)
 
             # embeddings
-            emb_cell = tf.nn.rnn_cell.EmbeddingWrapper(self._cell, self.vocab_size)
+            emb_cell = tf.contrib.rnn.EmbeddingWrapper(self._cell, self.vocab_size)
             # RNN encoder
             inputs = [tf.squeeze(input_, [1])
-                      for input_ in tf.split(1, self.max_sent_len, self._inputs)]
-            outputs, states = tf.nn.rnn(emb_cell, inputs, initial_state=self._initial_state)
+                      for input_ in tf.split(axis=1, num_or_size_splits=self.max_sent_len, value=self._inputs)]
+            outputs, states = tf.contrib.rnn.static_rnn(emb_cell, inputs, initial_state=self._initial_state)
 
             # output layer
-            output = tf.reshape(tf.concat(1, outputs), [-1, self.emb_size])
+            output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.emb_size])
             self._logits = (tf.matmul(output,
                                       tf.get_variable("W", [self.emb_size, self.vocab_size])) +
                             tf.get_variable("b", [self.vocab_size]))
 
             # cost
             targets_1d = tf.reshape(self._targets, [-1])
-            self._loss = tf.nn.seq2seq.sequence_loss_by_example(
+            self._loss = tf06s2s.sequence_loss_by_example(
                     [self._logits], [targets_1d],
                     [tf.ones_like(targets_1d, dtype=tf.float32)], self.vocab_size)
             self._cost = tf.reduce_mean(self._loss)
@@ -322,8 +323,8 @@ class RNNLMFormSelect(FormSelect, TFModel):
         session_config = None
         if self.max_cores:
             session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
-                                            intra_op_parallelism_threads=self.max_cores)
-        self.session = tf.Session(config=session_config)
+					    intra_op_parallelism_threads=self.max_cores)
+	self.session = tf.Session(config=session_config)
 
     def get_all_settings(self):
         return {'vocab': self.vocab,
@@ -660,7 +661,7 @@ class Lexicalizer(object):
         @param abst_file: abstraction/delexicalization instructions file path
         @return: None
         """
-        abstss = read_absts(abst_file)
+        abstss = smart_load_absts(abst_file)
         for sent_no, (tree, absts) in enumerate(zip(gen_trees, abstss)):
             log_debug("Lexicalizing sentence %d: %s" % ((sent_no + 1), unicode(tree)))
             sent = self._tree_to_sentence(tree)

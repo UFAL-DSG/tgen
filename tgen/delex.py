@@ -6,6 +6,8 @@ Delexicalization functions.
 """
 from __future__ import unicode_literals
 
+import numpy as np
+from unidecode import unidecode
 from tgen.data import DA, DAI, Abst
 
 
@@ -34,12 +36,39 @@ def find_substr(needle, haystack):
                 h += 1
 
 
+def levenshtein_dist(s, t):
+    """Compute Levenshtein distance between two strings."""
+    def match(s, t, i, j):
+        """Simple match function (testing positions i,j in s,t respectively)."""
+        return 1 if s[i] == t[j] else 0
+
+    # creating traverse matrix
+    H = np.zeros((len(s) + 1, len(t) + 1), dtype=int)
+    for (j, tj) in enumerate(' ' + t):
+        for (i, si) in enumerate('_' + s):
+            # compute score for all directions
+            (left, up, diag) = (float('-Inf'), float('-Inf'), float('-Inf'))
+            if i > 0:  # look up
+                up = H[i - 1, j]
+            if j > 0:  # look left
+                left = H[i, j - 1]
+            if i > 0 and j > 0:  # look diagonally
+                diag = H[i - 1, j - 1] + match(s, t, i - 1, j - 1)
+            # find the best score and remember it along with the direction
+            best_score = max(left, up, diag)
+            if best_score > float('-Inf'):  # i.e. not upper-up corner
+                H[i, j] = best_score
+
+    # return the distance
+    return max(len(s), len(t)) - H[len(s), len(t)]
+
+
 def find_substr_approx(needle, haystack):
     """Try to find a sub-list in a list of tokens using fuzzy matching (skipping some
     common prepositions and punctuation, checking for similar-length substrings)"""
-    # lowercase both for ignore-case comparison
-    needle = [tok.lower() for tok in needle]
-    haystack = [tok.lower() for tok in haystack]
+    # lowercase both for ignore-case comparison, strip accented characters
+    needle = [unidecode(tok.lower()) for tok in needle]
+    haystack = [unidecode(tok.lower()) for tok in haystack]
     # some common 'meaningless words'
     stops = set(['and', 'or', 'in', 'of', 'the', 'to', ',', 'restaurant'])
     h = 0
@@ -72,6 +101,12 @@ def find_substr_approx(needle, haystack):
         elif h < len(haystack) - 1 and (haystack[h] + haystack[h + 1]) == needle[n]:
             n += 1
             h += 2
+        # allow one typo, with words longer than 3
+        elif (len(haystack[h]) >= 3 and len(needle[n]) >= 3 and
+                len(needle[n]) - 1 <= len(haystack[h]) <= len(needle[n]) + 1 and
+                levenshtein_dist(haystack[h], needle[n]) <= 1):
+            n += 1
+            h += 1
         # nothing found
         else:
             if n_orig > 0:
@@ -101,7 +136,7 @@ def find_value(value, toks, toks_mask):
     return pos
 
 
-def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False):
+def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False, repeated=False):
     """Abstract the given slots in the given sentence (replace them with X).
 
     @param da: concrete DA
@@ -130,14 +165,23 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
         abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
         if dai.value is None:
             continue
-        pos = find_value(dai.value, toks, toks_mask)
-        # if the value is to be abstracted, replace the value in the abstracted DAI
-        # and save abstraction instruction (even if not found in the sentence)
-        if dai.slot in abst_slots and dai.value != 'dont_care':
-            abst_da[-1].value = 'X-' + dai.slot
-            # save the abstraction instruction
-            absts.append(Abst(dai.slot, dai.value, surface_form=' '.join(toks[pos[0]:pos[1]]),
-                              start=pos[0], end=pos[1]))
+
+        # search for the 1st or all occurrences
+        found = 0
+        pos = (-1, -1)
+        while found < 1 or (repeated and pos != (-1, -1)):
+            pos = find_value(dai.value, toks, toks_mask)
+            # if the value is to be abstracted, replace the value in the abstracted DAI
+            # and save abstraction instruction (even if not found in the sentence)
+            if (dai.slot in abst_slots and
+                    dai.value != 'dont_care' and
+                    (found == 0 or pos != (-1, -1))):
+
+                abst_da[-1].value = 'X-' + dai.slot
+                # save the abstraction instruction
+                absts.append(Abst(dai.slot, dai.value, surface_form=' '.join(toks[pos[0]:pos[1]]),
+                                  start=pos[0], end=pos[1]))
+            found += 1
 
     if delex_slot_names:
         for dai in sorted([dai for dai in da if dai.slot is not None],

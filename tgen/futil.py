@@ -9,7 +9,9 @@ from __future__ import unicode_literals
 import cPickle as pickle
 import codecs
 import gzip
-from io import IOBase
+import regex
+import re
+from io import IOBase, BytesIO
 from codecs import StreamReader, StreamWriter
 
 from tree import TreeData
@@ -64,6 +66,34 @@ def read_absts(abst_file):
     return abstss
 
 
+def smart_load_absts(fname):
+    """Load lexicalization instructions in a smart way, i.e., be able to detect DA files
+    or abstraction files with multi-reference mode."""
+    with file_stream(fname) as fh:
+        contents = fh.read()
+        buf = BytesIO(contents.encode('UTF-8'))
+        # read DAs and convert them to Absts
+        if not re.search(r'\t', contents):
+            return [[Abst(dai.slot, dai.value) for dai in da
+                     if dai.value not in [None, 'dont_care', 'dontcare']]
+                    for da in read_das(buf)]
+        # multi-reference mode: read all but only output Absts for 1st reference of each instance
+        elif re.search(r'(\n\n|\r\n\r\n|\r\r)', contents):
+            abstss = read_absts(buf)
+            out_abstss = []
+            ref1st = True
+            for absts in abstss:
+                if not absts:
+                    ref1st = True
+                elif ref1st:
+                    out_abstss.append(absts)
+                    ref1st = False
+            return out_abstss
+        # plain 1-reference abstraction file
+        else:
+            return read_absts(buf)
+
+
 def read_ttrees(ttree_file):
     """Read t-trees from a YAML/Pickle file."""
     from pytreex.block.read.yaml import YAML as YAMLReader
@@ -111,7 +141,42 @@ def create_ttree_doc(trees, base_doc, language, selector):
     return base_doc
 
 
-def read_tokens(tok_file, ref_mode=False):
+def tokenize(text):
+    """Tokenize the given text (i.e., insert spaces around all tokens)"""
+    toks = ' ' + text + ' '  # for easier regexes
+
+    # enforce space around all punct
+    toks = regex.sub(r'(([^\p{IsAlnum}\s\.\,−\-])\2*)', r' \1 ', toks)  # all punct (except ,-.)
+    toks = regex.sub(r'([^\p{N}])([,.])([^\p{N}])', r'\1 \2 \3', toks)  # ,. & no numbers
+    toks = regex.sub(r'([^\p{N}])([,.])([\p{N}])', r'\1 \2 \3', toks)  # ,. preceding numbers
+    toks = regex.sub(r'([\p{N}])([,.])([^\p{N}])', r'\1 \2 \3', toks)  # ,. following numbers
+    toks = regex.sub(r'(–-)([^\p{N}])', r'\1 \2', toks)  # -/– & no number following
+    toks = regex.sub(r'(\p{N} *|[^ ])(-)', r'\1\2 ', toks)  # -/– & preceding number/no-space
+    toks = regex.sub(r'([-−])', r' \1', toks)  # -/– : always space before
+
+    # keep apostrophes together with words in most common contractions
+    toks = regex.sub(r'([\'’´]) (s|m|d|ll|re|ve)\s', r' \1\2 ', toks)  # I 'm, I 've etc.
+    toks = regex.sub(r'(n [\'’´]) (t\s)', r' \1\2 ', toks)  # do n't
+
+    # other contractions, as implemented in Treex
+    toks = regex.sub(r' ([Cc])annot\s', r' \1an not ', toks)
+    toks = regex.sub(r' ([Dd]) \' ye\s', r' \1\' ye ', toks)
+    toks = regex.sub(r' ([Gg])imme\s', r' \1im me ', toks)
+    toks = regex.sub(r' ([Gg])onna\s', r' \1on na ', toks)
+    toks = regex.sub(r' ([Gg])otta\s', r' \1ot ta ', toks)
+    toks = regex.sub(r' ([Ll])emme\s', r' \1em me ', toks)
+    toks = regex.sub(r' ([Mm])ore\'n\s', r' \1ore \'n ', toks)
+    toks = regex.sub(r' \' ([Tt])is\s', r' \'\1 is ', toks)
+    toks = regex.sub(r' \' ([Tt])was\s', r' \'\1 was ', toks)
+    toks = regex.sub(r' ([Ww])anna\s', r' \1an na ', toks)
+
+    # clean extra space
+    toks = regex.sub(r'\s+', ' ', toks)
+    toks = toks.strip()
+    return toks
+
+
+def read_tokens(tok_file, ref_mode=False, do_tokenize=False):
     """Read sentences (one per line) from a file and return them as a list of tokens
     (forms with undefined POS tags)."""
     tokens = []
@@ -121,7 +186,10 @@ def read_tokens(tok_file, ref_mode=False):
         for line in fh:
             # split to tokens + ingore consecutive spaces (no empty tokens)
             # empty line results in empty list
-            line = filter(bool, line.strip().split(' '))
+            line = line.strip()
+            if do_tokenize:
+                line = tokenize(line)
+            line = filter(bool, line.split(' '))
             if not line:
                 empty_lines = True
             # TODO apply Morphodita here ?
@@ -236,10 +304,10 @@ def postprocess_tokens(tokens, das):
         # merge plurals and adverbial "-ly"
         for idx, (tok, pos) in enumerate(sent):
             if tok == '-ly' or tok == '-s':
-                if tok == '-s' and idx > 0 and sent[idx-1][0] == 'child':  # irregular plural
+                if tok == '-s' and idx > 0 and sent[idx - 1][0] == 'child':  # irregular plural
                     tok = '-ren'
                 if idx > 0:
-                    sent[idx-1] = (sent[idx-1][0] + tok[1:], sent[idx-1][1])
+                    sent[idx - 1] = (sent[idx - 1][0] + tok[1:], sent[idx - 1][1])
                 del sent[idx]
         # add final punctuation, if not present
         if sent[-1][0] not in ['?', '!', '.']:

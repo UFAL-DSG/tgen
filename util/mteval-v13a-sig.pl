@@ -561,21 +561,26 @@ sub score_system
 {
 	my ($sys, $ref, $doc, $SCOREmt, $overallScore);
 	($sys, $SCOREmt, $overallScore) = @_;
-	my ($ref_length, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info);
-	my ($cum_ref_length, @cum_match, @cum_tst_cnt, @cum_ref_cnt, @cum_tst_info, @cum_ref_info);
+	my ($ref_length, $ref_count, $seg_count, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info);
+	my ($cum_ref_length, $cum_ref_count, $cum_seg_count, @cum_match, @cum_tst_cnt, @cum_ref_cnt, @cum_tst_info, @cum_ref_info);
 
 	$cum_ref_length = 0;
+        $cum_ref_count = 0;
+        $cum_seg_count = 0;
+
 	for (my $j=1; $j<=$max_Ngram; $j++)
 	{
 		$cum_match[$j] = $cum_tst_cnt[$j] = $cum_ref_cnt[$j] = $cum_tst_info[$j] = $cum_ref_info[$j] = 0;
 	}
 	foreach $doc (sort keys %eval_docs)
 	{
-		($ref_length, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info) = score_document ($sys, $doc, $overallScore);
+		($ref_length, $ref_count, $seg_count, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info) = score_document ($sys, $doc, $overallScore);
+                $cum_ref_count += $ref_count;
+                $cum_seg_count += $seg_count;
 		if ( $method eq "NIST" )
 		{
 			my %DOCmt = ();
-			my $docScore = nist_score( scalar( @ref_sys ), $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info, $sys, \%DOCmt );
+			my $docScore = nist_score( $ref_count / $seg_count, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info, $sys, \%DOCmt );
 			$overallScore->{ $sys }{ 'documents' }{ $doc }{ 'score' } = $docScore;
 			if ( $detail >= 1 )
 			{
@@ -616,7 +621,7 @@ sub score_system
 	}
 	if ($method eq "NIST")
 	{
-		$overallScore->{ $sys }{ 'score' } = nist_score (scalar @ref_sys, \@cum_match, \@cum_tst_cnt, \@cum_ref_cnt, \@cum_tst_info, \@cum_ref_info, $sys, $SCOREmt);
+                $overallScore->{ $sys }{ 'score' } = nist_score ($cum_ref_count / $cum_seg_count, \@cum_match, \@cum_tst_cnt, \@cum_ref_cnt, \@cum_tst_info, \@cum_ref_info, $sys, $SCOREmt);
 	}
 }
 
@@ -630,10 +635,11 @@ sub score_document
 
 	my ($sys, $ref, $doc, $overallScore);
 	($sys, $doc, $overallScore) = @_;
-	my ($ref_length, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info);
-	my ($cum_ref_length, @cum_match, @cum_tst_cnt, @cum_ref_cnt, @cum_tst_info, @cum_ref_info);
+	my ($ref_length, $ref_count, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info);
+	my ($cum_ref_length, $cum_ref_count, @cum_match, @cum_tst_cnt, @cum_ref_cnt, @cum_tst_info, @cum_ref_info);
 
 	$cum_ref_length = 0;
+        $cum_ref_count = 0;
 	for (my $j=1; $j<=$max_Ngram; $j++)
 	{
 		$cum_match[$j] = $cum_tst_cnt[$j] = $cum_ref_cnt[$j] = $cum_tst_info[$j] = $cum_ref_info[$j] = 0;
@@ -654,8 +660,7 @@ sub score_document
 		}
 
 		printf "sys '$sys', seg $seg: %s\n", $tst_data{$sys}{$doc}{SEGS}{$seg} if ( $detail >= 3 );
-		($ref_length, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info) = score_segment ($tst_data{$sys}{$doc}{SEGS}{$seg}, @ref_segments);
-
+		($ref_length, $ref_count, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info) = score_segment ($tst_data{$sys}{$doc}{SEGS}{$seg}, @ref_segments);
 # extra code inserted by Kevin Gimpel for printing segment-level stats for significance testing:
        my $sc_ref_sys = scalar @ref_sys;
        print STATS_FILE "$sc_ref_sys | $ref_length |";
@@ -696,13 +701,14 @@ sub score_document
 		if ( $method eq "NIST" )
 		{
 			my %DOCmt = ();
-			my $segScore = nist_score (scalar @ref_sys, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info, $sys, %DOCmt);
+			my $segScore = nist_score ($ref_count, $match_cnt, $tst_cnt, $ref_cnt, $tst_info, $ref_info, $sys, %DOCmt);
 			$overallScore->{ $sys }{ 'documents' }{ $doc }{ 'segments' }{ $seg }{ 'score' } = $segScore;
 			if ( $detail >= 2 )
 			{
 				printf "  $method score using 5-grams = %.4f for system \"$sys\" on segment $seg of document \"$doc\" (%d words)\n", $segScore, $tst_cnt->[1];
 			}
 		}
+                $cum_ref_count += $ref_count;
 		$cum_ref_length += $ref_length;
 		for (my $j=1; $j<=$max_Ngram; $j++)
 		{
@@ -714,7 +720,7 @@ sub score_document
 		}
 	}
 	close(STATS_FILE);
-	return ($cum_ref_length, [@cum_match], [@cum_tst_cnt], [@cum_ref_cnt], [@cum_tst_info], [@cum_ref_info]);
+	return ($cum_ref_length, $cum_ref_count, scalar(keys( %{$tst_data{$sys}{$doc}{SEGS}} )), [@cum_match], [@cum_tst_cnt], [@cum_ref_cnt], [@cum_tst_info], [@cum_ref_info]);
 }
 
 ###############################################################################################################################
@@ -727,6 +733,7 @@ sub score_document
 sub brevity_penalty_shortest
 {
 	my ( $currentLength, $referenceSentenceLength, $candidateSentenceLength ) = @_;
+        return $currentLength if (!$referenceSentenceLength);
 	return ( $referenceSentenceLength < $currentLength ? $referenceSentenceLength : $currentLength );
 }
 
@@ -752,6 +759,7 @@ sub brevity_penalty_shortest
 sub brevity_penalty_closest
 {
 	my ( $currentLength, $referenceSentenceLength, $candidateSentenceLength ) = @_;
+        return $currentLength if (!$referenceSentenceLength);
 	my $result = $currentLength;
 	if ( abs( $candidateSentenceLength - $referenceSentenceLength ) <= abs( $candidateSentenceLength - $currentLength ) )
 	{
@@ -780,6 +788,7 @@ sub score_segment
 	my ($ngram);
 	my (@nwrds_ref);
 	my $ref_length;
+        my $nrefs = 0;
 
 	for (my $j=1; $j<= $max_Ngram; $j++)
 	{
@@ -798,6 +807,7 @@ sub score_segment
 # get the ngram counts for the reference segments
 	foreach $ref_seg (@ref_segs)
 	{
+                $nrefs++ if ( $ref_seg ne '' );  # count non-empty refs
 		@ref_wrds = split /\s+/, $ref_seg;
 		%ref_ngrams = %{Words2Ngrams (@ref_wrds)};
 		foreach $ngram (keys %ref_ngrams)
@@ -833,7 +843,7 @@ sub score_segment
 			if $detail >= 3;
 	}
 
-	return ($ref_length, [@match_count], [@tst_count], [@ref_count], [@tst_info], [@ref_info]);
+	return ($ref_length, $nrefs, [@match_count], [@tst_count], [@ref_count], [@tst_info], [@ref_info]);
 }
 
 #################################

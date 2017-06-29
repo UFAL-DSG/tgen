@@ -14,6 +14,7 @@ import re
 import math
 import tempfile
 import shutil
+import os
 
 import numpy as np
 import tensorflow as tf
@@ -123,7 +124,7 @@ class RerankingClassifier(TFModel):
             self.delex_slots = set(self.delex_slots.split(','))
 
     def save_to_file(self, model_fname):
-        """Save the generator to a file (actually two files, one for configuration and one
+        """Save the classifier  to a file (actually two files, one for configuration and one
         for the TensorFlow graph, which must be stored separately).
 
         @param model_fname: file name (for the configuration file); TF graph will be stored with a \
@@ -133,10 +134,10 @@ class RerankingClassifier(TFModel):
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
         tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
-        if self.checkpoint_path:
-            shutil.copyfile(self.checkpoint_path, tf_session_fname)
-        else:
-            self.saver.save(self.session, tf_session_fname)
+        if hasattr(self, 'checkpoint_path') and self.checkpoint_path:
+            self.restore_checkpoint()
+            shutil.rmtree(os.path.dirname(self.checkpoint_path))
+        self.saver.save(self.session, tf_session_fname)
 
     def get_all_settings(self):
         """Get all settings except the trained model parameters (to be stored in a pickle)."""
@@ -157,8 +158,8 @@ class RerankingClassifier(TFModel):
         """Save a checkpoint to a temporary path; set `self.checkpoint_path` to the path
         where it is saved; if called repeatedly, will always overwrite the last checkpoint."""
         if not self.checkpoint_path:
-            fh, path = tempfile.mkstemp(".ckpt", "tftreecl-", self.checkpoint_path)
-            self.checkpoint_path = path
+            path = tempfile.mkdtemp(suffix="", prefix="tftreecl-")
+            self.checkpoint_path = os.path.join(path, "ckpt")
         log_info('Saving checkpoint to %s' % self.checkpoint_path)
         self.saver.save(self.session, self.checkpoint_path)
 
@@ -182,7 +183,7 @@ class RerankingClassifier(TFModel):
             ret.load_all_settings(data)
 
         # re-build TF graph and restore the TF session
-        tf_session_fname = re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname)
+        tf_session_fname = os.path.abspath(re.sub(r'(.pickle)?(.gz)?$', '.tfsess', model_fname))
         ret._init_neural_network()
         ret.saver.restore(ret.session, tf_session_fname)
         return ret
@@ -363,7 +364,7 @@ class RerankingClassifier(TFModel):
         # initialize NN classifier
         self._init_neural_network()
         # initialize the NN variables
-        self.session.run(tf.initialize_all_variables())
+        self.session.run(tf.global_variables_initializer())
 
     def _tokens_to_flat_trees(self, sents, use_tags=False):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
@@ -407,13 +408,13 @@ class RerankingClassifier(TFModel):
                 self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
                 self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
                                for i in xrange(self.input_shape[0])]
-                self.cell = tf.nn.rnn_cell.BasicLSTMCell(self.emb_size)
+                self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
                 self.outputs = self._rnn('rnn', self.inputs)
 
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
         # (or is computed as if there were a sigmoid layer on top)
         self.cost = tf.reduce_mean(tf.reduce_sum(
-                 tf.nn.sigmoid_cross_entropy_with_logits(self.outputs, self.targets, name='CE'), 1))
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.outputs, labels=self.targets, name='CE'), 1))
 
         # NB: this would have been the "true" cost function, if there were a "real" sigmoid layer on top.
         # However, it is not numerically stable in practice, so we have to use the TF function.
@@ -431,29 +432,39 @@ class RerankingClassifier(TFModel):
         self.session = tf.Session(config=session_config)
 
         # this helps us load/save the model
-        self.saver = tf.train.Saver(tf.all_variables())
+        self.saver = tf.train.Saver(tf.global_variables())
 
     def _ff_layers(self, name, num_layers, X):
         width = [np.prod(self.input_shape)] + (num_layers * [self.num_hidden_units]) + [self.num_outputs]
         # the last layer should be a sigmoid, but TF simulates it for us in cost computation
         # so the output is "unnormalized sigmoids"
-        activ = (num_layers * [tf.nn.tanh]) + [tf.identity]
+        activ = (num_layers * [tf.tanh]) + [tf.identity]
         Y = X
         for i in xrange(num_layers + 1):
-            w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i+1]),
+            w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i + 1]),
                                 initializer=tf.random_normal_initializer(stddev=0.1))
-            b = tf.get_variable(name + ('-b%d' % i), (width[i+1],),
+            b = tf.get_variable(name + ('-b%d' % i), (width[i + 1],),
                                 initializer=tf.constant_initializer())
             Y = activ[i](tf.matmul(Y, w) + b)
         return Y
 
     def _rnn(self, name, enc_inputs):
-        encoder_cell = tf.nn.rnn_cell.EmbeddingWrapper(self.cell, self.dict_size)
-        _, encoder_states = tf.nn.rnn(encoder_cell, enc_inputs, dtype=tf.float32)
-        w = tf.get_variable(name + '-w', (self.cell.state_size, self.num_outputs),
+        encoder_cell = tf.contrib.rnn.EmbeddingWrapper(self.cell, self.dict_size, self.emb_size)
+        encoder_outputs, encoder_state = tf.contrib.rnn.static_rnn(encoder_cell, enc_inputs, dtype=tf.float32)
+
+        # TODO for historical reasons, the last layer uses both output and state.
+        # try this just with outputs (might work exactly the same)
+        if isinstance(self.cell.state_size, tf.contrib.rnn.LSTMStateTuple):
+            state_size = self.cell.state_size.c + self.cell.state_size.h
+            final_input = tf.concat(axis=1, values=encoder_state)  # concat c + h
+        else:
+            state_size = self.cell.state_size
+            final_input = encoder_state
+
+        w = tf.get_variable(name + '-w', (state_size, self.num_outputs),
                             initializer=tf.random_normal_initializer(stddev=0.1))
         b = tf.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
-        return tf.matmul(encoder_states[-1], w) + b
+        return tf.matmul(final_input, w) + b
 
     def _batches(self):
         """Create batches from the input; use as iterator."""
