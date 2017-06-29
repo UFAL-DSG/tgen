@@ -12,13 +12,14 @@ import re
 import argparse
 import unicodecsv as csv
 import codecs
-
+import os, sys
+sys.path.insert(0, os.path.abspath('../../'))
 from tgen.data import DA
 from tgen.delex import delex_sent
 from tgen.futil import tokenize
 
 from tgen.debug import exc_info_hook
-import sys
+
 # Start IPdb on error in interactive mode
 sys.excepthook = exc_info_hook
 
