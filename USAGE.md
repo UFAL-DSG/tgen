@@ -13,6 +13,8 @@ cd tgen
 pip install -r requirements.txt
 ```
 
+We recommend using [virtualenv](https://virtualenv.pypa.io/) to install all the required libraries.
+
 To replicate most of the experiments in our papers, you will also need to install 
 [Treex](http://ufal.cz/treex) (including the newest version from the Git repository as 
 described in Step 5 of the [Treex installation guide](http://ufal.mff.cuni.cz/treex/install.html)). 
@@ -106,6 +108,9 @@ Our own experiments on several datasets are included as subdirectories within th
 
 * [cs-restaurant/](cs-restaurant): generating for our 
     [Czech Restaurant NLG dataset](https://github.com/UFAL-DSG/cs_restaurant_dataset).
+
+* [e2e-challenge/](e2e-challenge): the baseline system for the 
+    [E2E NLG Challenge](http://www.macs.hw.ac.uk/InteractionLab/E2E/).
 
 * [sfx-restaurant/](sfx-restaurant): generating from the 
     [San Francisco Restaurants dataset](https://www.repository.cam.ac.uk/handle/1810/251304)
