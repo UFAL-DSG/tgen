@@ -58,7 +58,7 @@ To train and evaluate the baseline, you need to:
 Remarks
 -------
 
-Please refer to [../USAGE.md](../USAGE.md) for installation instructions.
+Please refer to [../USAGE.md](../USAGE.md) for TGen installation instructions.
 
 The [Makefile](Makefile) in this directory contains a simple experiment management system,
 but this assumes running on a [SGE](https://arc.liv.ac.uk/trac/SGE) computing cluster
