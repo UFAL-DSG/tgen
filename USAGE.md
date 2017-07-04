@@ -110,7 +110,9 @@ Our own experiments on several datasets are included as subdirectories within th
     [Czech Restaurant NLG dataset](https://github.com/UFAL-DSG/cs_restaurant_dataset).
 
 * [e2e-challenge/](e2e-challenge): the baseline system for the 
-    [E2E NLG Challenge](http://www.macs.hw.ac.uk/InteractionLab/E2E/).
+    [E2E NLG Challenge](http://www.macs.hw.ac.uk/InteractionLab/E2E/). There are some
+    __[more detailed usage instructions](e2e-challenge/README.md)__ directly in the 
+    experiment subdirectory. These also partially apply to other datasets.
 
 * [sfx-restaurant/](sfx-restaurant): generating from the 
     [San Francisco Restaurants dataset](https://www.repository.cam.ac.uk/handle/1810/251304)
