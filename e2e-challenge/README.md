@@ -8,9 +8,18 @@ To train and evaluate the baseline, you need to:
    a format used by TGen.__ This is done using the [input/convert.py](input/convert.py) script.
    
    Note that multiple references are joined for one MR in the development set, but kept
-   separate for the training set.
+   separate for the training set. All files are plain text, one instance per line
+   (except for multiple references, where instances are separated by empty lines).
    
-   The `name` and `near` slots in the MRs are delexicalized.
+   The `name` and `near` slots in the MRs are delexicalized. The output files are:
+
+    * `*-abst.txt` -- lexicalization instructions (what was delexicalized at which position in
+        the references, can be used to lexicalize the outputs)
+    * `*-conc_das.txt` -- original, lexicalized MRs (converted to TGen's representation, 
+        semantically equivalent)
+    * `*-conc.txt` -- original, lexicalized reference texts
+    * `*-das.txt` -- delexicalized MRs
+    * `*-text.txt` -- delexicalized reference texts
 
 ```
 ./convert.py -a name,near -n new-data/trainset.csv train
