@@ -12,6 +12,8 @@ import re
 import argparse
 import unicodecsv as csv
 import codecs
+from collections import OrderedDict
+
 import os
 import sys
 
@@ -82,7 +84,7 @@ def convert(args):
 
     # for multi-ref mode, group by the same conc DA
     if args.multi_ref:
-        groups = {}
+        groups = OrderedDict()
         for conc_da, da, conc, text, abst in zip(conc_das, das, concs, texts, absts):
             group = groups.get(unicode(conc_da), {})
             group['da'] = da
