@@ -33,7 +33,7 @@ To train and evaluate the baseline, you need to:
    the setup that was best on the development data
 
 ```
-../run_tgen.py seq2seq_train config/seq2seq_config.py \
+../run_tgen.py seq2seq_train config/seq2seq.py \
     input/train-das.txt input/train-text.txt \
     model.pickle.gz
 ```
