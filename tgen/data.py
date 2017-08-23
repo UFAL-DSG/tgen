@@ -163,7 +163,7 @@ class DA(object):
 
     @staticmethod
     def parse_diligent_da(da_text):
-        """Parse a Diligent-style DA string into a DA object."""
+        """Parse a Diligent-style flat MR (E2E NLG dataset) string into a DA object."""
         da = DA()
 
         for dai_text in re.finditer(r'([a-zA-Z]+)\[([^\]]*)\]', da_text):
@@ -204,7 +204,8 @@ class DA(object):
         return da
 
     def value_for_slot(self, slot):
-        """Return the value for the given slot (None if unset or not present at all)."""
+        """Return the value for the given slot (None if unset or not present at all).
+        Uses the first occurrence of this slot if found."""
         for dai in self.dais:
             if dai.slot == slot:
                 return dai.value
@@ -223,6 +224,14 @@ class DA(object):
                      re.match(r'^' + value + r' (and|or) ', dai.value))):
                 return dai.slot
         return None
+
+    def set_value_for_slot(self, slot, value):
+        """Replace the value of the given slot. Has no effect if the slot is not present
+        in the DA. Will only replace the 1st occurrence of the slot."""
+        for dai in self.dais:
+            if dai.slot == slot:
+                dai.value = value
+                break
 
     def get_delexicalized(self, delex_slots):
         """Return a delexicalized copy o fthe current DA (delexicalize slots that are in
@@ -277,6 +286,10 @@ class DA(object):
         out += ')' if out else ''
         return out
 
+    def to_diligent_da_string(self):
+        """Convert to Diligent E2E dataset flat MR string (opposite of parse_diligent_da).
+        Note that all DA type information is lost."""
+        return ', '.join([dai.slot + '[' + dai.value + ']' for dai in self])
 
 
 class Abst(object):
