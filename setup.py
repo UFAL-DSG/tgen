@@ -11,7 +11,19 @@ setup(
     url='https://github.com/UFAL-DSG/tgen',
     download_url='https://github.com/UFAL-DSG/tgen.git',
     license='Apache 2.0',
-    install_requires=open('requirements.txt').read().splitlines(),
+    install_requires=['regex',
+                      'unicodecsv',
+                      'enum34',
+                      'numpy',
+                      'rpyc',
+                      'pudb',
+                      'recordclass',
+                      'tensorflow==1.0.1',
+                      'kenlm',
+                      'pytreex'],
+    dependency_links=['https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.0.1-cp27-none-linux_x86_64.whl#egg=tensorflow-1.0.1',
+                      'https://github.com/kpu/kenlm/archive/master.zip#egg=kenlm',
+                      'git+https://github.com/ufal/pytreex#egg=pytreex'],
     packages=find_packages()
 )
 
