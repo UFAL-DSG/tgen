@@ -11,6 +11,7 @@ setup(
     url='https://github.com/UFAL-DSG/tgen',
     download_url='https://github.com/UFAL-DSG/tgen.git',
     license='Apache 2.0',
+    install_requires=open('requirements.txt').read().splitlines()
     packages=find_packages()
 )
 
