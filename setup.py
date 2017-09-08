@@ -20,10 +20,10 @@ setup(
                       'recordclass',
                       'tensorflow==1.0.1',
                       'kenlm',
-                      'pytreex'],
+                      'pytreex==0.1dev'],
     dependency_links=['https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.0.1-cp27-none-linux_x86_64.whl#egg=tensorflow-1.0.1',
                       'https://github.com/kpu/kenlm/archive/master.zip#egg=kenlm',
-                      'https://github.com/ufal/pytreex/tarball/master#egg=pytreex'],
+                      'https://github.com/ufal/pytreex/tarball/master#egg=pytreex-0.1dev'],
     packages=find_packages()
 )
 
