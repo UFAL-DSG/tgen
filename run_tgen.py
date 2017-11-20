@@ -261,14 +261,17 @@ def seq2seq_train(args):
     log_info('Training sequence-to-sequence generator...')
 
     config = Config(args.seq2seq_config_file)
+    print args.context_file
     if args.jobs:
         config['jobs_number'] = args.jobs
         if not args.work_dir:
             work_dir, _ = os.path.split(args.seq2seq_config_file)
+            #parallelise when training
         generator = ParallelSeq2SeqTraining(config, args.work_dir or work_dir, args.experiment_id)
     else:
+        #this is the gen wala
         generator = Seq2SeqGen(config)
-
+    #todo shubhangi this is the function we need to call
     generator.train(args.da_train_file, args.tree_train_file,
                     data_portion=args.train_size, context_file=args.context_file,
                     validation_files=args.valid_data, lexic_files=args.lexic_data)

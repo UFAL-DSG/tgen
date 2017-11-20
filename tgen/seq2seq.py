@@ -391,7 +391,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.ref_selectors = cfg.get('ref_selectors', None)  # selectors of validation trees (if in separate file)
         self.max_cores = cfg.get('max_cores')
         self.mode = cfg.get('mode', 'tokens' if cfg.get('use_tokens') else 'trees')
-        self.nn_type = cfg.get('nn_type', 'emb_seq2seq')
+        #todo shubhangi
+        self.nn_type = cfg.get('nn_type', 'emb_attention_seq2seq_context')
         self.randomize = cfg.get('randomize', True)
         self.cell_type = cfg.get('cell_type', 'lstm')
         self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
@@ -583,8 +584,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Group all validation trees/sentences according to the same DA (sorted and
         possibly delexicalized).
         """
-        normalized_das = [da.get_delexicalized(self.validation_delex_slots)
+        normalized_das = [da[1].get_delexicalized(self.validation_delex_slots)
                           for da in self.valid_das]
+        '''normalized_das = [da.get_delexicalized(self.validation_delex_slots)
+                          for da in self.valid_das]'''
         da_groups = {}
         for trees, da in zip(self.valid_trees, normalized_das):
             da.sort()
@@ -593,8 +596,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # use training trees as additional references if needed
         if self.validation_use_train_refs:
-            normalized_train_das = [da.get_delexicalized(self.validation_delex_slots)
+            normalized_train_das = [da[1].get_delexicalized(self.validation_delex_slots)
                                     for da in self.train_das]
+            '''normalized_train_das = [da.get_delexicalized(self.validation_delex_slots)
+                                    for da in self.train_das]'''
+
             for tree, da in zip(self.train_trees, normalized_train_das):
                 da.sort()
                 if da in da_groups:
@@ -661,7 +667,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """
         # sent = list of paraphrases for a given sentence
         return [self._tokens_to_flat_trees(sent) for sent in valid_sents]
-
+    #todo shubhangi
     def _init_neural_network(self):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
 
@@ -690,15 +696,21 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # prepare cells
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
-            self.cell = tf.contrib.rnn.GRUCell(self.emb_size)
-        else:
-            self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
+            self.cell = tf.contrib.rnn.GRUCell(self.emb_size)#, state_is_tuple=False)
+            print "init GRU"
 
+        # todo subi Changes made
+
+        else:
+            self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)#, state_is_tuple=False)
+            print "init LSTM"
         if self.cell_type.endswith('/2'):
             self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
+
+            print "self nn type is " + self.nn_type
 
             rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
