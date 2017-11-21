@@ -403,7 +403,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # todo sharath
         self.loss_summary_seq2seq = None
         self.val_loss_summary_seq2seq = tf.summary.scalar("val_loss_seq2seq", 0.0)#None
-        print("set to 0")
 
         # Train Summaries
         self.train_summary_op = None
@@ -716,20 +715,17 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
             self.cell = tf.contrib.rnn.GRUCell(self.emb_size)#, state_is_tuple=False)
-            print "init GRU"
 
         # todo subi Changes made
 
         else:
             self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)#, state_is_tuple=False)
-            print "init LSTM"
         if self.cell_type.endswith('/2'):
             self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
 
-            print "self nn type is " + self.nn_type
 
             rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':

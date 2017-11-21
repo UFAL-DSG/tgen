@@ -238,8 +238,6 @@ class RerankingClassifier(TFModel):
         self.train_summary_writer = tf.summary.FileWriter(self.train_summary_dir, self.session.graph)
         self.dev_summary_writer = tf.summary.FileWriter(self.dev_summary_dir, self.session.graph)
 
-        print("Training pass reranking, wait for it.")
-
 
         for iter_no in xrange(1, self.passes + 1):
             self.train_order = range(len(self.train_trees))
