@@ -123,23 +123,14 @@ class RerankingClassifier(TFModel):
         if self.delex_slots:
             self.delex_slots = set(self.delex_slots.split(','))
 
-        # todo sharath
-
-        # todo sharath
-        self.my_iter = 1
+        # Train Summaries
 
         self.loss_summary_reranker = None
-        self.val_loss_summary_reranker = None
 
-        # Train Summaries
         self.train_summary_op = None
         self.train_summary_dir = None
         self.train_summary_writer = None
 
-        # Dev summaries
-        self.dev_summary_op = None
-        self.dev_summary_dir = None
-        self.dev_summary_writer = None
 
         timestamp = str(int(time.time()))
         self.out_dir = os.path.abspath(os.path.join(os.path.curdir, "seq_runs", timestamp))
@@ -232,11 +223,9 @@ class RerankingClassifier(TFModel):
         # start training
         top_comb_cost = float('nan')
 
-        # todo sharath changes
+        # summary writer
         self.train_summary_dir = os.path.join(self.out_dir, "summaries", "train_reranker")
-        self.dev_summary_dir = os.path.join(self.out_dir, "summaries", "dev_renranker")
         self.train_summary_writer = tf.summary.FileWriter(self.train_summary_dir, self.session.graph)
-        self.dev_summary_writer = tf.summary.FileWriter(self.dev_summary_dir, self.session.graph)
 
 
         for iter_no in xrange(1, self.passes + 1):
@@ -261,8 +250,6 @@ class RerankingClassifier(TFModel):
                 if math.isnan(top_comb_cost) or comb_cost < top_comb_cost:
                     top_comb_cost = comb_cost
                     self._save_checkpoint()
-
-                # self.dev_summary_writer.add_summary(self.dev_summary_op2, iter_no)
 
 
         # restore last checkpoint (best performance on devel data)
@@ -457,13 +444,12 @@ class RerankingClassifier(TFModel):
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.train_func = self.optimizer.minimize(self.cost)
 
-        # todo sharath
+        # Train loss summary
 
         self.loss_summary_reranker = tf.summary.scalar("loss_reranker", self.cost)
 
-        # Train and Dev Summaries
+        # Train Summaries
         self.train_summary_op = tf.summary.merge([self.loss_summary_reranker])
-        self.dev_summary_op = tf.summary.merge([self.loss_summary_reranker])
 
 
         # initialize session
@@ -545,7 +531,7 @@ class RerankingClassifier(TFModel):
 
             fd = {self.targets: self.y[tree_nos]}
             self._add_inputs_to_feed_dict(self.X[tree_nos], fd)
-            results, cost, _, train_summary_op, self.dev_summary_op2 = self.session.run([self.outputs, self.cost, self.train_func, self.train_summary_op, self.dev_summary_op],
+            results, cost, _, train_summary_op = self.session.run([self.outputs, self.cost, self.train_func, self.train_summary_op],
                                                 feed_dict=fd)
             bin_result = np.array([[1. if r > 0 else 0. for r in result] for result in results])
 
@@ -556,7 +542,7 @@ class RerankingClassifier(TFModel):
             pass_cost += cost
             pass_diff += np.sum(np.abs(self.y[tree_nos] - bin_result))
 
-        # todo sharath
+        # Write loss
         self.train_summary_writer.add_summary(train_summary_op, pass_no)
 
         # print and return statistics
