@@ -14,6 +14,7 @@ import tempfile
 import shutil
 import os
 from functools import partial
+import time
 
 from pytreex.core.util import file_stream
 
@@ -399,6 +400,24 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         self.use_context = cfg.get('use_context', False)
 
+        # todo sharath
+        self.loss_summary_seq2seq = None
+        self.val_loss_summary_seq2seq = tf.summary.scalar("val_loss_seq2seq", 0.0)#None
+        print("set to 0")
+
+        # Train Summaries
+        self.train_summary_op = None
+        self.train_summary_dir = None
+        self.train_summary_writer = None
+
+        # Dev summaries
+        self.dev_summary_op = None
+        self.dev_summary_dir = None
+        self.dev_summary_writer = None
+
+        timestamp = str(int(time.time()))
+        self.out_dir = os.path.abspath(os.path.join(os.path.curdir, "seq_runs", timestamp))
+
     def _init_training(self, das_file, ttree_file, data_portion,
                        context_file, validation_files, lexic_files):
         """Load training data, prepare batches, build the NN.
@@ -758,6 +777,18 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         else:
             self.cost = self.tf_cost
 
+        # todo sharath
+
+        self.loss_summary_seq2seq = tf.summary.scalar("loss_seq2seq", self.cost)
+
+        # todo sharath
+
+        # Train Summaries
+        self.train_summary_op = tf.summary.merge([self.loss_summary_seq2seq])
+
+        # todo sharath
+        self.dev_summary_op = tf.summary.merge([self.val_loss_summary_seq2seq])
+
         self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
 
         # optimizer (default to Adam)
@@ -810,9 +841,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
             # run the TF session (one optimizer step == train_func) and get the cost
             # (1st value returned is None, throw it away)
-            _, cost = self.session.run([self.train_func, self.cost], feed_dict=feed_dict)
+            _, cost, train_summary_op, self.dev_summary_op2 = self.session.run(
+                [self.train_func, self.cost, self.train_summary_op, self.dev_summary_op], feed_dict=feed_dict)
 
             it_cost += cost
+
+        self.train_summary_writer.add_summary(train_summary_op, iter_no)
 
         log_info('IT %d total cost: %8.5f' % (iter_no, cost))
 
@@ -856,6 +890,20 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self._init_training(das_file, ttree_file, data_portion,
                             context_file, validation_files, lexic_files)
 
+        # todo sharath changes
+
+        timestamp = str(int(time.time()))
+        print("Writing to {}\n".format(self.out_dir))
+
+
+        # todo sharath changes
+        self.train_summary_dir = os.path.join(self.out_dir, "summaries", "train_seq2seq")
+        self.train_summary_writer = tf.summary.FileWriter(self.train_summary_dir, self.session.graph)
+
+        self.dev_summary_dir = os.path.join(self.out_dir, "summaries", "dev_seq2seq")
+        self.dev_summary_writer = tf.summary.FileWriter(self.dev_summary_dir, self.session.graph)
+
+
         # do the training passes
         for iter_no in xrange(1, self.passes + 1):
 
@@ -883,6 +931,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                                     else unicode(tree)
                                     for tree in cur_valid_out]))
                 log_info('IT %d validation cost: %5.4f' % (iter_no, cur_cost))
+
+                # Val loss summary seq2seq
+
+                # self.dev_summary_writer.add_summary(self.dev_summary_op2, iter_no)
 
                 # if we have the best model so far, save it as a checkpoint (overwrite previous)
                 if math.isnan(self.top_k_costs[0]) or cur_cost < self.top_k_costs[0]:
@@ -1096,3 +1148,4 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @return: None
         """
         self.lexicalizer.lexicalize(trees, abstr_file)
+
