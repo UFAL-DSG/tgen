@@ -787,7 +787,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.train_summary_op = tf.summary.merge([self.loss_summary_seq2seq])
 
         # todo sharath
-        self.dev_summary_op = tf.summary.merge([self.val_loss_summary_seq2seq])
+        self.dev_summary_op = tf.summary.merge([self.loss_summary_seq2seq])
 
         self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
 
