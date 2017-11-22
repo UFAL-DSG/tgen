@@ -14,6 +14,7 @@ import tempfile
 import shutil
 import os
 from functools import partial
+import time
 
 from pytreex.core.util import file_stream
 
@@ -399,6 +400,16 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         self.use_context = cfg.get('use_context', False)
 
+        # Train Summaries
+        self.loss_summary_seq2seq = None
+
+        self.train_summary_op = None
+        self.train_summary_dir = None
+        self.train_summary_writer = None
+
+        timestamp = str(int(time.time()))
+        self.out_dir = os.path.abspath(os.path.join(os.path.curdir, "seq_runs", timestamp))
+
     def _init_training(self, das_file, ttree_file, data_portion,
                        context_file, validation_files, lexic_files):
         """Load training data, prepare batches, build the NN.
@@ -697,20 +708,17 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
             self.cell = tf.contrib.rnn.GRUCell(self.emb_size)#, state_is_tuple=False)
-            print "init GRU"
 
         # todo subi Changes made
 
         else:
             self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)#, state_is_tuple=False)
-            print "init LSTM"
         if self.cell_type.endswith('/2'):
             self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
 
-            print "self nn type is " + self.nn_type
 
             rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
@@ -757,6 +765,14 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.cost = 0.5 * (self.tf_cost + self.dec_cost)
         else:
             self.cost = self.tf_cost
+
+        # Loss summary
+
+        self.loss_summary_seq2seq = tf.summary.scalar("loss_seq2seq", self.cost)
+
+
+        # Train Summaries
+        self.train_summary_op = tf.summary.merge([self.loss_summary_seq2seq])
 
         self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
 
@@ -810,9 +826,13 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
             # run the TF session (one optimizer step == train_func) and get the cost
             # (1st value returned is None, throw it away)
-            _, cost = self.session.run([self.train_func, self.cost], feed_dict=feed_dict)
+            _, cost, train_summary_op= self.session.run(
+                [self.train_func, self.cost, self.train_summary_op], feed_dict=feed_dict)
 
             it_cost += cost
+
+#        Write loss
+        self.train_summary_writer.add_summary(train_summary_op, iter_no)
 
         log_info('IT %d total cost: %8.5f' % (iter_no, cost))
 
@@ -855,6 +875,16 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # load and prepare data and initialize the neural network
         self._init_training(das_file, ttree_file, data_portion,
                             context_file, validation_files, lexic_files)
+
+        # checkpoint directory name with current time
+
+        timestamp = str(int(time.time()))
+        print("Writing to {}\n".format(self.out_dir))
+
+
+        # summary writer
+        self.train_summary_dir = os.path.join(self.out_dir, "summaries", "train_seq2seq")
+        self.train_summary_writer = tf.summary.FileWriter(self.train_summary_dir, self.session.graph)
 
         # do the training passes
         for iter_no in xrange(1, self.passes + 1):
@@ -1096,3 +1126,4 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @return: None
         """
         self.lexicalizer.lexicalize(trees, abstr_file)
+
