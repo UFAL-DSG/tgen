@@ -595,10 +595,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Group all validation trees/sentences according to the same DA (sorted and
         possibly delexicalized).
         """
-        normalized_das = [da[1].get_delexicalized(self.validation_delex_slots)
+        if self.use_context:
+            normalized_das = [da[1].get_delexicalized(self.validation_delex_slots)
+                              for da in self.valid_das]
+        else:
+            normalized_das = [da.get_delexicalized(self.validation_delex_slots)
                           for da in self.valid_das]
-        '''normalized_das = [da.get_delexicalized(self.validation_delex_slots)
-                          for da in self.valid_das]'''
         da_groups = {}
         for trees, da in zip(self.valid_trees, normalized_das):
             da.sort()
@@ -607,10 +609,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # use training trees as additional references if needed
         if self.validation_use_train_refs:
-            normalized_train_das = [da[1].get_delexicalized(self.validation_delex_slots)
+            if self.use_context:
+                normalized_train_das = [da[1].get_delexicalized(self.validation_delex_slots)
+                                        for da in self.train_das]
+            else:
+                normalized_train_das = [da.get_delexicalized(self.validation_delex_slots)
                                     for da in self.train_das]
-            '''normalized_train_das = [da.get_delexicalized(self.validation_delex_slots)
-                                    for da in self.train_das]'''
 
             for tree, da in zip(self.train_trees, normalized_train_das):
                 da.sort()
@@ -708,8 +712,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
             self.cell = tf.contrib.rnn.GRUCell(self.emb_size)#, state_is_tuple=False)
-
-        # todo subi Changes made
 
         else:
             self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)#, state_is_tuple=False)
@@ -1126,4 +1128,3 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @return: None
         """
         self.lexicalizer.lexicalize(trees, abstr_file)
-
