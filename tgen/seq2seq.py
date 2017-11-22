@@ -392,7 +392,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.ref_selectors = cfg.get('ref_selectors', None)  # selectors of validation trees (if in separate file)
         self.max_cores = cfg.get('max_cores')
         self.mode = cfg.get('mode', 'tokens' if cfg.get('use_tokens') else 'trees')
-        #todo shubhangi
         self.nn_type = cfg.get('nn_type', 'emb_attention_seq2seq_context')
         self.randomize = cfg.get('randomize', True)
         self.cell_type = cfg.get('cell_type', 'lstm')
@@ -682,7 +681,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """
         # sent = list of paraphrases for a given sentence
         return [self._tokens_to_flat_trees(sent) for sent in valid_sents]
-    #todo shubhangi
     def _init_neural_network(self):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
 

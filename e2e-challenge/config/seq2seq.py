@@ -15,7 +15,6 @@ config = {
           'optimizer_type': 'adam',
           'max_cores': 4,
           'mode': 'tokens',
-           #todo shubhangi change here for training
           'nn_type': 'emb_attention_seq2seq_context',
           'sort_da_emb': True,
           'cell_type': 'lstm',

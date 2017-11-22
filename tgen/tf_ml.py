@@ -64,7 +64,6 @@ class TFModel(object):
                 op = var.assign(vals[var.name])
                 self.session.run(op)
 
-#todo shubhangi this method is important
 def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
                                         num_encoder_symbols, num_decoder_symbols,
                                         embedding_size,
@@ -89,7 +88,6 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
             old_encoder_outputs, old_encoder_states = tf06s2s.rnn(
                 encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
 
-        # todo sharath encoder_states and context_states is an LSTM tuple until here list(LSTMTUPLE(c(?, 50), h(?, 50)), then fucks up
         # concatenate outputs & states
         encoder_outputs = [array_ops.concat([co, eo], axis=1, name="context-and-encoder-output")
                            for co, eo in zip(context_outputs, old_encoder_outputs)]
