@@ -12,6 +12,9 @@ from itertools import islice
 
 from ufal.morphodita import Tagger, Forms, TaggedLemma, TaggedLemmas, TokenRanges, Analyses, Indices
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath('../../'))  # add tgen main directory to modules path
 from tgen.logf import log_info
 from tgen.data import Abst, DAI, DA
 
