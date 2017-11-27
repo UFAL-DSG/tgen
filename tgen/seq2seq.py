@@ -595,6 +595,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         possibly delexicalized).
         """
         if self.use_context:
+            # if context is used , then train_das are da[1]
             normalized_das = [da[1].get_delexicalized(self.validation_delex_slots)
                               for da in self.valid_das]
         else:
@@ -608,6 +609,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # use training trees as additional references if needed
         if self.validation_use_train_refs:
+            # if context is used , then train_das are da[1]
             if self.use_context:
                 normalized_train_das = [da[1].get_delexicalized(self.validation_delex_slots)
                                         for da in self.train_das]
@@ -681,6 +683,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """
         # sent = list of paraphrases for a given sentence
         return [self._tokens_to_flat_trees(sent) for sent in valid_sents]
+
     def _init_neural_network(self):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
 
@@ -709,16 +712,15 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # prepare cells
         self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
-            self.cell = tf.contrib.rnn.GRUCell(self.emb_size)#, state_is_tuple=False)
-
+            self.cell = tf.contrib.rnn.GRUCell(self.emb_size)
         else:
-            self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)#, state_is_tuple=False)
+            self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
+
         if self.cell_type.endswith('/2'):
             self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
         with tf.variable_scope(self.scope_name) as scope:
-
 
             rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':

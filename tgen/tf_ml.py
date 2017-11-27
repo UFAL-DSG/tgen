@@ -11,7 +11,7 @@ import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops, control_flow_ops
 from tensorflow.contrib.rnn import EmbeddingWrapper, OutputProjectionWrapper
-#from tensorflow import variable_scope as vs
+#updating to latest package for variable_scope
 from tensorflow.python.ops import variable_scope as vs
 import tgen.externals.seq2seq as tf06s2s
 
@@ -64,6 +64,7 @@ class TFModel(object):
                 op = var.assign(vals[var.name])
                 self.session.run(op)
 
+
 def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
                                         num_encoder_symbols, num_decoder_symbols,
                                         embedding_size,
@@ -85,27 +86,26 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
             context_outputs, context_states = tf06s2s.rnn(
                 encoder_cell, context_inputs, dtype=dtype, scope=scope)
         with vs.variable_scope("input_rnn") as scope:
-            old_encoder_outputs, old_encoder_states = tf06s2s.rnn(
+            encoder_outputs, encoder_states = tf06s2s.rnn(
                 encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
 
         # concatenate outputs & states
+        # adding positional arguments and concatenating output, cell and hidden states
         encoder_outputs = [array_ops.concat([co, eo], axis=1, name="context-and-encoder-output")
-                           for co, eo in zip(context_outputs, old_encoder_outputs)]
-        #encoder_states = [array_ops.concat( [cs, es], axis=1,  name="context-and-encoder-state")
-                          #for cs, es in zip(context_states, old_encoder_states)]
+                           for co, eo in zip(context_outputs, encoder_outputs)]
         encoder_states=[(array_ops.concat([c1, c2], axis=1), array_ops.concat([h1, h2], axis=1))
-         for (c1, h1), (c2, h2) in zip(context_states, old_encoder_states)]
+         for (c1, h1), (c2, h2) in zip(context_states, encoder_states)]
 
         # calculate a concatenation of encoder outputs to put attention on.
         top_states = [array_ops.reshape(e, [-1, 1, cell.output_size * 2])
                       for e in encoder_outputs]
+        #added positional arguements as it was taking axis to be the values
         attention_states = array_ops.concat(axis=1, values=top_states)
 
         # change the decoder cell to accommodate wider input
         # TODO this will work for BasicLSTMCell and GRUCell, but not for others
-
+        #input_size is not a field in TF 1.0.1
         cell = type(cell)(num_units=(cell.output_size * 2))
-        # cell = type(cell)(num_units=(cell.input_size * 2))
 
         # Decoder.
         output_size = None
@@ -114,7 +114,6 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
             output_size = num_decoder_symbols
 
         if isinstance(feed_previous, bool):
-
             return tf06s2s.embedding_attention_decoder(
                 decoder_inputs, encoder_states[-1], attention_states, cell,
                 num_decoder_symbols, embedding_size, num_heads, output_size,
