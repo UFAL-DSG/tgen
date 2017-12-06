@@ -1,5 +1,6 @@
 .project
 .pydevproject
+.idea
 .settings
 *.treex.gz
 *.yaml.gz
