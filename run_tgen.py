@@ -244,6 +244,8 @@ def seq2seq_train(args):
     ap.add_argument('-l', '--lexic-data', type=str,
                     help='Lexicalization data paths (1-2 comma-separated files: surface forms,' +
                     'training lexic. instructions)')
+    ap.add_argument('-t', '--tb-summary-dir', '--tensorboard-summary-dir', '--tensorboard', type=str,
+                    help='Directory where Tensorboard summaries are saved during training')
 
     ap.add_argument('seq2seq_config_file', type=str, help='Seq2Seq generator configuration file')
     ap.add_argument('da_train_file', type=str, help='Input training DAs')
@@ -261,6 +263,9 @@ def seq2seq_train(args):
     log_info('Training sequence-to-sequence generator...')
 
     config = Config(args.seq2seq_config_file)
+
+    if args.tb_summary_dir:  # override Tensorboard setting
+        config['tb_summary_dir'] = args.tb_summary_dir
     if args.jobs:  # parallelize when training
         config['jobs_number'] = args.jobs
         if not args.work_dir:
