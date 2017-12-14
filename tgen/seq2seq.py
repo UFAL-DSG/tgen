@@ -403,7 +403,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         if self.train_summary_dir:
             self.loss_summary_seq2seq = None
             self.train_summary_op = None
-            self.train_summary_dir = None
             self.train_summary_writer = None
 
     def _init_training(self, das_file, ttree_file, data_portion,

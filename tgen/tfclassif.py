@@ -128,7 +128,6 @@ class RerankingClassifier(TFModel):
         if self.train_summary_dir:
             self.loss_summary_reranker = None
             self.train_summary_op = None
-            self.train_summary_dir = None
             self.train_summary_writer = None
 
     def save_to_file(self, model_fname):
