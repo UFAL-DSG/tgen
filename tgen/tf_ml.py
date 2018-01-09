@@ -11,7 +11,7 @@ import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops, control_flow_ops
 from tensorflow.contrib.rnn import EmbeddingWrapper, OutputProjectionWrapper
-from tensorflow import variable_scope as vs
+from tensorflow.python.ops import variable_scope as vs
 import tgen.externals.seq2seq as tf06s2s
 
 
@@ -89,19 +89,21 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
                 encoder_cell, encoder_inputs, dtype=dtype, scope=scope)
 
         # concatenate outputs & states
-        encoder_outputs = [array_ops.concat(1, [co, eo], name="context-and-encoder-output")
+        # adding positional arguments and concatenating output, cell and hidden states
+        encoder_outputs = [array_ops.concat([co, eo], axis=1, name="context-and-encoder-output")
                            for co, eo in zip(context_outputs, encoder_outputs)]
-        encoder_states = [array_ops.concat(1, [cs, es], name="context-and-encoder-state")
-                          for cs, es in zip(context_states, encoder_states)]
+        encoder_states=[(array_ops.concat([c1, c2], axis=1), array_ops.concat([h1, h2], axis=1))
+                        for (c1, h1), (c2, h2) in zip(context_states, encoder_states)]
 
         # calculate a concatenation of encoder outputs to put attention on.
         top_states = [array_ops.reshape(e, [-1, 1, cell.output_size * 2])
                       for e in encoder_outputs]
-        attention_states = array_ops.concat(1, top_states)
+        #added positional arguements as it was taking axis to be the values
+        attention_states = array_ops.concat(axis=1, values=top_states)
 
         # change the decoder cell to accommodate wider input
         # TODO this will work for BasicLSTMCell and GRUCell, but not for others
-        cell = type(cell)(num_units=(cell.input_size * 2))
+        cell = type(cell)(num_units=(cell.output_size * 2))
 
         # Decoder.
         output_size = None

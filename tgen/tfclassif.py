@@ -123,6 +123,13 @@ class RerankingClassifier(TFModel):
         if self.delex_slots:
             self.delex_slots = set(self.delex_slots.split(','))
 
+        # Train Summaries
+        self.train_summary_dir = cfg.get('tb_summary_dir', None)
+        if self.train_summary_dir:
+            self.loss_summary_reranker = None
+            self.train_summary_op = None
+            self.train_summary_writer = None
+
     def save_to_file(self, model_fname):
         """Save the classifier  to a file (actually two files, one for configuration and one
         for the TensorFlow graph, which must be stored separately).
@@ -424,6 +431,11 @@ class RerankingClassifier(TFModel):
         self.optimizer = tf.train.AdamOptimizer(self.alpha)
         self.train_func = self.optimizer.minimize(self.cost)
 
+        # Tensorboard summaries
+        if self.train_summary_dir:
+            self.loss_summary_reranker = tf.summary.scalar("loss_reranker", self.cost)
+            self.train_summary_op = tf.summary.merge([self.loss_summary_reranker])
+
         # initialize session
         session_config = None
         if self.max_cores:
@@ -433,6 +445,9 @@ class RerankingClassifier(TFModel):
 
         # this helps us load/save the model
         self.saver = tf.train.Saver(tf.global_variables())
+        if self.train_summary_dir:  # Tensorboard summary writer
+            self.train_summary_writer = tf.summary.FileWriter(
+                os.path.join(self.train_summary_dir, "reranker"), self.session.graph)
 
     def _ff_layers(self, name, num_layers, X):
         width = [np.prod(self.input_shape)] + (num_layers * [self.num_hidden_units]) + [self.num_outputs]
@@ -503,8 +518,12 @@ class RerankingClassifier(TFModel):
 
             fd = {self.targets: self.y[tree_nos]}
             self._add_inputs_to_feed_dict(self.X[tree_nos], fd)
-            results, cost, _ = self.session.run([self.outputs, self.cost, self.train_func],
-                                                feed_dict=fd)
+            if self.train_summary_dir:  # also compute Tensorboard summaries
+                results, cost, _, train_summary_op = self.session.run(
+                    [self.outputs, self.cost, self.train_func, self.train_summary_op], feed_dict=fd)
+            else:
+                results, cost, _ = self.session.run([self.outputs, self.cost, self.train_func],
+                                                    feed_dict=fd)
             bin_result = np.array([[1. if r > 0 else 0. for r in result] for result in results])
 
             log_debug('R: ' + str(bin_result))
@@ -517,6 +536,8 @@ class RerankingClassifier(TFModel):
         # print and return statistics
         self._print_pass_stats(pass_no, datetime.timedelta(seconds=(time.time() - pass_start_time)),
                                pass_cost, pass_diff)
+        if self.train_summary_dir:  # Tensorboard: iteration summary
+            self.train_summary_writer.add_summary(train_summary_op, pass_no)
 
         return pass_cost, pass_diff
 

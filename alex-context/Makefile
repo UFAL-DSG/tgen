@@ -6,7 +6,10 @@
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
-QP = --queue troja-all.q
+QP = --engine=slurm  # XXX you need to update your qsubmit settings here!
+ifdef LOCAL
+  QP = --engine=console
+endif
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
@@ -61,6 +64,8 @@ TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
 TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
 TRAIN_CONTEXT = data/$(TRAINING_SET)/train-context.pickle.gz
+TRAIN_CONTEXTTOKS = data/$(TRAINING_SET)/train-context.txt
+TRAIN_TOKS = data/$(TRAINING_SET)/train-text.txt
 GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
 TEST_REF = data/$(TRAINING_SET)/devel-das.sgm
@@ -68,6 +73,9 @@ TEST_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
 TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
 TEST_CONC = data/$(TRAINING_SET)/devel-conc.sgm
 TEST_CONTEXT = data/$(TRAINING_SET)/devel-context.pickle.gz
+TEST_TOKS = data/$(TRAINING_SET)/devel-text.txt
+TEST_CONTEXTTOKS = data/$(TRAINING_SET)/devel-context.txt
+TEST_REFTOKS = data/$(TRAINING_SET)/devel-ref.txt
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
   TEST_REF = data/$(TRAINING_SET)/test-das.sgm
@@ -75,9 +83,15 @@ ifdef EVAL_TEST
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
   TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
   TEST_CONTEXT = data/$(TRAINING_SET)/test-context.pickle.gz
+  TEST_TOKS = data/$(TRAINING_SET)/test-text.txt
+  TEST_CONTEXTTOKS = data/$(TRAINING_SET)/test-context.txt
+  TEST_REFTOKS = data/$(TRAINING_SET)/test-ref.txt
   VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
   VALID_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
   VALID_CONTEXT = data/$(TRAINING_SET)/devel-context.pickle.gz
+  VALID_TOKS = data/$(TRAINING_SET)/devel-text.txt
+  VALID_CONTEXTTOKS = data/$(TRAINING_SET)/devel-context.txt
+  VALID_REFTOKS = data/$(TRAINING_SET)/devel-ref.txt
 endif
 SURFACE_SCEN = ../bagel-data/surface/en_synthesis.scen
 
@@ -194,7 +208,10 @@ cv_run:
 		TEST_RUN=seq2seq_gen_cv ; \
 		make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
+		if [[ -n "$$JOB_NUM" ]]; then \
+		    JOB_NUM="--hold $$JOB_NUM"; \
+		fi; \
+		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$$JOB_NUM"; \
 	done
 
 cv_score-%:
@@ -220,19 +237,34 @@ seq2seq_train:
 	# copy needed files (to ensure replication), then run the experiment
 	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
-	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
-	cp $(TRAIN_CONTEXT) $(TRY_DIR)/train-context.pickle.gz
+	if [[ -n "$(TOKS)" ]]; then \
+		cp $(TRAIN_TOKS) $(TRY_DIR)/train-text.txt; \
+		cp $(TRAIN_CONTEXTTOKS) $(TRY_DIR)/train-context.txt; \
+		TRAIN_DATA=$(TRY_DIR)/train-text.txt ; \
+		TRAIN_CONTEXTDATA=$(TRY_DIR)/train-context.txt ; \
+	else \
+		cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz; \
+		cp $(TRAIN_CONTEXT) $(TRY_DIR)/train-context.pickle.gz; \
+		TRAIN_DATA=$(TRY_DIR)/train-text.pickle.gz ; \
+		TRAIN_CONTEXTDATA=$(TRY_DIR)/train-context.pickle.gz; \
+	fi; \
 	if [[ -n "$(EVAL_TEST)" ]]; then \
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
-		cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
-		cp $(VALID_CONTEXT) $(TRY_DIR)/devel-context.pickle.gz ; \
-		VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz,$(TRY_DIR)/devel-context.pickle.gz\""; \
+		if [[ -n "$(TOKS)" ]]; then \
+		    cp $(VALID_TOKS) $(TRY_DIR)/devel-text.txt ; \
+		    cp $(VALID_CONTEXTTOKS) $(TRY_DIR)/devel-context.txt ; \
+		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.txt,$(TRY_DIR)/devel-context.txt\""; \
+		else \
+		    cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
+		    cp $(VALID_CONTEXT) $(TRY_DIR)/devel-context.pickle.gz ; \
+		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz,$(TRY_DIR)/devel-context.pickle.gz\""; \
+		fi; \
 	fi; \
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" \
-		-c $(TRY_DIR)/train-context.pickle.gz '"$$VALID_DATA_SPEC"' \
-		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
+		-c '"$$TRAIN_CONTEXTDATA"' '"$$VALID_DATA_SPEC"' \
+		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt '"$$TRAIN_DATA"' \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
 seq2seq_gen_cv:
@@ -241,12 +273,18 @@ seq2seq_gen_cv:
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
-	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
-	cp $(TEST_CONTEXT) $(TRY_DIR)/test-context.pickle.gz
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abstr.txt
-	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
+	if [[ -n "$(TOKS)" ]]; then \
+		cp $(TEST_REFTOKS) $(TRY_DIR)/test-ref.txt ; \
+		cp $(TEST_TOKS) $(TRY_DIR)/test-text.txt ; \
+		cp $(TEST_CONTEXTTOKS) $(TRY_DIR)/test-context.txt ; \
+	else \
+		cp $(TEST_REF) $(TRY_DIR)/test-das.sgm ; \
+		cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz ; \
+	        cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv ; \
+	        cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm ; \
+		cp $(TEST_CONTEXT) $(TRY_DIR)/test-context.pickle.gz ; \
+	fi
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
@@ -255,22 +293,32 @@ seq2seq_gen_process: GEN_CONFIG :=
 seq2seq_gen_process: gen_process
 
 gen_process:
-	# run
-	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
-		$(SELECTOR_CONFIG) \
-		-c $(TRY_DIR)/test-context.pickle.gz \
-		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
-		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
-		treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
-			T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv da_file=$(TRY_DIR)/test-das.txt \
-			Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) skip_factor=3 \
-			$(SURFACE_SCEN) Write::Treex \
-			Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
-			Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=AlexContext sys_id=TGEN add_header=tstset; \
-		$(POSTPROCESS) $(TRY_DIR)/out-text.sgm; \
-		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
-		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
+	# run just the generator, or generator + Treex + mteval.
+	if [[ -n "$(TOKS)" ]]; then \
+		$(QSUBMIT) '$(ACTIVATE); \
+		    $(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-ref.txt $(DEBUG_LOG_GEN) \
+		    -a $(TRY_DIR)/test-abstr.txt \
+		    -c $(TRY_DIR)/test-context.txt \
+		    -w $(TRY_DIR)/out-toks.txt $(GEN_CONFIG) \
+		    $(GEN_MODEL) $(TRY_DIR)/test-das.txt;' \
+		    2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt ; \
+	else \
+	    $(QSUBMIT) '$(ACTIVATE); \
+		    $(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
+		    $(SELECTOR_CONFIG) \
+		    -c $(TRY_DIR)/test-context.pickle.gz \
+		    -w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) \
+		    $(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
+		    treex -Len -Sgen Read::YAML from=$(TRY_DIR)/out-trees.yaml.gz \
+			    T2T::AssignDefaultGrammatemes grammateme_file=$(TRY_DIR)/grammatemes.tsv da_file=$(TRY_DIR)/test-das.txt \
+			    Misc::DeabstractDialogueSlots abstraction_file=$(TRY_DIR)/test-abstr.txt xs_instead=$(XS_INSTEAD) skip_factor=3 \
+			    $(SURFACE_SCEN) Write::Treex \
+			    Util::Eval document="$$.set_path(\"\"); $$.set_file_stem(\"test\");" \
+			    Write::SgmMTEval to=$(TRY_DIR)/out-text.sgm set_id=AlexContext sys_id=TGEN add_header=tstset; \
+		    $(POSTPROCESS) $(TRY_DIR)/out-text.sgm; \
+		    $(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
+		    2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt ; \
+	fi
 
 # Rerun an experiment (TRY_DIR, TRY_NUM, RUN_NAME must be set!)
 rerun:

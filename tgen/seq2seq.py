@@ -74,7 +74,7 @@ class Seq2SeqBase(SentencePlanner):
             rerank_cfg = cfg['classif_filter']
             # plus, copy some settings from the main Seq2Seq module (so we're consistent)
             for setting in ['mode', 'use_tokens', 'embeddings_lowercase',
-                            'embeddings_split_plurals']:
+                            'embeddings_split_plurals', 'tb_summary_dir']:
                 if setting in cfg:
                     rerank_cfg[setting] = cfg[setting]
             self.classif_filter = RerankingClassifier(rerank_cfg)
@@ -231,7 +231,7 @@ class Seq2SeqBase(SentencePlanner):
         if self.slot_err_stats:
             for path in paths[:self.sample_top_k]:
                 self.slot_err_stats.append(
-                        da, self.tree_embs.ids_to_strings([inp[0] for inp in path.dec_inputs]))
+                    da, self.tree_embs.ids_to_strings([inp[0] for inp in path.dec_inputs]))
 
         # select the "best" path -- either the best, or one in top k
         if self.sample_top_k > 1:
@@ -397,6 +397,13 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.bleu_validation_weight = cfg.get('bleu_validation_weight', 0.0)
 
         self.use_context = cfg.get('use_context', False)
+
+        # Train Summaries
+        self.train_summary_dir = cfg.get('tb_summary_dir', None)
+        if self.train_summary_dir:
+            self.loss_summary_seq2seq = None
+            self.train_summary_op = None
+            self.train_summary_writer = None
 
     def _init_training(self, das_file, ttree_file, data_portion,
                        context_file, validation_files, lexic_files):
@@ -583,8 +590,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Group all validation trees/sentences according to the same DA (sorted and
         possibly delexicalized).
         """
-        normalized_das = [da.get_delexicalized(self.validation_delex_slots)
-                          for da in self.valid_das]
+        if self.use_context:  # if context is used, then train_das are da[1]
+            normalized_das = [da[1].get_delexicalized(self.validation_delex_slots)
+                              for da in self.valid_das]
+        else:
+            normalized_das = [da.get_delexicalized(self.validation_delex_slots)
+                              for da in self.valid_das]
         da_groups = {}
         for trees, da in zip(self.valid_trees, normalized_das):
             da.sort()
@@ -593,8 +604,13 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # use training trees as additional references if needed
         if self.validation_use_train_refs:
-            normalized_train_das = [da.get_delexicalized(self.validation_delex_slots)
-                                    for da in self.train_das]
+            if self.use_context:  # if context is used, then train_das are da[1]
+                normalized_train_das = [da[1].get_delexicalized(self.validation_delex_slots)
+                                        for da in self.train_das]
+            else:
+                normalized_train_das = [da.get_delexicalized(self.validation_delex_slots)
+                                        for da in self.train_das]
+
             for tree, da in zip(self.train_trees, normalized_train_das):
                 da.sort()
                 if da in da_groups:
@@ -746,9 +762,13 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         else:
             self.cost = self.tf_cost
 
-        self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
+        # Tensorboard summaries
+        if self.train_summary_dir:
+            self.loss_summary_seq2seq = tf.summary.scalar("loss_seq2seq", self.cost)
+            self.train_summary_op = tf.summary.merge([self.loss_summary_seq2seq])
 
         # optimizer (default to Adam)
+        self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
         if self.optimizer_type == 'sgd':
             self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         if self.optimizer_type == 'adagrad':
@@ -766,6 +786,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # this helps us load/save the model
         self.saver = tf.train.Saver(tf.global_variables())
+        if self.train_summary_dir:  # Tensorboard summary writer
+            self.train_summary_writer = tf.summary.FileWriter(
+                os.path.join(self.train_summary_dir, "main_seq2seq"), self.session.graph)
 
     def _training_pass(self, iter_no):
         """Perform one pass through the training data (epoch).
@@ -798,9 +821,15 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
             # run the TF session (one optimizer step == train_func) and get the cost
             # (1st value returned is None, throw it away)
-            _, cost = self.session.run([self.train_func, self.cost], feed_dict=feed_dict)
-
+            if self.train_summary_dir:  # compute also summaries for Tensorboard
+                _, cost, train_summary_op = self.session.run(
+                    [self.train_func, self.cost, self.train_summary_op], feed_dict=feed_dict)
+            else:
+                _, cost = self.session.run([self.train_func, self.cost], feed_dict=feed_dict)
             it_cost += cost
+
+        if self.train_summary_dir:  # Tensorboard: iteration summary
+            self.train_summary_writer.add_summary(train_summary_op, iter_no)
 
         log_info('IT %d total cost: %8.5f' % (iter_no, cost))
 
