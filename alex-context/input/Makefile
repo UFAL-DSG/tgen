@@ -1,6 +1,7 @@
 
 SHELL=/bin/bash
-CONVERT_SETTINGS = -s 3:1:1 -m
+
+CONVERT_SETTINGS = -s 3:1:1 -m $(SLOT_NAMES)
 ABSTRACTED = from_stop,to_stop,direction,departure_time,departure_time_rel,ampm,vehicle,line,arrival_time,duration,distance,num_transfers,alternative
 TREEX_BASIC_SCEN = W2A::ResegmentSentences Scen::Analysis::EN pretokenized=1 Misc::JoinBundles
 
@@ -18,7 +19,17 @@ ifeq ($(COORD),flat_trees)
   COORD_ADJUST = Util::Eval tnode='$$.set_parent($$.get_root);'
 endif
 
-all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
+
+# use text-only files: include slot names
+text_only: SLOT_NAMES := -n
+text_only: train-das.txt train-abst.txt train-conc.txt \
+   devel-das.txt devel-abst.txt devel-conc.txt \
+   test-das.txt test-abst.txt test-conc.txt \
+   train-context.txt devel-context.txt test-context.txt
+
+
+# original (SIGDIAL2016) way of doing things -- Treex needed badly
+treex: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
    devel-text.pickle.gz devel-das.txt devel-abst.txt devel-conc.txt \
    devel-das.sgm devel-text.sgm devel-conc.sgm \
    test-text.pickle.gz test-das.txt test-abst.txt test-conc.txt \
@@ -48,7 +59,10 @@ all: train-text.pickle.gz train-das.txt train-abst.txt train-conc.txt \
 %-context.treex.gz: %-context.txt
 	treex -Len Read::Sentences from=$< $(TREEX_BASIC_SCEN) $(COORD_ADJUST) Write::Treex to=$@
 
-train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt train-context.txt devel-context.txt test-context.txt: dataset.json
+train-text.txt train-das.txt train-abst.txt train-conc.txt devel-text.txt devel-das.txt devel-abst.txt devel-conc.txt test-text.txt test-das.txt test-abst.txt test-conc.txt train-context.txt devel-context.txt test-context.txt: convert
+
+# dummy target to avoid running the script multiple times
+convert: dataset.json
 	./convert.py $(CONVERT_SETTINGS) $< train,devel,test
 
 grammatemes.tsv: train-text.treex.gz train-das.txt
