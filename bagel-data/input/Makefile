@@ -61,7 +61,7 @@ cv: all-das.txt all-text.txt all-abstr.txt
 			mv $$CV/train.0-das.txt $$CV/train-das.txt ; \
 			mv $$CV/train.0-abstr.txt $$CV/train-abstr.txt ; \
 			mv $$CV/train.0-text.txt $$CV/train-text.txt ; \
-			mv $$CV/train.0-bagel.txt > $$CV/train-bagel.txt ; \
+			mv $$CV/train.0-bagel.txt $$CV/train-bagel.txt ; \
 		else \
 			cat $$CV/train.*-das.txt > $$CV/train-das.txt ; \
 			cat $$CV/train.*-abstr.txt > $$CV/train-abstr.txt ; \
