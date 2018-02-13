@@ -564,8 +564,13 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
       # Run the RNN.
       cell_output, new_state = cell(x, states[-1])
       states.append(new_state)
+      query = new_state
+      # flatten the dimensions in multi-layer LSTMs (concatenate all)
+      if isinstance(new_state, tuple) and isinstance(new_state[0], tuple):
+        query = array_ops.transpose(array_ops.concat(new_state, axis=0), [1, 0, 2])
+        query = array_ops.reshape(query, [-1, int(query.get_shape()[1] * query.get_shape()[2])])
       # Run the attention mechanism.
-      attns = attention(new_state)
+      attns = attention(query)
       with vs.variable_scope("AttnOutputProjection"):
         output = linear([cell_output] + attns, output_size, True)
       if loop_function is not None:
