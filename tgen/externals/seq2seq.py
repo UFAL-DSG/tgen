@@ -29,11 +29,15 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.ops import variable_scope as vs
-from tensorflow.contrib.rnn.python.ops import rnn_cell
 from tensorflow.contrib.rnn import EmbeddingWrapper, RNNCell, OutputProjectionWrapper
 
 # TODO(ebrevdo): Remove once _linear is fully deprecated.
-linear = rnn_cell._linear  # pylint: disable=protected-access
+try:  # TF 1.0.1
+    from tensorflow.contrib.rnn.python.ops.rnn_cell import _linear as linear
+except ImportError: # TF 1.4.1
+    from tensorflow.python.ops.rnn_cell_impl import _linear as linear
+except ImportError: # TF 1.6.0
+    from tensorflow.contrib.rnn.python.ops.core_rnn_cell import _linear as linear
 
 
 def rnn(cell, inputs, initial_state=None, dtype=None,
