@@ -255,6 +255,9 @@ def seq2seq_train(args):
 
     args = ap.parse_args(args)
 
+    if not os.path.dirname(args.seq2seq_model_file):
+        raise ValueError("seq2seq_model_file should be an absolute or relative path, not a bare filename")
+
     if args.debug_logfile:
         set_debug_stream(file_stream(args.debug_logfile, mode='w'))
     if args.random_seed:
