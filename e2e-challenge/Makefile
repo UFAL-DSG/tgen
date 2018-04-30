@@ -7,11 +7,11 @@ SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
 CPUS = 4
-QP = --engine=grun
+QP = --engine=slurm --queue=amd-longq
 ifdef LOCAL
   QP = --engine=console
 endif
-QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM)$(CV_NUM)$(SEED).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM)$(CV_NUM)$(SEED).$(RUN_NAME) $(QP) $(QHOLD) --
 ACTIVATE = echo -n
 
 ifdef DEBUG
@@ -21,7 +21,7 @@ endif
 ifdef DEBUG_GEN
   DEBUG_LOG_GEN = -d $(TRY_DIR)/gen.debug-log.txt
 endif
-MTEVAL = ../util/mteval-v11b.pl
+METRICS = $$HOME/e2e-metrics/measure_scores.py
 POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=10:22 --nist-range=4:5
@@ -229,7 +229,6 @@ prepare_test_data:
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
-seq2seq_gen_process: SELECTOR_CONFIG := -r "$(EVAL_SELECTOR)" -t "$(TARGET_SELECTOR)"
 seq2seq_gen_process: gen_process
 
 gen_process:
@@ -237,7 +236,8 @@ gen_process:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.txt $(DEBUG_LOG_GEN) \
 			-w $(TRY_DIR)/out-text.txt $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
-		$(GEN_MODEL) $(TRY_DIR)/test-das.txt' \
+		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
+		$(METRICS) $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-text.txt' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
 # Rerun an experiment (TRY_DIR, TRY_NUM, RUN_NAME must be set!)
