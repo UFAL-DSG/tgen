@@ -177,8 +177,8 @@ cv_run:
 		TRAIN_RUN=seq2seq_train ; \
 		TEST_RUN=seq2seq_gen_cv ; \
 		make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
-		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^Your job' | tail -n 1 | sed 's/^Your job \([0-9]\+\).*/\1/;' ` ; \
-		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
+		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^\(Your job\|Submitted batch\|Job_ID\)' | tail -n 1 | sed 's/^\(Your job\|Submitted batch job\|Job_ID:\) \([0-9]\+\).*/\2/;' ` ; \
+		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
 	done
 
 cv_score-%:
@@ -219,7 +219,7 @@ seq2seq_train:
 
 seq2seq_gen_cv:
 	make prepare_test_data TRY_DIR=$(TRY_DIR)
-	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
+	make seq2seq_gen_process TRY_DIR=$(TRY_DIR) SEED=$(SEED) TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="$(QHOLD)"
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
