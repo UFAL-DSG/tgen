@@ -23,9 +23,10 @@ ifdef DEBUG_GEN
 endif
 METRICS = $$HOME/e2e-metrics/measure_scores.py
 POSTPROCESS = ./postprocess/postprocess.py
-AVERAGE_SCORES = ../util/average_scores.pl
-GREP_SCORES = ../util/grep_scores.pl --bleu-range=10:22 --nist-range=4:5
+AVERAGE_SCORES = ../util/average_scores.pl --e2e
+GREP_SCORES = ../util/grep_scores.pl --bleu-range=50:70 --nist-range=6:9 --meteor-range=30:45 --rouge-range=55:70 --cider-range=1:2.5
 DESC_EXP = ../util/describe_experiment.pl
+NOWRAP = ../util/nowrap.pl
 LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
@@ -122,9 +123,10 @@ help:
 
 # List all experiments, find scores in logs (of various versions)
 desc:
-	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
+	@COLS=`tput cols`; \
+	ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
 		if [[ -f $$file/$(SCOREFILE) && -z "$(REFRESH)" ]]; then \
-			cat $$file/$(SCOREFILE) ; \
+			cat $$file/$(SCOREFILE) | $(NOWRAP) $$COLS; \
 			continue ; \
 		fi ; \
 		echo -ne $$file ":  " | sed 's/runs\///;s/_/  /;s/_/ /;s/_/  /;s/  20/  /;s/-[0-9][0-9]  /  /;' > $$file/$(SCOREFILE);  \
@@ -132,7 +134,7 @@ desc:
 		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
 		echo >> $$file/$(SCOREFILE); \
-		cat $$file/$(SCOREFILE); \
+		cat $$file/$(SCOREFILE) | $(NOWRAP) $$COLS; \
 	done
 
 shortdesc:

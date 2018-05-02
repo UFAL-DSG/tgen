@@ -12,10 +12,20 @@ use Getopt::Long;
 
 my $USAGE = "Usage: ./$0 [--bleu-range=40:60] [--nist-range=3:6] file1.log file2.log [...]\n";
 
-my ( $bleu_range, $nist_range ) = ( '40:80', '3:6' );
+my $ranges = {
+    'bleu' => '40:80',
+    'nist' => '3:6',
+    'meteor' => '0:1',
+    'cider' => '0:10',
+    'rouge' => '0:1',
+};
+
 GetOptions(
-    'bleu-range|bleu|b=s' => \$bleu_range,
-    'nist-range|nist|n=s' => \$nist_range,
+    'bleu-range|bleu|b=s' => \$ranges->{bleu},
+    'nist-range|nist|n=s' => \$ranges->{nist},
+    'meteor-range|meteor|m=s' => \$ranges->{meteor},
+    'cider-range|cider|c=s' => \$ranges->{cider},
+    'rouge_l-range|rouge-range|rouge_l|rouge|r=s' => \$ranges->{rouge},
 ) or die($USAGE);
 die($USAGE) if ( !@ARGV );
 
@@ -66,6 +76,13 @@ while ( my $line = <$fh> ) {
         $lists = rg( 0, 40, $b ) . "B $b" . rg( 0, 40, $c ) . "  C $c" . rg( 0, 40, $a ) . "  A $a\e[0m";
     }
 
+    elsif ( $line =~ /^(NIST|BLEU|METEOR|ROUGE_L|CIDEr) ([0-9.]+)$/){
+        my ($metric, $value) = ($1, $2);
+        my $letter = substr($metric, 0, 1);
+        $metric =~ s/_L//;
+        $metric = lc $metric;
+        $bleu .= ($bleu ? "  " : "") . rg( split( /:/, $ranges->{$metric} ), $value ) . "$letter $value\e[0m";
+    }
     # NIST & BLEU
     elsif ( $line =~ /^NIST/ ) {
         $line =~ s/^.*NIST/NIST/;
@@ -73,7 +90,7 @@ while ( my $line = <$fh> ) {
         $line =~ s/[a-z]//gi;
         $line =~ s/^\s+//;
         my ( $n, $b ) = split( /\s+/, $line );
-        $bleu = rg( split( /:/, $nist_range ), $n ) . "NIST $n" . rg( split( /:/, $bleu_range ), $b ) . "  BLEU $b\e[0m";
+        $bleu = rg( split( /:/, $ranges->{nist} ), $n ) . "NIST $n" . rg( split( /:/, $ranges->{bleu} ), $b ) . "  BLEU $b\e[0m";
     }
 
     # just BLEU (for tokens setting)
@@ -82,14 +99,17 @@ while ( my $line = <$fh> ) {
         $line =~ s/\s+//g;
         my $b = sprintf "%.2f", $line;
         # leave spaces instead of NIST
-        $bleu = "             " . rg( split( /:/, $bleu_range ), $b ) . "BLEU $b\e[0m";
+        $bleu = "             " . rg( split( /:/, $ranges->{bleu} ), $b ) . "BLEU $b\e[0m";
     }
 }
 
 close($fh);
 
 # Print the output
-if ($lists){
+if (!$pr){
+    print "$bleu\e[0m";
+}
+elsif ($lists){
     print "$pr  $lists  $bleu\e[0m";
 }
 else {

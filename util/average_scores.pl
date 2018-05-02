@@ -12,12 +12,22 @@ use warnings;
 use autodie;
 use File::Basename;
 use File::stat;
+use Getopt::Long;
+
+
+my $usage = "Usage: ./$0 [--e2e] file1.log file2.log [...]\n";
 
 my @patterns = ( 'BEST', 'NODE', 'DEP', 'BLEU score\b', 'TOKEN', 'Slot error' );
 my %data;
 my %lines;
 
-die("Usage: ./$0 file1.log file2.log [...]\n") if ( !@ARGV );
+my $use_e2e_metrics = 0;
+GetOptions('e2e-metrics' => \$use_e2e_metrics) or die($usage);
+die($usage) if ( !@ARGV );
+
+if ($use_e2e_metrics){
+    @patterns = ( '^BLEU:', '^NIST:', '^METEOR:', '^ROUGE_L:', '^CIDEr:', 'Slot error' );
+}
 
 # filter ARGV to obtain just one file in each subdirectory
 # TODO make this an option
