@@ -239,6 +239,7 @@ gen_process:
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.txt $(DEBUG_LOG_GEN) \
 			-w $(TRY_DIR)/out-text.txt $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
+		$(POSTPROCESS) $(TRY_DIR)/out-text.txt $(TRY_DIR)/out-detok.txt; \
 		$(METRICS) $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-text.txt' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
