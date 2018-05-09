@@ -499,6 +499,8 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
 
     def get_embeddings(self, sent):
         """Get the embeddings of a sentence (list of word form/tag pairs)."""
+        if sent is None:
+            sent = []
         embs = [self.GO]
         for form, tag in sent:
             # normalize form (handle plurals and casing)
