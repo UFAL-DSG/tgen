@@ -163,7 +163,7 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
                       key=lambda dai: len(dai.value) if dai.value is not None else 0,
                       reverse=True):
         # first, create the 'abstracted' DAI as the copy of the current DAI
-        abst_da_order.append(da.dais.find(dai))
+        abst_da_order.append(da.dais.index(dai))
         abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
         if dai.value is None:
             continue
