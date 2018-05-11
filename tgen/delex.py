@@ -156,12 +156,14 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
     abst_da = DA()
     toks_mask = [True] * len(toks)
 
+    abst_da_order = []
     # find all values in the sentence, building the abstracted DA along the way
     # search first for longer values (so that substrings don't block them)
     for dai in sorted(da,
                       key=lambda dai: len(dai.value) if dai.value is not None else 0,
                       reverse=True):
         # first, create the 'abstracted' DAI as the copy of the current DAI
+        abst_da_order.append(da.find(dai))
         abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
         if dai.value is None:
             continue
@@ -212,4 +214,6 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
         abst.end = abst.start + 1
         shift += shift_add
 
-    return ' '.join(toks) if return_string else toks, abst_da, absts
+    abst_da_original_order = [abst_da[i] for i in abst_da_order]
+
+    return ' '.join(toks) if return_string else toks, abst_da_original_order, absts
