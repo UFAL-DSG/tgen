@@ -136,32 +136,36 @@ def find_value(value, toks, toks_mask):
     return pos
 
 
-def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False, repeated=False):
-    """Abstract the given slots in the given sentence (replace them with X).
+def delex_sent(da, sent, delex_slots, use_slot_names=True, delex_slot_names=False, repeated=False):
+    """Delexicalize ("abstract") the given slots in the given sentence (replace them with X
+    or X-slot_name).
 
     @param da: concrete DA
-    @param conc: concrete sentence text (string -- split only on whitespace, or list of tokens)
-    @param abst_slots: a set of slots to be abstracted
+    @param sent: lexicalized sentence text (string -- split only on whitespace, or list of tokens)
+    @param delex_slots: a set of slots to be delexicalized, or a dict (with a set of values to \
+        leave untouched for each slot)
     @param slot_names: boolean -- use slot names in the abstraction (X-slot), or just X?
-    @return: a tuple of the abstracted text (in the same format as conc), abstracted DA, \
+    @return: a tuple of the abstracted text (in the same format as sent), delexicalized DA, \
         and abstraction instructions
     """
     return_string = False
-    if isinstance(conc, basestring):
-        toks = conc.split(' ')
+    if isinstance(sent, basestring):
+        toks = sent.split(' ')
         return_string = True
     else:
-        toks = conc
+        toks = sent
+    if isinstance(delex_slots, set):  # convert sets to dicts
+        delex_slots = {slot: set() for slot in delex_slots}
     absts = []
     abst_da = DA()
     toks_mask = [True] * len(toks)
 
-    # find all values in the sentence, building the abstracted DA along the way
+    # find all values in the sentence, building the delexicalized DA along the way
     # search first for longer values (so that substrings don't block them)
     for dai in sorted(da,
                       key=lambda dai: len(dai.value) if dai.value is not None else 0,
                       reverse=True):
-        # first, create the 'abstracted' DAI as the copy of the current DAI
+        # first, create the delexicalized (abstracted) DAI as the copy of the current DAI
         abst_da.append(DAI(dai.da_type, dai.slot, dai.value))
         if dai.value is None:
             continue
@@ -171,9 +175,10 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
         pos = (-1, -1)
         while found < 1 or (repeated and pos != (-1, -1)):
             pos = find_value(dai.value, toks, toks_mask)
-            # if the value is to be abstracted, replace the value in the abstracted DAI
+            # if the value is to be delexicalize, replace the value in the delexicalized DAI
             # and save abstraction instruction (even if not found in the sentence)
-            if (dai.slot in abst_slots and
+            if (dai.slot in delex_slots and
+                    dai.value not in delex_slots[dai.slot] and
                     dai.value != 'dont_care' and
                     (found == 0 or pos != (-1, -1))):
 
@@ -188,16 +193,17 @@ def delex_sent(da, conc, abst_slots, use_slot_names=True, delex_slot_names=False
                           key=lambda dai: len(dai.slot),
                           reverse=True):
             pos = find_value(dai.slot.replace('_', ' '), toks, toks_mask)
-            if dai.slot in abst_slots:
+            if dai.slot in delex_slots:
                 absts.append(Abst(dai.slot, None, surface_form=' '.join(toks[pos[0]:pos[1]]),
                                   start=pos[0], end=pos[1]))
 
-    # go from the beginning of the sentence, replacing the values to be abstracted
+    # go from the beginning of the sentence, replacing the values to be delexicalized
     absts.sort(key=lambda a: a.start)
     shift = 0
     for abst in absts:
-        # select only those that should actually be abstracted on the output
-        if abst.slot not in abst_slots or abst.value == 'dont_care' or abst.start < 0:
+        # select only those that should actually be delexicalized on the output
+        if (abst.slot not in delex_slots or abst.value in delex_slots[abst.slot]
+                or abst.value == 'dont_care' or abst.start < 0):
             continue
         # replace the text with the placeholder (X-slot/X-value, X-slot-name, X)
         if delex_slot_names and abst.value is None:
