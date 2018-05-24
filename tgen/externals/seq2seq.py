@@ -35,9 +35,10 @@ from tensorflow.contrib.rnn import EmbeddingWrapper, RNNCell, OutputProjectionWr
 try:  # TF 1.0.1
     from tensorflow.contrib.rnn.python.ops.rnn_cell import _linear as linear
 except ImportError: # TF 1.4.1
-    from tensorflow.python.ops.rnn_cell_impl import _linear as linear
-except ImportError: # TF 1.6.0
-    from tensorflow.contrib.rnn.python.ops.core_rnn_cell import _linear as linear
+    try:
+        from tensorflow.python.ops.rnn_cell_impl import _linear as linear
+    except ImportError: # TF 1.6.0
+        from tensorflow.contrib.rnn.python.ops.core_rnn_cell import _linear as linear
 
 
 def rnn(cell, inputs, initial_state=None, dtype=None,
