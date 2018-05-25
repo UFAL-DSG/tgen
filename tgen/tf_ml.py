@@ -67,6 +67,10 @@ class TFModel(object):
                 self.session.run(op)
 
     def tf_check_filename(self, fname):
+        """Checks if a directory is specified in the file name (otherwise newer TF versions
+        would crash when saving a model).
+        @param fname: The file name to be checked.
+        @return: Adjusted file name (with "./" if no directory was specified)."""
         if not os.path.dirname(fname):
             log_warn("Directory not specified, using current directory: %s" % fname)
             fname = os.path.join(os.curdir, fname)
