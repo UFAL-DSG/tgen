@@ -111,7 +111,7 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
         # calculate a concatenation of encoder outputs to put attention on.
         top_states = [array_ops.reshape(e, [-1, 1, cell.output_size * 2])
                       for e in encoder_outputs]
-        #added positional arguements as it was taking axis to be the values
+        # added positional arguments since these swapped in some TF version
         attention_states = array_ops.concat(axis=1, values=top_states)
 
         # change the decoder cell to accommodate wider input
