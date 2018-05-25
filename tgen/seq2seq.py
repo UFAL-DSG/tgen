@@ -959,6 +959,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         @param model_fname: file name (for the configuration file); TF graph will be stored with a \
             different extension
         """
+        model_fname = self.tf_check_filename(model_fname)
         log_info("Saving generator to %s..." % model_fname)
         if self.classif_filter:
             classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)

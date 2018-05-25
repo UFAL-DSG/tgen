@@ -6,12 +6,15 @@ TensorFlow Helper functions.
 """
 
 from __future__ import unicode_literals
+import os
 
 import tensorflow as tf
 from tensorflow.python.framework import dtypes
 from tensorflow.python.ops import array_ops, control_flow_ops
 from tensorflow.contrib.rnn import EmbeddingWrapper, OutputProjectionWrapper
 from tensorflow.python.ops import variable_scope as vs
+
+from tgen.logf import log_warn
 import tgen.externals.seq2seq as tf06s2s
 
 
@@ -62,6 +65,12 @@ class TFModel(object):
             if var.name in vals:
                 op = var.assign(vals[var.name])
                 self.session.run(op)
+
+    def tf_check_filename(self, fname):
+        if not os.path.dirname(fname):
+            log_warn("Directory not specified, using current directory: %s" % fname)
+            fname = os.path.join(os.curdir, fname)
+        return fname
 
 
 def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,

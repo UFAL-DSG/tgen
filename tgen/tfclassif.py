@@ -137,6 +137,7 @@ class RerankingClassifier(TFModel):
         @param model_fname: file name (for the configuration file); TF graph will be stored with a \
             different extension
         """
+        model_fname = self.tf_check_filename(model_fname)
         log_info("Saving classifier to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.get_all_settings(), fh, protocol=pickle.HIGHEST_PROTOCOL)
