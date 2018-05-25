@@ -39,7 +39,7 @@ If you use or refer to the seq2seq generation in TGen, please cite [this paper](
 
 * Ondřej Dušek and Filip Jurčíček (2016): Sequence-to-Sequence Generation for Spoken Dialogue via Deep Syntax Trees and Strings. In _Proceedings of the 54th Annual Meeting of the Association for Computational Linguistics_, Berlin, Germany.
 
-If you use or refer to the context-aware improved seq2seq genration, please cite [this paper](http://www.sigdial.org/workshops/conference17/proceedings/pdf/SIGDIAL22.pdf):
+If you use or refer to the context-aware improved seq2seq generation, please cite [this paper](http://www.sigdial.org/workshops/conference17/proceedings/pdf/SIGDIAL22.pdf):
 
 * Ondřej Dušek and Filip Jurčíček (2016): A Context-aware Natural Language Generator for Dialogue Systems. In _Proceedings of the 17th Annual Meeting of the Special Interest Group on Discourse and Dialogue_, Los Angeles, CA, USA.
 
