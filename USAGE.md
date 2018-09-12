@@ -116,7 +116,9 @@ Our own experiments on several datasets are included as subdirectories within th
 
 * [sfx-restaurant/](sfx-restaurant): generating from the 
     [San Francisco Restaurants dataset](https://www.repository.cam.ac.uk/handle/1810/251304)
-    collected by Wen et al., EMNLP 2015.
+    collected by Wen et al., EMNLP 2015. There are some 
+    __[specific usage instructions](sfx-restaurant/README.md)__ directly in the experiment
+    subdirectory.
 
 
 You need to download the dataset into the `input/` subdirectory to start your experiments. 
