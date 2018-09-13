@@ -27,11 +27,13 @@ use Treex::Core::Log;
 my $abstr_slots_str   = '';
 my $skip_unabstracted = 0;
 my $join_repeats      = 0;
+my $sort_insts        = 1;
 
 if (not GetOptions(
         "abstract|abstr|a=s"       => \$abstr_slots_str,
         "skip-unabstracted|skip|s" => \$skip_unabstracted,
         "join-repeats|join|j"      => \$join_repeats,
+        "sort-insts|sort!"         => \$sort_insts,
     )
     or @ARGV != 6
     )
@@ -76,7 +78,10 @@ $tokenizer->end();
 
 print STDERR "\nOutput...\n";
 
-foreach my $instance ( sort { $a->{da} cmp $b->{da} || length $a->{text} <=> length $b->{text} } @instances ) {
+if ($sort_insts){
+    @instances = sort { $a->{da} cmp $b->{da} || length $a->{text} <=> length $b->{text} } @instances;
+}
+foreach my $instance ( @instances ) {
     print_instance($instance);
 }
 
