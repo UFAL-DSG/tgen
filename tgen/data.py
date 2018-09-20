@@ -131,20 +131,39 @@ class DA(object):
             da.append(DAI.parse(dai_text + ')'))
         return da
 
+    class TagQuotes(object):
+        """A helper class for numbering the occurrences of quoted things in the text."""
+        def __init__(self):
+            self.counter = 0
+
+        def __call__(self, match):
+            self.counter += 1
+            return 'XXXQUOT%d' % self.counter
+
+    @staticmethod
+    def _protect_quotes(text):
+        """Find and replace quoted parts of the sentence by tags."""
+        tag_pattern = '"[^"]*"|\'[^\']*\''
+        tags = re.findall(tag_pattern, text)
+        sent = re.sub(tag_pattern, DA.TagQuotes(), text)
+        return sent, tags
+
     @staticmethod
     def parse_cambridge_da(da_text):
         """Parse a Cambridge-style DA string a DA object."""
         da = DA()
+        da_text, quoted = DA._protect_quotes(da_text)
+        quoted_num = 1
 
         for dai_text in re.finditer(r'(\??[a-z_]+)\(([^)]*)\)', da_text):
-            da_type, svps = dai_text.groups()
+            da_type, svps_text = dai_text.groups()
 
-            if not svps:  # no slots/values (e.g. 'hello()')
+            if not svps_text:  # no slots/values (e.g. 'hello()')
                 da.append(DAI(da_type, None, None))
                 continue
 
-            # we have some slots/values – split them into DAIs
-            svps = re.split('(?<! )[,;]', svps)
+            # we have some slots/values – split them into DAI
+            svps = re.findall('([^,;=]+(?:=(?:[^"\',;]+))?)(?:[,;]|$)', svps_text)
             for svp in svps:
 
                 if '=' not in svp:  # no value, e.g. '?request(near)'
@@ -153,9 +172,13 @@ class DA(object):
 
                 # we have a value
                 slot, value = svp.split('=', 1)
-                if re.match(r'^\'.*\'$', value):
+                if 'XXXQUOT%d' % quoted_num in value:  # get back the quoted value
+                    value = re.sub('XXXQUOT%d' % quoted_num, quoted.pop(0), value, count=1)
+                    quoted_num += 1
+                if re.match(r'^\'.*\'$', value) or re.match('^".*"$', value):
                     value = value[1:-1]
                 assert not re.match(r'^\'', value) and not re.match(r'\'$', value)
+                assert not re.match(r'^"', value) and not re.match(r'"$', value)
 
                 da.append(DAI(da_type, slot, value))
 
@@ -170,36 +193,6 @@ class DA(object):
             slot, value = dai_text.groups()
             slot = re.sub(r'([A-Z])', r'_\1', slot).lower()
             da.append(DAI('inform', slot, value if value else None))
-
-        return da
-
-    @staticmethod
-    def parse_cambridge_da(da_text):
-        """Parse a Cambridge-style DA string a DA object."""
-        da = DA()
-
-        for dai_text in re.finditer(r'(\??[a-z_]+)\(([^)]*)\)', da_text):
-            da_type, svps = dai_text.groups()
-
-            if not svps:  # no slots/values (e.g. 'hello()')
-                da.append(DAI(da_type, None, None))
-                continue
-
-            # we have some slots/values – split them into DAIs
-            svps = re.split('(?<! )[,;]', svps)
-            for svp in svps:
-
-                if '=' not in svp:  # no value, e.g. '?request(near)'
-                    da.append(DAI(da_type, svp, None))
-                    continue
-
-                # we have a value
-                slot, value = svp.split('=', 1)
-                if re.match(r'^\'.*\'$', value):
-                    value = value[1:-1]
-                assert not re.match(r'^\'', value) and not re.match(r'\'$', value)
-
-                da.append(DAI(da_type, slot, value))
 
         return da
 
