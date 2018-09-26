@@ -152,7 +152,7 @@ class DA(object):
     def parse_cambridge_da(da_text):
         """Parse a Cambridge-style DA string a DA object."""
         da = DA()
-        da_text, quoted = DA._protect_quotes(da_text)
+        da_text, quoted = DA._protect_quotes(da_text.strip())
         quoted_num = 1
 
         for dai_text in re.finditer(r'(\??[a-z_]+)\(([^)]*)\)', da_text):
@@ -163,7 +163,7 @@ class DA(object):
                 continue
 
             # we have some slots/values – split them into DAI
-            svps = re.findall('([^,;=]+(?:=(?:[^"\',;]+))?)(?:[,;]|$)', svps_text)
+            svps = re.findall('([^,;=\'"]+(?:=(?:[^"\',;]+))?)(?:[,;]|[\'"]$|$)', svps_text)
             for svp in svps:
 
                 if '=' not in svp:  # no value, e.g. '?request(near)'
