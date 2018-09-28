@@ -661,7 +661,7 @@ class Lexicalizer(object):
         @param abst_file: abstraction/delexicalization instructions file path
         @return: None
         """
-        abstss = smart_load_absts(abst_file)
+        abstss = smart_load_absts(abst_file, len(gen_trees))
         for sent_no, (tree, absts) in enumerate(zip(gen_trees, abstss)):
             log_debug("Lexicalizing sentence %d: %s" % ((sent_no + 1), unicode(tree)))
             sent = self._tree_to_sentence(tree)

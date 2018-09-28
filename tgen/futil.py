@@ -66,7 +66,7 @@ def read_absts(abst_file):
     return abstss
 
 
-def smart_load_absts(fname):
+def smart_load_absts(fname, num_expected=None):
     """Load lexicalization instructions in a smart way, i.e., be able to detect DA files
     or abstraction files with multi-reference mode."""
     with file_stream(fname) as fh:
@@ -80,6 +80,8 @@ def smart_load_absts(fname):
         # multi-reference mode: read all but only output Absts for 1st reference of each instance
         elif re.search(r'(\n\n|\r\n\r\n|\r\r)', contents):
             abstss = read_absts(buf)
+            if num_expected is not None and len(abstss) == num_expected:
+                return abstss  # if there's 1:1 length correspondence, assume 1 reference
             out_abstss = []
             ref1st = True
             for absts in abstss:
