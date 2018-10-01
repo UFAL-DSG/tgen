@@ -41,6 +41,7 @@ mv input/{train,devel,test}* data
     --output-file output.txt \
     model.pickle.gz data/devel-das.txt
 ```
-  Note that while `data/devel-abst.txt` contains information about the position 
-  of the slots in the gold standard file, that information is not used during generation 
-  (just the slot values are used for lexicalization).
+  Instead of `devel-conc_das.txt` (non-delexicalized input DAs), you could use
+  the file `data/devel-abst.txt` for lexicalization -- this should give the same result. 
+  This file contains information about the position of the slot values in the gold standard
+  file, but that information is ignored (just the slot values are used for lexicalization).
