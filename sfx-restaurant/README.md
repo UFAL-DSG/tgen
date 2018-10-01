@@ -37,7 +37,7 @@ mv input/{train,devel,test}* data
 7. Run the model to generate outputs on the development data and save them to output.txt:
 ```
 ../run_tgen.py seq2seq_gen --eval-file data/devel-ref.txt  \
-    --abstr-file data/devel-abst.txt \
+    --abstr-file data/devel-conc_das.txt \
     --output-file output.txt \
     model.pickle.gz data/devel-das.txt
 ```
