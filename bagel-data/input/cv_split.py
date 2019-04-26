@@ -21,11 +21,12 @@ from __future__ import unicode_literals
 from pytreex.core.util import file_stream
 from getopt import getopt
 import os
-from tgen.logf import log_warn
 import random
 import sys
 import re
 
+sys.path.insert(0, os.path.abspath('../../'))  # add tgen main directory to modules path
+from tgen.logf import log_warn
 
 def write_data(dir, fname_base, fname_repl, data):
     chunk_size = len(data[0])
