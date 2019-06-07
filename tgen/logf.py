@@ -7,6 +7,7 @@ Logging functions.
 """
 
 from __future__ import unicode_literals
+from __future__ import print_function
 
 __author__ = "Ondřej Dušek"
 __date__ = "2014"
@@ -22,13 +23,13 @@ log_stream = codecs.getwriter('utf-8')(sys.stderr)
 
 def log_info(message):
     "Print an information message"
-    print >> log_stream, asctime(), 'INFO:', message
+    print(asctime(), 'INFO:', message, file=log_stream)
     sys.stderr.flush()
 
 
 def log_warn(message):
     "Print a warning message"
-    print >> log_stream, asctime(), 'WARN:', message
+    print(asctime(), 'WARN:', message, file=log_stream)
     sys.stderr.flush()
 
 
@@ -36,10 +37,10 @@ def log_debug(*args):
     "Print debug message(s)."
     if not debug_stream:
         return
-    print >> debug_stream, asctime(),
+    print(asctime(), end=' ', file=debug_stream)
     for arg in args:
-        print >> debug_stream, arg,
-    print >> debug_stream
+        print(arg, end=' ', file=debug_stream)
+    print(file=debug_stream)
     debug_stream.flush()
 
 

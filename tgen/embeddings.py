@@ -6,6 +6,9 @@ Extracting embeddings from DAs and trees (basically dictionaries with indexes).
 """
 
 from __future__ import unicode_literals
+from builtins import str
+from builtins import range
+from builtins import object
 from tgen.tree import TreeData, NodeData
 
 
@@ -74,7 +77,7 @@ class DAEmbeddingExtract(EmbeddingExtract):
             da_emb_idxs.append([self.dict_slot.get(dai.slot, self.UNK_SLOT),
                                 self.dict_value.get(dai.value, self.UNK_VALUE)])
         # pad with "unknown"
-        for _ in xrange(len(da_emb_idxs), self.max_da_len):
+        for _ in range(len(da_emb_idxs), self.max_da_len):
             da_emb_idxs.append([self.UNK_SLOT, self.UNK_VALUE])
 
         return da_emb_idxs
@@ -126,7 +129,7 @@ class TreeEmbeddingExtract(EmbeddingExtract):
 
         # parent_lemma - formeme - lemma, + adding previous_lemma for emb_prev
         tree_emb_idxs = []
-        for pos in xrange(1, min(self.max_tree_len + 1, len(tree))):
+        for pos in range(1, min(self.max_tree_len + 1, len(tree))):
             t_lemma, formeme = tree.nodes[pos]
             parent_ord = tree.parents[pos]
             node_emb_idxs = [self.dict_t_lemma.get(tree.nodes[parent_ord].t_lemma, self.UNK_T_LEMMA),
@@ -138,7 +141,7 @@ class TreeEmbeddingExtract(EmbeddingExtract):
             tree_emb_idxs.append(node_emb_idxs)
 
         # pad with unknown values (except for last lemma in case of emb_prev)
-        for pos in xrange(len(tree) - 1, self.max_tree_len):
+        for pos in range(len(tree) - 1, self.max_tree_len):
             node_emb_idxs = [self.UNK_T_LEMMA, self.UNK_FORMEME, self.UNK_T_LEMMA]
             if self.prev_node_emb:
                 node_emb_idxs.append(self.dict_t_lemma.get(tree.nodes[-1].t_lemma, self.UNK_T_LEMMA)
@@ -349,7 +352,7 @@ class TreeEmbeddingSeq2SeqExtract(EmbeddingExtract):
             i -= 1
 
         # convert all IDs to their tokens
-        ret = [unicode(self.id_to_string.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
+        ret = [str(self.id_to_string.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
         return ret
 
     def ids_to_tree(self, emb):
@@ -538,7 +541,7 @@ class TokenEmbeddingSeq2SeqExtract(EmbeddingExtract):
             i -= 1
 
         # convert all IDs to their tokens
-        ret = [unicode(self.rev_dict.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
+        ret = [str(self.rev_dict.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
 
         return ret
 
@@ -638,7 +641,7 @@ class TaggedLemmasEmbeddingSeq2SeqExtract(EmbeddingExtract):
             i -= 1
 
         # convert all IDs to their tokens
-        ret = [unicode(self.rev_dict.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
+        ret = [str(self.rev_dict.get(tok_id, '<???>')) for tok_id in emb[:i + 1]]
 
         return ret
 

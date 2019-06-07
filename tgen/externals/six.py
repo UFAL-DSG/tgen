@@ -19,6 +19,12 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import bytes
+from past.builtins import basestring
+from builtins import object
 import operator
 import sys
 import types
@@ -40,9 +46,9 @@ if PY3:
     MAXSIZE = sys.maxsize
 else:
     string_types = basestring,
-    integer_types = (int, long)
-    class_types = (type, types.ClassType)
-    text_type = unicode
+    integer_types = (int, int)
+    class_types = (type, type)
+    text_type = str
     binary_type = str
 
     # It's possible to have sizeof(long) != sizeof(Py_ssize_t).
@@ -237,11 +243,11 @@ if PY3:
     Iterator = object
 else:
     def get_unbound_function(unbound):
-        return unbound.im_func
+        return unbound.__func__
 
     class Iterator(object):
 
-        def next(self):
+        def __next__(self):
             return type(self).__next__(self)
 
     callable = callable
@@ -286,10 +292,10 @@ else:
     def b(s):
         return s
     def u(s):
-        return unicode(s, "unicode_escape")
+        return str(s, "unicode_escape")
     int2byte = chr
-    import StringIO
-    StringIO = BytesIO = StringIO.StringIO
+    import io
+    StringIO = BytesIO = io.StringIO
 _add_doc(b, """Byte literal""")
 _add_doc(u, """Text literal""")
 

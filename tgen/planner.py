@@ -6,15 +6,19 @@ Sentence planning: Generating T-trees from dialogue acts.
 """
 
 from __future__ import unicode_literals
-from collections import deque
-from UserDict import DictMixin
+from __future__ import absolute_import
+from builtins import zip
+from builtins import str
+from builtins import range
+from builtins import object
+from collections import deque, MutableMapping
 
-from logf import log_debug
-from tree import TreeData, TreeNode, NodeData
+from .logf import log_debug
+from .tree import TreeData, TreeNode, NodeData
 from pytreex.core.util import first
 
 
-class CandidateList(DictMixin):
+class CandidateList(MutableMapping):
     """List of candidate trees that can be quickly checked for membership and
     can yield the best-scoring candidate quickly.
 
@@ -31,7 +35,7 @@ class CandidateList(DictMixin):
             self.push_all(members)
         pass
 
-    def __nonzero__(self):
+    def __bool__(self):
         return len(self.members) > 0
 
     def __contains__(self, key):
@@ -45,7 +49,7 @@ class CandidateList(DictMixin):
         if key in self:
             if value == self[key]:
                 return
-            queue_index = (i for i, v in enumerate(self.queue) if v[1] == key).next()
+            queue_index = next((i for i, v in enumerate(self.queue) if v[1] == key))
             self.queue[queue_index] = (value, key)
             self._siftup(queue_index)
         else:
@@ -55,14 +59,14 @@ class CandidateList(DictMixin):
 
     def __delitem__(self, key):
         del self.members[key]  # this will raise an exception if the key is not there
-        queue_index = (i for i, v in enumerate(self.queue) if v[1] == key).next()
+        queue_index = next((i for i, v in enumerate(self.queue) if v[1] == key))
         self.queue[queue_index] = self.queue[-1]
         del self.queue[-1]
         if queue_index < len(self.queue):  # skip if we deleted the last item
             self._siftup(queue_index)
 
     def keys(self):
-        return self.members.keys()
+        return list(self.members.keys())
 
     def pop(self):
         """Return the first item on the heap and remove it."""
@@ -89,7 +93,7 @@ class CandidateList(DictMixin):
         """Push all members of the given structure to the heap
         (a list of pairs key-value or a dictionary are accepted)."""
         if isinstance(members, dict):
-            members = members.iteritems()
+            members = iter(members.items())
         for key, value in members:
             self[key] = value
 
@@ -99,7 +103,7 @@ class CandidateList(DictMixin):
             return {}
         pruned_queue = []
         pruned_members = {}
-        for _ in xrange(size):
+        for _ in range(size):
             key, val = self.pop()
             pruned_queue.append((val, key))
             pruned_members[key] = val
@@ -199,7 +203,7 @@ class SamplingPlanner(SentencePlanner):
         treesize = 1
         while nodes and treesize < self.MAX_TREE_SIZE:
             node = nodes.popleft()
-            for _ in xrange(self.candgen.get_number_of_children(node.formeme)):
+            for _ in range(self.candgen.get_number_of_children(node.formeme)):
                 child = self.generate_child(node)
                 if child:
                     nodes.append(child)
@@ -249,12 +253,12 @@ class ASearchPlanner(SentencePlanner):
         # generate and use only 1-best
         self.run(da)
         best_tree, best_score = self.close_list.peek()
-        log_debug("RESULT: %12.5f %s" % (best_score, unicode(best_tree)))
+        log_debug("RESULT: %12.5f %s" % (best_score, str(best_tree)))
         # if requested, append the result
         if gen_doc:
             zone = self.get_target_zone(gen_doc)
             zone.ttree = best_tree.create_ttree()
-            zone.sentence = unicode(da)
+            zone.sentence = str(da)
         # return the result
         return best_tree
 
@@ -277,7 +281,7 @@ class ASearchPlanner(SentencePlanner):
         @param prune_size: Beam size for open list pruning
         @param beam_size: Beam size for candidate expansion (expand more at a time if > 1)
         """
-        log_debug('GEN TREE for DA: %s' % unicode(input_da))
+        log_debug('GEN TREE for DA: %s' % str(input_da))
 
         # initialization
         empty_tree = TreeData()
@@ -331,7 +335,7 @@ class ASearchPlanner(SentencePlanner):
 
             if len(cands) == 0:
                 log_debug("-- IT %4d: O %5d S %12.5f -- %s" %
-                          (self.num_iter, len(self.open_list), -score[1], unicode(cand)))
+                          (self.num_iter, len(self.open_list), -score[1], str(cand)))
 
         successors = [succ
                       for succ in self.candgen.get_all_successors(cand)

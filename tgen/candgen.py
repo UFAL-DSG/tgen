@@ -6,14 +6,21 @@ Generating candidate subtrees to enhance the current candidate tree.
 """
 
 from __future__ import unicode_literals
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import zip
+from builtins import str
+from builtins import range
+from builtins import object
 from collections import defaultdict, Counter
-import cPickle as pickle
+import pickle as pickle
 
-from logf import log_info
+from .logf import log_info
 from pytreex.core.util import file_stream
 
-from futil import read_das, read_ttrees, ttrees_from_doc
-from tree import TreeNode, NodeData
+from .futil import read_das, read_ttrees, ttrees_from_doc
+from .tree import TreeNode, NodeData
 from tgen.logf import log_warn, log_debug
 from tgen.tree import TreeData
 from tgen.planner import CandidateList
@@ -135,13 +142,13 @@ class RandomCandidateGenerator(object):
             for tnode in ttree.get_descendants(add_self=True):
                 level_nodes[tnode.get_depth()] += 1
             for dai in da:
-                for level in level_nodes.iterkeys():
+                for level in level_nodes.keys():
                     max_level_nodes[dai][level] = max((max_level_nodes[dai][level],
                                                        level_nodes[level]))
 
         # prune counts
         if self.prune_threshold > 1:
-            for dai, forms in child_type_counts.items():
+            for dai, forms in list(child_type_counts.items()):
                 self._prune(forms)
                 if not forms:
                     del child_type_counts[dai]
@@ -151,13 +158,13 @@ class RandomCandidateGenerator(object):
         self.child_type_counts = child_type_counts
         self.child_num_cdfs = self.cdfs_from_counts(child_num_counts)
         self.max_children = {par_id: max(child_num_counts[par_id].keys())
-                             for par_id in child_num_counts.keys()}
+                             for par_id in list(child_num_counts.keys())}
         self.exp_child_num = self.exp_from_cdfs(self.child_num_cdfs)
 
         if self.node_limits:
             self.node_limits = {dai: {'total': max_total}
-                                for dai, max_total in max_total_nodes.iteritems()}
-            for dai, max_levels in max_level_nodes.iteritems():
+                                for dai, max_total in max_total_nodes.items()}
+            for dai, max_levels in max_level_nodes.items():
                 self.node_limits[dai].update(max_levels)
         else:
             self.node_limits = None
@@ -216,8 +223,8 @@ class RandomCandidateGenerator(object):
         """Prune a counts dictionary, keeping only items with counts above
         the prune_threshold given in the constructor.
         """
-        for parent_type, child_types in counts.items():
-            for child_form, child_count in child_types.items():
+        for parent_type, child_types in list(counts.items()):
+            for child_form, child_count in list(child_types.items()):
                 if child_count < self.prune_threshold:
                     del child_types[child_form]
             if not counts[parent_type]:
@@ -252,14 +259,14 @@ class RandomCandidateGenerator(object):
                 for parent_id in self.child_type_counts[dai]:
                     merged_counts[parent_id].update(self.child_type_counts[dai][parent_id])
             except KeyError:
-                log_warn('DAI ' + unicode(dai) + ' unknown, adding nothing to CDF.')
+                log_warn('DAI ' + str(dai) + ' unknown, adding nothing to CDF.')
 
 #         log_info('Node types: %d' % sum(len(c.keys()) for c in merged_counts.values()))
 
         # remove nodes that are not compatible with the current DA (their list of
         # minimum compatibility DAIs is not similar to the current DA)
-        for _, counts in merged_counts.items():
-            for node in counts.keys():
+        for _, counts in list(merged_counts.items()):
+            for node in list(counts.keys()):
                 if not self._compatible(da, NodeData(t_lemma=node[1], formeme=node[0])):
                     del counts[node]
 
@@ -311,10 +318,10 @@ class RandomCandidateGenerator(object):
         merged_limits = defaultdict(int)
         for dai in da:
             try:
-                for level, level_limit in self.node_limits[dai].iteritems():
+                for level, level_limit in self.node_limits[dai].items():
                     merged_limits[level] = max((level_limit, merged_limits[level]))
             except KeyError:
-                log_warn('DAI ' + unicode(dai) + ' unknown, limits unchanged.')
+                log_warn('DAI ' + str(dai) + ' unknown, limits unchanged.')
         return merged_limits
 
     def cdfs_from_counts(self, counts):
@@ -336,7 +343,7 @@ class RandomCandidateGenerator(object):
         corresponding expected values. Used for children counts.
         """
         exps = {}
-        for key, cdf in cdfs.iteritems():
+        for key, cdf in cdfs.items():
             # convert the CDF -- array of tuples (value, cumulative probability) into an
             # array of rising cumulative probabilities (duplicate last probability
             # if there is no change)
@@ -407,7 +414,7 @@ class RandomCandidateGenerator(object):
                 if nodes_on_level[child_depth] >= self.cur_limits[child_depth]:
                     continue
             # try all formeme/t-lemma/direction variants of a new child under the given parent node
-            for formeme, t_lemma, right in map(lambda item: item[0], self.cur_cdfs[parent_id]):
+            for formeme, t_lemma, right in [item[0] for item in self.cur_cdfs[parent_id]]:
                 # place the child directly following/preceding the parent
                 succ_tree = cand_tree.clone()
                 succ_tree.create_child(node_num, right, NodeData(t_lemma, formeme))
@@ -439,7 +446,7 @@ class RandomCandidateGenerator(object):
         """Get the total expected number of future children in the given tree (based on the
         expectations for the individual node types)."""
         promise = 0.0
-        for node_idx in xrange(len(cand_tree)):
+        for node_idx in range(len(cand_tree)):
             # if the key does not exist, it means that this node type is always a leaf in training data,
             # hence expected number of children is 0 in that case.
             exp_child_num = self.exp_child_num.get(self._parent_node_id(cand_tree.nodes[node_idx]), 0)
@@ -470,9 +477,9 @@ class RandomCandidateGenerator(object):
                     open_list.push(succ, len(succ))
 
         if not found:
-            log_info('Did not find tree: ' + unicode(tree) + ' for DA: ' + unicode(da) + ('(total %d trees)' % tree_no))
+            log_info('Did not find tree: ' + str(tree) + ' for DA: ' + str(da) + ('(total %d trees)' % tree_no))
             return False
-        log_info('Found tree: %s for DA: %s (as %d-th tree)' % (unicode(tree), unicode(da), tree_no))
+        log_info('Found tree: %s for DA: %s (as %d-th tree)' % (str(tree), str(da), tree_no))
         return tree_no
 
     def can_generate_greedy(self, tree, da):
@@ -498,9 +505,9 @@ class RandomCandidateGenerator(object):
 
         # we have hit a dead end
         if cur_subtree != tree:
-            log_info('Did not find tree: ' + unicode(tree) + ' for DA: ' + unicode(da))
+            log_info('Did not find tree: ' + str(tree) + ' for DA: ' + str(da))
             return False
 
         # everything alright
-        log_info('Found tree: %s for DA: %s' % (unicode(tree), unicode(da)))
+        log_info('Found tree: %s for DA: %s' % (str(tree), str(da)))
         return True

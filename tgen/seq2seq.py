@@ -2,12 +2,21 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+from __future__ import division
 
+from past.builtins import cmp
+from future import standard_library
+standard_library.install_aliases()
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import re
 import numpy as np
 import tensorflow as tf
-import cPickle as pickle
-from itertools import izip_longest, groupby
+import pickle as pickle
+from itertools import zip_longest, groupby
 import sys
 import math
 import tempfile
@@ -39,7 +48,7 @@ def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks, from Python Itertools recipes."
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
-    return izip_longest(fillvalue=fillvalue, *args)
+    return zip_longest(fillvalue=fillvalue, *args)
 
 
 def cut_batch_into_steps(batch):
@@ -200,7 +209,7 @@ class Seq2SeqBase(SentencePlanner):
         paths = [self.DecodingPath(stop_token_id=self.tree_embs.STOP, dec_inputs=[dec_inputs[0]])]
 
         # beam search steps
-        for step in xrange(len(dec_inputs)):
+        for step in range(len(dec_inputs)):
 
             new_paths = []
 
@@ -210,8 +219,8 @@ class Seq2SeqBase(SentencePlanner):
 
             def cmp_func(p, q):
                 """Length-weighted comparison of two paths' logprobs."""
-                return cmp(p.logprob / (len(p) ** self.length_norm_weight),
-                           q.logprob / (len(q) ** self.length_norm_weight))
+                return cmp(old_div(p.logprob, (len(p) ** self.length_norm_weight)),
+                           old_div(q.logprob, (len(q) ** self.length_norm_weight)))
 
             paths = sorted(new_paths, cmp=cmp_func, reverse=True)[:self.beam_size]
 
@@ -281,7 +290,7 @@ class Seq2SeqBase(SentencePlanner):
 
             log_debug(("Misfits for DA: %s\n\n" % str(da)) +
                       "\n".join([("%.5f\t" % fit) +
-                                 " ".join([unicode(n.t_lemma) for n in tree.nodes[1:]])
+                                 " ".join([str(n.t_lemma) for n in tree.nodes[1:]])
                                  for fit, tree in zip(fits, trees)]))
 
         # adjust paths for length (if set to do so)
@@ -299,7 +308,7 @@ class Seq2SeqBase(SentencePlanner):
         max_logprob = max(logprobs)
         probs = [math.exp(l - max_logprob) for l in logprobs]  # discount to avoid underflow, result is unnormalized
         sum_prob = sum(probs)
-        probs = [p / sum_prob for p in probs]  # normalized
+        probs = [old_div(p, sum_prob) for p in probs]  # normalized
 
         # select the path based on a draw from the uniform distribution
         draw = rnd.random()
@@ -321,14 +330,14 @@ class Seq2SeqBase(SentencePlanner):
         @param gen_doc: the document where the tree should be saved (defaults to None)
         """
         # generate the tree
-        log_debug("GENERATE TREE FOR DA: " + unicode(da))
+        log_debug("GENERATE TREE FOR DA: " + str(da))
         tree = self.process_das([da])[0]
-        log_debug("RESULT: %s" % unicode(tree))
+        log_debug("RESULT: %s" % str(tree))
         # append the tree to a t-tree document, if requested
         if gen_doc:
             zone = self.get_target_zone(gen_doc)
             zone.ttree = tree.create_ttree()
-            zone.sentence = unicode(da)
+            zone.sentence = str(da)
         # return the result
         return tree
 
@@ -552,11 +561,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             # serial: different instances next to each other, then synonymous in the same order
             if refs_stored == 'serial':
                 valid_tree_chunks = [chunk for chunk in
-                                     chunk_list(self.valid_trees, valid_size / num_refs)]
+                                     chunk_list(self.valid_trees, old_div(valid_size, num_refs))]
                 self.valid_trees = [[chunk[i] for chunk in valid_tree_chunks]
-                                    for i in xrange(valid_size / num_refs)]
+                                    for i in range(old_div(valid_size, num_refs))]
                 if len(self.valid_das) > len(self.valid_trees):
-                    self.valid_das = self.valid_das[0:valid_size / num_refs]
+                    self.valid_das = self.valid_das[0:old_div(valid_size, num_refs)]
             # parallel: synonymous instances next to each other
             elif refs_stored == 'parallel':
                 self.valid_trees = [chunk for chunk in chunk_list(self.valid_trees, num_refs)]
@@ -617,10 +626,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                     da_groups[da].append(tree)
 
         # deduplicate the references
-        for da_group in da_groups.itervalues():
+        for da_group in da_groups.values():
             da_group.sort()
         da_groups = {da: [sent for sent, _ in groupby(da_group)]
-                     for da, da_group in da_groups.iteritems()}
+                     for da, da_group in da_groups.items()}
         # store the references in correct order
         self.valid_trees = [da_groups[da] for da in normalized_das]
 
@@ -636,12 +645,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             # same order)
             if refs_stored == 'serial':
                 train_tree_chunks = [chunk for chunk in
-                                     chunk_list(self.train_trees, train_size / num_refs)]
+                                     chunk_list(self.train_trees, old_div(train_size, num_refs))]
                 train_da_chunks = [chunk for chunk in
-                                   chunk_list(self.train_das, train_size / num_refs)]
+                                   chunk_list(self.train_das, old_div(train_size, num_refs))]
                 self.valid_trees = [[chunk[i] for chunk in train_tree_chunks]
-                                    for i in xrange(train_size / num_refs - self.validation_size,
-                                                    train_size / num_refs)]
+                                    for i in range(old_div(train_size, num_refs) - self.validation_size,
+                                                    old_div(train_size, num_refs))]
                 self.valid_das = train_da_chunks[0][-self.validation_size:]
                 self.train_trees = sum([chunk[:-self.validation_size]
                                         for chunk in train_tree_chunks], [])
@@ -682,12 +691,12 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
 
         # set TensorFlow random seed
-        tf.set_random_seed(rnd.randint(-sys.maxint, sys.maxint))
+        tf.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
 
         # create placeholders for input & output (always batch-size * 1, list of up to num. steps)
         self.enc_inputs = []
         self.enc_inputs_drop = []
-        for i in xrange(self.max_da_len):
+        for i in range(self.max_da_len):
             enc_input = tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
             self.enc_inputs.append(enc_input)
             if self.dropout_keep_prob < 1:
@@ -696,11 +705,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 self.enc_inputs_drop.append(enc_input_drop)
 
         self.dec_inputs = []
-        for i in xrange(self.max_tree_len):
+        for i in range(self.max_tree_len):
             self.dec_inputs.append(tf.placeholder(tf.int32, [None], name=('dec_inp-%d' % i)))
 
         # targets are just decoder inputs shifted by one (+pad with one empty spot)
-        self.targets = [self.dec_inputs[i + 1] for i in xrange(len(self.dec_inputs) - 1)]
+        self.targets = [self.dec_inputs[i + 1] for i in range(len(self.dec_inputs) - 1)]
         self.targets.append(tf.placeholder(tf.int32, [None], name=('target-pad')))
 
         # prepare cells
@@ -808,11 +817,11 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                          self.learning_rate: it_learning_rate}
 
             # encoder inputs
-            for i in xrange(len(self.train_enc[batch_no])):
+            for i in range(len(self.train_enc[batch_no])):
                 feed_dict[self.enc_inputs[i]] = self.train_enc[batch_no][i]
 
             # decoder inputs
-            for i in xrange(len(self.train_dec[batch_no])):
+            for i in range(len(self.train_dec[batch_no])):
                 feed_dict[self.dec_inputs[i]] = self.train_dec[batch_no][i]
 
             # the last target output (padding, to have the same number of step as there are decoder
@@ -874,9 +883,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                             context_file, validation_files, lexic_files)
 
         # do the training passes
-        for iter_no in xrange(1, self.passes + 1):
+        for iter_no in range(1, self.passes + 1):
 
-            self.train_order = range(len(self.train_enc))
+            self.train_order = list(range(len(self.train_enc)))
             if self.randomize:
                 rnd.shuffle(self.train_order)
 
@@ -889,7 +898,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 log_info("Current train output:\n" +
                          "\n".join([" ".join(n.t_lemma for n in tree.nodes[1:])
                                     if self.mode in ['tokens', 'tagged_lemmas']
-                                    else unicode(tree)
+                                    else str(tree)
                                     for tree in cur_train_out]))
 
                 cur_valid_out = self.process_das(self.valid_das[:self.batch_size])
@@ -897,7 +906,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                 log_info("Current validation output:\n" +
                          "\n".join([" ".join(n.t_lemma for n in tree.nodes[1:])
                                     if self.mode in ['tokens', 'tagged_lemmas']
-                                    else unicode(tree)
+                                    else str(tree)
                                     for tree in cur_valid_out]))
                 log_info('IT %d validation cost: %5.4f' % (iter_no, cur_cost))
 
@@ -1054,10 +1063,10 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         initial_state = np.zeros([len(enc_inputs[0]), self.emb_size])
         feed_dict = {self.initial_state: initial_state}
 
-        for i in xrange(len(enc_inputs)):
+        for i in range(len(enc_inputs)):
             feed_dict[self.enc_inputs[i]] = enc_inputs[i]
 
-        for i in xrange(len(dec_inputs)):
+        for i in range(len(dec_inputs)):
             feed_dict[self.dec_inputs[i]] = dec_inputs[i]
 
         feed_dict[self.targets[-1]] = len(enc_inputs[0]) * [self.tree_embs.VOID]
@@ -1082,7 +1091,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         initial_state = np.zeros([1, self.emb_size])
         self._beam_search_feed_dict = {self.initial_state: initial_state}
         # encoder inputs
-        for i in xrange(len(enc_inputs)):
+        for i in range(len(enc_inputs)):
             self._beam_search_feed_dict[self.enc_inputs[i]] = enc_inputs[i]
 
     def _beam_search_step(self, dec_inputs, dec_states):
@@ -1092,7 +1101,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         step = len(dec_states)  # find the decoder position
 
         # fill in all previous path data
-        for i in xrange(step):
+        for i in range(step):
             self._beam_search_feed_dict[self.dec_inputs[i]] = dec_inputs[i]
             self._beam_search_feed_dict[self.states[i]] = dec_states[i]
 

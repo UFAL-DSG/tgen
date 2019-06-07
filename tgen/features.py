@@ -8,7 +8,12 @@ as well as an object that handles them.
 @todo: Vectorization and normalization should be handled here.
 @todo: Allow conjunctions & other operations with features.
 """
+from __future__ import division
 
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 from collections import defaultdict
 import re
 import inspect
@@ -42,7 +47,7 @@ def attribs_val(tree, idx, attribs):
         if attrib == 'num_children':
             val.append(str(tree.children_num(idx)))
         else:
-            val.append(unicode(getattr(tree.nodes[idx], attrib)))
+            val.append(str(getattr(tree.nodes[idx], attrib)))
     return '+'.join(val)
 
 
@@ -57,7 +62,7 @@ def depth(tree, context):
     """
     depths = {}  # store nodes that we've already processed
     max_depth = 0
-    for node_id in xrange(len(tree)):
+    for node_id in range(len(tree)):
         pos = node_id
         depth = 0
         # go up to the root / an already processed node
@@ -82,7 +87,7 @@ def max_children(tree, context):
     children = defaultdict(int)
     for parent in tree.parents:
         children[parent] += 1
-    return {'': max(children.itervalues())}
+    return {'': max(children.values())}
 
 
 def nodes_per_dai(tree, context):
@@ -106,10 +111,10 @@ def rep_nodes_per_rep_dai(tree, context):
     dai_count = defaultdict(int)
     for dai in context['da']:
         dai_count[dai] += 1
-    rep_nodes = sum(count for count in node_count.itervalues() if count > 1)
+    rep_nodes = sum(count for count in node_count.values() if count > 1)
     # avoid division by zero + penalize repeated nodes for non-repeated DAIs
-    rep_dais = sum(count for count in dai_count.itervalues() if count > 1) + 0.5
-    return {'': rep_nodes / rep_dais}
+    rep_dais = sum(count for count in dai_count.values() if count > 1) + 0.5
+    return {'': old_div(rep_nodes, rep_dais)}
 
 
 def rep_nodes(tree, context):
@@ -121,7 +126,7 @@ def rep_nodes(tree, context):
     node_count = defaultdict(int)
     for node in tree.nodes:
         node_count[node] += 1
-    return {'': sum(count for count in node_count.itervalues() if count > 1)}
+    return {'': sum(count for count in node_count.values() if count > 1)}
 
 
 def tree_size(tree, context):
@@ -141,7 +146,7 @@ def count(tree, context, attribs):
     @return: dictionary with keys for values of the attribute, values for counts of matching nodes
     """
     ret = defaultdict(int)
-    for idx in xrange(len(tree)):
+    for idx in range(len(tree)):
         ret[attribs_val(tree, idx, attribs)] += 1
     return ret
 
@@ -153,7 +158,7 @@ def presence(tree, context, attribs):
     @return: dictionary with keys for values of the attribute and values equal to 1
     """
     ret = {}
-    for idx in xrange(len(tree)):
+    for idx in range(len(tree)):
         ret[attribs_val(tree, idx, attribs)] = 1
     return ret
 
@@ -164,7 +169,7 @@ def repeated(tree, context, attribs):
     @return: dictionary with keys for values of the attribute and values equal to 1
     """
     ret = count(tree, context, attribs)
-    for key in ret.keys():
+    for key in list(ret.keys()):
         if ret[key] < 2:
             del ret[key]
         else:
@@ -209,7 +214,7 @@ def siblings(tree, context, attribs):
     for idx, parent_idx in enumerate(tree.parents):
         parents[parent_idx].append(idx)
     ret = {}
-    for siblings in parents.itervalues():
+    for siblings in parents.values():
         for sibl1, sibl2 in combinations(siblings, 2):
             ret[attribs_val(tree, sibl1, attribs) + '-x-' + attribs_val(tree, sibl2, attribs)] = 1
     return ret
@@ -222,7 +227,7 @@ def bigrams(tree, context, attribs):
     """
     attr_1 = attribs_val(tree, 0, attribs)
     ret = {}
-    for idx in xrange(1, len(tree)):
+    for idx in range(1, len(tree)):
         attr = attribs_val(tree, idx, attribs)
         ret[attr_1 + '->-' + attr] = 1
         attr_1 = attr
@@ -239,7 +244,7 @@ def trigrams(tree, context, attribs):
     attr_1 = attribs_val(tree, 0, attribs)
     attr_2 = attribs_val(tree, 1, attribs)
     ret = {}
-    for idx in xrange(2, len(tree)):
+    for idx in range(2, len(tree)):
         attr = attribs_val(tree, idx, attribs)
         ret[attr_2 + '->-' + attr_1 + '->-' + attr] = 1
         attr_2 = attr_1
@@ -255,7 +260,7 @@ def dai_presence(tree, context):
     """
     ret = {}
     for dai in context['da']:
-        ret[unicode(dai)] = 1
+        ret[str(dai)] = 1
     return ret
 
 
@@ -317,7 +322,7 @@ def slot_repeated(tree, context):
     @return: dictionary with keys composed of DA slots that occur repeatedly in the DA and 1 as values
     """
     ret = slot_count(tree, context)
-    for key in ret.keys():
+    for key in list(ret.keys()):
         if ret[key] < 2:
             del ret[key]
         else:
@@ -335,7 +340,7 @@ def set_difference(tree, context, attribs):
         keys equal to 1
     """
     ret = {}
-    for key, val in context['feats'][attribs[0]].iteritems():
+    for key, val in context['feats'][attribs[0]].items():
         if key not in context['feats'][attribs[1]]:
             ret[key] = val
     return ret
@@ -348,8 +353,8 @@ def difference(tree, context, attribs):
     @return: dictionary with keys composed of original names and values equal to value differences
     """
     ret = defaultdict(float)
-    for key1, val1 in context['feats'][attribs[0]].iteritems():
-        for key2, val2 in context['feats'][attribs[1]].iteritems():
+    for key1, val1 in context['feats'][attribs[0]].items():
+        for key2, val2 in context['feats'][attribs[1]].items():
             ret[key1 + '---' + key2] = val1 - val2
     return ret
 
@@ -365,8 +370,8 @@ def combine(tree, context, attribs):
     for attrib in attribs[1:]:
         add = context['feats'][attrib]
         merged = {ckey + "-&-" + akey: 1
-                  for ckey in cur.iterkeys()
-                  for akey in add.iterkeys()}
+                  for ckey in cur.keys()
+                  for akey in add.keys()}
         cur = merged
     return cur
 
@@ -429,9 +434,9 @@ class Features(object):
         context['feats'] = feats_hier  # allow features to look at previous features
         for name, func in self.features:
             feats_hier[name] = func(tree, context)
-        for name, val in feats_hier.iteritems():
+        for name, val in feats_hier.items():
             if name in self.intermediate_features:  # filter intermediate features
                 continue
-            for subname, subval in val.iteritems():
+            for subname, subval in val.items():
                 feats[name + '_' + subname if subname else name] += subval
         return feats

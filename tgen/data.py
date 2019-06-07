@@ -5,6 +5,9 @@
 Helper data structures
 """
 
+from builtins import zip
+from builtins import str
+from builtins import object
 import re
 
 
@@ -27,7 +30,7 @@ class DAI(object):
         return self.da_type + '(' + self.slot + '=' + quote + self.value + quote + ')'
 
     def __str__(self):
-        return unicode(self).encode('ascii', errors='replace')
+        return str(self).encode('ascii', errors='replace')
 
     def __repr__(self):
         return 'DAI.parse("' + str(self) + '")'
@@ -95,10 +98,10 @@ class DA(object):
         self.dais.append(value)
 
     def __unicode__(self):
-        return '&'.join([unicode(dai) for dai in self.dais])
+        return '&'.join([str(dai) for dai in self.dais])
 
     def __str__(self):
-        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
+        return str(self).encode('ascii', errors='xmlcharrefreplace')
 
     def __repr__(self):
         return 'DA.parse("' + str(self) + '")'
@@ -315,7 +318,7 @@ class Abst(object):
         return out
 
     def __str__(self):
-        return unicode(self).encode('ascii', errors='xmlcharrefreplace')
+        return str(self).encode('ascii', errors='xmlcharrefreplace')
 
     @staticmethod
     def parse(abst_str):

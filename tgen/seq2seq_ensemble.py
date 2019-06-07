@@ -2,9 +2,14 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+from __future__ import division
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
+from past.utils import old_div
 import numpy as np
-import cPickle as pickle
+import pickle as pickle
 import tensorflow as tf
 
 from tgen.tree import TreeData
@@ -68,7 +73,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
         dec_inputs = cut_batch_into_steps([empty_tree_emb])
         path = self.DecodingPath(stop_token_id=self.tree_embs.STOP, dec_inputs=[dec_inputs[0]])
 
-        for step in xrange(len(dec_inputs)):
+        for step in range(len(dec_inputs)):
             out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
             path = path.expand(1, out_probs, st)[0]
 
@@ -95,7 +100,7 @@ class Seq2SeqEnsemble(Seq2SeqBase):
             output, state = gen._beam_search_step(dec_inputs,
                                                   [state[gen_no] for state in dec_states])
             ensemble_state.append(state)
-            output = np.exp(output) / np.sum(np.exp(output))
+            output = old_div(np.exp(output), np.sum(np.exp(output)))
             if ensemble_output is None:
                 ensemble_output = output
             else:

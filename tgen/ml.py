@@ -3,6 +3,10 @@
 
 
 from __future__ import unicode_literals
+from __future__ import division
+from builtins import str
+from builtins import object
+from past.utils import old_div
 from .externals import six
 from array import array
 from operator import itemgetter
@@ -24,7 +28,7 @@ def softmax(scores):
     TODO use TF's softmax?
     """
     discounted_exps = np.exp(scores - np.max(scores, axis=0))
-    return discounted_exps / np.sum(discounted_exps, axis=0)
+    return old_div(discounted_exps, np.sum(discounted_exps, axis=0))
 
 
 # sklearn.base
@@ -144,7 +148,7 @@ def check_arrays(*arrays, **options):
     dtype = options.pop('dtype', None)
     allow_lists = options.pop('allow_lists', False)
     if options:
-        raise TypeError("Unexpected keyword arguments: %r" % options.keys())
+        raise TypeError("Unexpected keyword arguments: %r" % list(options.keys()))
 
     if len(arrays) == 0:
         return None
@@ -332,7 +336,7 @@ class BaseEstimator(object):
 
             # XXX: should we rather test if instance of estimator?
             if deep and hasattr(value, 'get_params'):
-                deep_items = value.get_params().items()
+                deep_items = list(value.get_params().items())
                 out.update((key + '__' + k, val) for k, val in deep_items)
             out[key] = value
         return out
@@ -637,10 +641,10 @@ class DictVectorizer(BaseEstimator, TransformerMixin):
                         numeric_feats[f] = (lo, hi, vals)
 
             # compute boundary values (only if there are more than 4 distinct values)
-            for f, (lo, hi, vals) in numeric_feats.iteritems():
+            for f, (lo, hi, vals) in numeric_feats.items():
                 if vals is None:
-                    avg = (lo + hi) / 2
-                    self.num_bounds_[f] = [(lo + avg) / 2, avg, (hi + avg) / 2]
+                    avg = old_div((lo + hi), 2)
+                    self.num_bounds_[f] = [old_div((lo + avg), 2), avg, old_div((hi + avg), 2)]
 
         # collect all the possible feature names
         feature_names = set()

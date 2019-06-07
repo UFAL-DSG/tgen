@@ -6,7 +6,12 @@ Classifying trees to determine which DAIs are represented.
 """
 
 from __future__ import unicode_literals
-import cPickle as pickle
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from builtins import object
+import pickle as pickle
 import time
 import datetime
 import theano.tensor as T
@@ -66,8 +71,8 @@ class TreeClassifier(object):
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run training on the given training data."""
         self._init_training(das_file, ttree_file, data_portion)
-        for iter_no in xrange(1, self.passes + 1):
-            self.train_order = range(len(self.train_trees))
+        for iter_no in range(1, self.passes + 1):
+            self.train_order = list(range(len(self.train_trees)))
             if self.randomize:
                 rnd.shuffle(self.train_order)
             self._training_pass(iter_no)
@@ -151,7 +156,7 @@ class TreeClassifier(object):
         empty_da = DA.parse('inform()')
         self.train_das.append(empty_da)
 
-        self.train_order = range(len(self.train_trees))
+        self.train_order = list(range(len(self.train_trees)))
         log_info('Using %d training instances.' % train_size)
 
         # initialize input features/embeddings
@@ -220,14 +225,14 @@ class TreeClassifier(object):
 
     def _ff_layers(self, name, num_layers):
         ret = []
-        for i in xrange(num_layers):
+        for i in range(num_layers):
             ret.append([FeedForward(name + str(i + 1), self.num_hidden_units, T.tanh, self.init)])
         ret.append([FeedForward('output', self.num_outputs, T.nnet.sigmoid, self.init)])
         return ret
 
     def _conv_layers(self, name, num_layers=1, pooling=None):
         ret = []
-        for i in xrange(num_layers):
+        for i in range(num_layers):
             ret.append([Conv1D(name + str(i + 1),
                                filter_length=self.cnn_filter_length,
                                num_filters=self.cnn_num_filters,
@@ -237,7 +242,7 @@ class TreeClassifier(object):
         return ret
 
     def batches(self):
-        for i in xrange(0, len(self.train_order), self.batch_size):
+        for i in range(0, len(self.train_order), self.batch_size):
             yield self.train_order[i: i + self.batch_size]
 
     def _training_pass(self, pass_no):
@@ -254,7 +259,7 @@ class TreeClassifier(object):
         for tree_nos in self.batches():
 
             log_debug('TREE-NOS: ' + str(tree_nos))
-            log_debug("\n".join(unicode(self.train_trees[i]) + "\n" + unicode(self.train_das[i])
+            log_debug("\n".join(str(self.train_trees[i]) + "\n" + str(self.train_das[i])
                                 for i in tree_nos))
             log_debug('Y: ' + str(self.y[tree_nos]))
 

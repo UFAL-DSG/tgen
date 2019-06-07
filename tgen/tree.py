@@ -6,6 +6,11 @@ Trees for generating.
 """
 
 from __future__ import unicode_literals
+from past.builtins import cmp
+from builtins import str
+from builtins import zip
+from builtins import range
+from builtins import object
 from collections import namedtuple, deque
 from pytreex.core.node import T
 
@@ -33,7 +38,7 @@ def _group_lists(l_long, l_short):
         l_short, l_long = _group_lists(l_short, l_long)
         return l_long, l_short
     new_long = []
-    for port_no in xrange(len(l_short)):
+    for port_no in range(len(l_short)):
         if port_no < bigger_ports:
             new_long.append(l_long[(port_size + 1) * port_no: (port_size + 1) * (port_no + 1)])
         else:
@@ -108,7 +113,7 @@ class TreeData(object):
                           self.nodes[target_pos:node_idx] + self.nodes[node_idx + 1:])
             self.parents = (self.parents[:target_pos] + [self.parents[node_idx]] +
                             self.parents[target_pos:node_idx] + self.parents[node_idx + 1:])
-            for pos in xrange(len(self)):
+            for pos in range(len(self)):
                 if self.parents[pos] == node_idx:
                     self.parents[pos] = target_pos
                 elif self.parents[pos] >= target_pos and self.parents[pos] < node_idx:
@@ -118,7 +123,7 @@ class TreeData(object):
                           [self.nodes[node_idx]] + self.nodes[target_pos + 1:])
             self.parents = (self.parents[:node_idx] + self.parents[node_idx + 1:target_pos + 1] +
                             [self.parents[node_idx]] + self.parents[target_pos + 1:])
-            for pos in xrange(len(self)):
+            for pos in range(len(self)):
                 if self.parents[pos] == node_idx:
                     self.parents[pos] = target_pos
                 elif self.parents[pos] > node_idx and self.parents[pos] <= target_pos:
@@ -126,7 +131,7 @@ class TreeData(object):
 
     def remove_node(self, node_idx):
         """Remove a node, rehang all its children to its parent."""
-        for pos in xrange(len(self)):
+        for pos in range(len(self)):
             if self.parents[pos] == node_idx:
                 self.parents[pos] = self.parents[node_idx]
         self.move_node(node_idx, len(self)-1)
@@ -223,7 +228,7 @@ class TreeData(object):
         return self.nodes[idx]
 
     def __str__(self):
-        return unicode(self).encode('UTF-8', 'replace')
+        return str(self).encode('UTF-8', 'replace')
 
     def __repr__(self):
         return str(self)
@@ -262,7 +267,7 @@ class TreeData(object):
             if 0 not in node_idxs:
                 node_idxs.append(0)
             node_idxs.sort()
-        idx_mapping = {old_idx: new_idx for old_idx, new_idx in zip(node_idxs, range(len(node_idxs)))}
+        idx_mapping = {old_idx: new_idx for old_idx, new_idx in zip(node_idxs, list(range(len(node_idxs))))}
         idx_mapping[-1] = -1  # “mapping” for technical roots
         new_parents = [idx_mapping[parent] for idx, parent in enumerate(self.parents)
                        if idx in node_idxs]
@@ -459,7 +464,7 @@ class TreeNode(object):
     def get_descendants(self, add_self=False, ordered=True):
         # fast descendants of root, no recursion (will be always ordered)
         if self.node_idx == 0:
-            return [TreeNode(self.tree, idx) for idx in xrange(0 if add_self else 1,
+            return [TreeNode(self.tree, idx) for idx in range(0 if add_self else 1,
                                                                len(self.tree))]
         # slow descendants of any other node
         else:

@@ -6,6 +6,10 @@ TensorFlow Helper functions.
 """
 
 from __future__ import unicode_literals
+from __future__ import division
+from builtins import zip
+from past.utils import old_div
+from builtins import object
 import os
 
 import tensorflow as tf
@@ -89,8 +93,8 @@ def embedding_attention_seq2seq_context(encoder_inputs, decoder_inputs, cell,
     with vs.variable_scope(scope or "embedding_attention_seq2seq_context"):
 
         # split context and real inputs into separate vectors
-        context_inputs = encoder_inputs[0:len(encoder_inputs) / 2]
-        encoder_inputs = encoder_inputs[len(encoder_inputs) / 2:]
+        context_inputs = encoder_inputs[0:old_div(len(encoder_inputs), 2)]
+        encoder_inputs = encoder_inputs[old_div(len(encoder_inputs), 2):]
 
         # build separate encoders
         encoder_cell = EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)

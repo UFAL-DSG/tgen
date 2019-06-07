@@ -6,22 +6,31 @@ Candidate tree rankers.
 
 """
 from __future__ import unicode_literals
+from __future__ import division
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import numpy as np
-import cPickle as pickle
+import pickle as pickle
 import time
 import datetime
 from collections import defaultdict, namedtuple
 
 from pytreex.core.util import file_stream
 
-from ml import DictVectorizer, StandardScaler
-from logf import log_info, log_debug
-from features import Features
-from futil import read_das, read_ttrees, trees_from_doc, sentences_from_doc
-from planner import ASearchPlanner
-from candgen import RandomCandidateGenerator
-from eval import Evaluator, EvalTypes
-from tree import TreeNode
+from .ml import DictVectorizer, StandardScaler
+from .logf import log_info, log_debug
+from .features import Features
+from .futil import read_das, read_ttrees, trees_from_doc, sentences_from_doc
+from .planner import ASearchPlanner
+from .candgen import RandomCandidateGenerator
+from .eval import Evaluator, EvalTypes
+from .tree import TreeNode
 from tgen.eval import ASearchListsAnalyzer
 from tgen.rnd import rnd
 
@@ -91,8 +100,8 @@ class BasePerceptronRanker(Ranker):
     def train(self, das_file, ttree_file, data_portion=1.0):
         """Run training on the given training data."""
         self._init_training(das_file, ttree_file, data_portion)
-        for iter_no in xrange(1, self.passes + 1):
-            self.train_order = range(len(self.train_trees))
+        for iter_no in range(1, self.passes + 1):
+            self.train_order = list(range(len(self.train_trees)))
             if self.randomize:
                 rnd.shuffle(self.train_order)
             log_info("Train order: " + str(self.train_order))
@@ -119,7 +128,7 @@ class BasePerceptronRanker(Ranker):
         self.train_trees = trees[:train_size]
         self.train_das = das[:train_size]
         self.train_sents = sents[:train_size]
-        self.train_order = range(len(self.train_trees))
+        self.train_order = list(range(len(self.train_trees)))
         log_info('Using %d training instances.' % train_size)
 
         # initialize candidate generator
@@ -211,13 +220,13 @@ class BasePerceptronRanker(Ranker):
         and the gold tree, along with scores."""
         good_sts, bad_sts = good_tree.diffing_trees(bad_tree, symmetric=False)
         comm_st = good_tree.get_common_subtree(bad_tree)
-        ret = 'Common subtree: %.3f' % self.score(comm_st, da) + "\t" + unicode(comm_st) + "\n"
+        ret = 'Common subtree: %.3f' % self.score(comm_st, da) + "\t" + str(comm_st) + "\n"
         ret += "Good subtrees:\n"
         for good_st in good_sts:
-            ret += "%.3f" % self.score(good_st, da) + "\t" + unicode(good_st) + "\n"
+            ret += "%.3f" % self.score(good_st, da) + "\t" + str(good_st) + "\n"
         ret += "Bad subtrees:\n"
         for bad_st in bad_sts:
-            ret += "%.3f" % self.score(bad_st, da) + "\t" + unicode(bad_st) + "\n"
+            ret += "%.3f" % self.score(bad_st, da) + "\t" + str(bad_st) + "\n"
         return ret
 
     def _get_num_iters(self, cur_pass_no, iter_setting):
@@ -297,16 +306,14 @@ class BasePerceptronRanker(Ranker):
         # use current DA but change trees when computing features
         if strategy == 'other_inst':
             # use alternative indexes, avoid the correct one
-            rival_idxs = map(lambda idx: len(train_trees) - 1 if idx == tree_no else idx,
-                             rnd.sample(xrange(len(train_trees) - 1), self.rival_number))
+            rival_idxs = [len(train_trees) - 1 if idx == tree_no else idx for idx in rnd.sample(range(len(train_trees) - 1), self.rival_number)]
             other_inst_trees = [train_trees[rival_idx] for rival_idx in rival_idxs]
             rival_trees.extend(other_inst_trees)
             rival_feats.extend([self._extract_feats(tree, gold.da) for tree in other_inst_trees])
 
         # use the current gold tree but change DAs when computing features
         if strategy == 'other_da':
-            rival_idxs = map(lambda idx: len(train_trees) - 1 if idx == tree_no else idx,
-                             rnd.sample(xrange(len(train_trees) - 1), self.rival_number))
+            rival_idxs = [len(train_trees) - 1 if idx == tree_no else idx for idx in rnd.sample(range(len(train_trees) - 1), self.rival_number)]
             other_inst_das = [self.train_das[rival_idx] for rival_idx in rival_idxs]
             rival_das.extend(other_inst_das)
             rival_trees.extend([self.train_trees[tree_no]] * self.rival_number)
@@ -494,7 +501,7 @@ class BasePerceptronRanker(Ranker):
         if self.future_promise_type == 'num_nodes':
             return w_sum * self.future_promise_weight * max(0, 10 - len(cand_tree))
         elif self.future_promise_type == 'norm_exp_children':
-            return (self.candgen.get_future_promise(cand_tree) / len(cand_tree)) * w_sum * self.future_promise_weight
+            return (old_div(self.candgen.get_future_promise(cand_tree), len(cand_tree))) * w_sum * self.future_promise_weight
         elif self.future_promise_type == 'ands':
             prom = 0
             for idx, node in enumerate(cand_tree.nodes):
@@ -559,10 +566,10 @@ class FeaturesPerceptronRanker(BasePerceptronRanker):
         """
         counts = defaultdict(int)
         for inst in X:
-            for key in inst.iterkeys():
+            for key in inst.keys():
                 counts[key] += 1
         for inst in X:
-            for key in inst.keys():
+            for key in list(inst.keys()):
                 if counts[key] < self.prune_feats:
                     del inst[key]
 

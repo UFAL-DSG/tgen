@@ -8,6 +8,9 @@ Candidate tree rankers (NN).
 
 from __future__ import unicode_literals
 
+from builtins import zip
+from builtins import str
+from builtins import range
 import theano.tensor as T
 import numpy as np
 
@@ -79,7 +82,7 @@ class NNRanker(BasePerceptronRanker):
 
     def _ff_layers(self, name, num_layers, perc_layer=False):
         ret = []
-        for i in xrange(num_layers):
+        for i in range(num_layers):
             ret.append([FeedForward(name + str(i + 1), self.num_hidden_units, T.tanh, self.init)])
         if perc_layer:
             ret.append([FeedForward('perc', 1, None, self.init)])
@@ -278,7 +281,7 @@ class EmbNNRanker(NNRanker):
 
     def _conv_layers(self, name, num_layers=1, pooling=None):
         ret = []
-        for i in xrange(num_layers):
+        for i in range(num_layers):
             ret.append([Conv1D(name + str(i + 1),
                                filter_length=self.cnn_filter_length,
                                num_filters=self.cnn_num_filters,
@@ -289,7 +292,7 @@ class EmbNNRanker(NNRanker):
 
     def _id_layers(self, name, num_layers):
         ret = []
-        for i in xrange(num_layers):
+        for i in range(num_layers):
             ret.append([Identity(name + str(i + 1))])
         return ret
 
@@ -311,17 +314,17 @@ class EmbNNRanker(NNRanker):
         da_emb = self.nn.layers[0][0].e.get_value()
         tree_emb = self.nn.layers[0][1].e.get_value()
         for idx, emb in enumerate(da_emb):
-            for key, val in self.dict_slot.items():
+            for key, val in list(self.dict_slot.items()):
                 if val == idx:
                     out += key + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
-            for key, val in self.dict_value.items():
+            for key, val in list(self.dict_value.items()):
                 if val == idx:
                     out += key + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
         for idx, emb in enumerate(tree_emb):
-            for key, val in self.dict_t_lemma.items():
+            for key, val in list(self.dict_t_lemma.items()):
                 if val == idx:
                     out += str(key) + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
-            for key, val in self.dict_formeme.items():
+            for key, val in list(self.dict_formeme.items()):
                 if val == idx:
                     out += str(key) + ',' + ','.join([("%f" % d) for d in emb]) + "\n"
         return out

@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from builtins import range
 from six.moves import xrange  # pylint: disable=redefined-builtin
 
 from tensorflow.python.framework import dtypes
@@ -164,7 +165,7 @@ def rnn_decoder(decoder_inputs, initial_state, cell, loop_function=None,
     states = [initial_state]
     outputs = []
     prev = None
-    for i in xrange(len(decoder_inputs)):
+    for i in range(len(decoder_inputs)):
       inp = decoder_inputs[i]
       if loop_function is not None and prev is not None:
         with vs.variable_scope("loop_function", reuse=True):
@@ -521,7 +522,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
     hidden_features = []
     v = []
     attention_vec_size = attn_size  # Size of query vectors for attention.
-    for a in xrange(num_heads):
+    for a in range(num_heads):
       k = vs.get_variable("AttnW_%d" % a, [1, 1, attn_size, attention_vec_size])
       hidden_features.append(nn_ops.conv2d(hidden, k, [1, 1, 1, 1], "SAME"))
       v.append(vs.get_variable("AttnV_%d" % a, [attention_vec_size]))
@@ -531,7 +532,7 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
     def attention(query):
       """Put attention masks on hidden using hidden_features and query."""
       ds = []  # Results of attention reads will be stored here.
-      for a in xrange(num_heads):
+      for a in range(num_heads):
         with vs.variable_scope("Attention_%d" % a):
           y = linear(query, attention_vec_size, True)
           y = array_ops.reshape(y, [-1, 1, 1, attention_vec_size])
@@ -550,10 +551,10 @@ def attention_decoder(decoder_inputs, initial_state, attention_states, cell,
     prev = None
     batch_attn_size = array_ops.stack([batch_size, attn_size])
     attns = [array_ops.zeros(batch_attn_size, dtype=dtype)
-             for _ in xrange(num_heads)]
+             for _ in range(num_heads)]
     for a in attns:  # Ensure the second shape of attention vectors is set.
       a.set_shape([None, attn_size])
-    for i in xrange(len(decoder_inputs)):
+    for i in range(len(decoder_inputs)):
       if i > 0:
         vs.get_variable_scope().reuse_variables()
       inp = decoder_inputs[i]
@@ -769,7 +770,7 @@ def sequence_loss_by_example(logits, targets, weights, num_decoder_symbols,
     batch_size = array_ops.shape(targets[0])[0]
     log_perp_list = []
     length = batch_size * num_decoder_symbols
-    for i in xrange(len(logits)):
+    for i in range(len(logits)):
       if softmax_loss_function is None:
         # TODO(lukaszkaiser): There is no SparseCrossEntropy in TensorFlow, so
         # we need to first cast targets into a dense representation, and as
@@ -874,19 +875,19 @@ def model_with_buckets(encoder_inputs, decoder_inputs, targets, weights,
   losses = []
   outputs = []
   with ops.name_scope(name, "model_with_buckets", all_inputs):
-    for j in xrange(len(buckets)):
+    for j in range(len(buckets)):
       if j > 0:
         vs.get_variable_scope().reuse_variables()
       bucket_encoder_inputs = [encoder_inputs[i]
-                               for i in xrange(buckets[j][0])]
+                               for i in range(buckets[j][0])]
       bucket_decoder_inputs = [decoder_inputs[i]
-                               for i in xrange(buckets[j][1])]
+                               for i in range(buckets[j][1])]
       bucket_outputs, _ = seq2seq(bucket_encoder_inputs,
                                   bucket_decoder_inputs)
       outputs.append(bucket_outputs)
 
-      bucket_targets = [targets[i] for i in xrange(buckets[j][1])]
-      bucket_weights = [weights[i] for i in xrange(buckets[j][1])]
+      bucket_targets = [targets[i] for i in range(buckets[j][1])]
+      bucket_weights = [weights[i] for i in range(buckets[j][1])]
       losses.append(sequence_loss(
           outputs[-1], bucket_targets, bucket_weights, num_decoder_symbols,
           softmax_loss_function=softmax_loss_function))

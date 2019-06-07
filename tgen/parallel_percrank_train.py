@@ -13,11 +13,15 @@ Usage: ./parallel_percrank_train.py <head-address> <head-port>
 """
 
 from __future__ import unicode_literals
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
 from collections import deque, namedtuple
 import sys
 from threading import Thread
 import socket
-import cPickle as pickle
+import pickle as pickle
 import time
 import datetime
 import os
@@ -29,7 +33,7 @@ from rpyc.utils.server import ThreadPoolServer
 
 from pytreex.core.util import file_stream
 
-from logf import log_info, set_debug_stream, log_debug
+from .logf import log_info, set_debug_stream, log_debug
 from tgen.logf import log_warn, is_debug_stream
 from tgen.rnd import rnd
 from tgen.rank import Ranker, PerceptronRanker
@@ -132,7 +136,7 @@ class ParallelRanker(Ranker):
         # spawn training jobs
         log_info('Spawning jobs...')
         host_short, _ = self.host.split('.', 1)  # short host name for job names
-        for j in xrange(self.jobs_number):
+        for j in range(self.jobs_number):
             # set up debugging logfile only if we have it on the head
             debug_logfile = ('"PRT%02d.debug-out.txt.gz"' % j) if is_debug_stream() else 'None'
             job = Job(header='from tgen.parallel_percrank_train import run_worker',
@@ -144,7 +148,7 @@ class ParallelRanker(Ranker):
             self.jobs.append(job)
         # run the training passes
         try:
-            for iter_no in xrange(1, self.loc_ranker.passes + 1):
+            for iter_no in range(1, self.loc_ranker.passes + 1):
 
                 log_info('Pass %d...' % iter_no)
                 log_debug('\n***\nTR%05d:' % iter_no)
@@ -153,7 +157,7 @@ class ParallelRanker(Ranker):
                 cur_portion = 0
                 results = [None] * self.data_portions
                 w_dump = pickle.dumps(self.loc_ranker.get_weights(), protocol=pickle.HIGHEST_PROTOCOL)
-                rnd_seeds = [rnd.random() for _ in xrange(self.data_portions)]
+                rnd_seeds = [rnd.random() for _ in range(self.data_portions)]
                 # wait for free services / assign computation
                 while cur_portion < self.data_portions or self.pending_requests:
                     log_debug('Starting loop over services.')
@@ -338,7 +342,7 @@ class RankerTrainingService(Service):
         all_train_sents = ranker.train_sents
         ranker.train_sents = ranker.train_sents[data_offset:data_offset + data_len]
         all_train_order = ranker.train_order
-        ranker.train_order = range(len(ranker.train_trees))
+        ranker.train_order = list(range(len(ranker.train_trees)))
         if ranker.randomize:
             rnd.seed(rnd_seed)
             rnd.shuffle(ranker.train_order)

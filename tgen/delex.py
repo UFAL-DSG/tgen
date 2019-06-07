@@ -6,6 +6,9 @@ Delexicalization functions.
 """
 from __future__ import unicode_literals
 
+from builtins import zip
+from builtins import range
+from past.builtins import basestring
 import numpy as np
 from unidecode import unidecode
 from tgen.data import DA, DAI, Abst
@@ -41,7 +44,7 @@ def tokenize_normalize(tokens):
     """Perform further tokenization, normalize, lowercase.
     Return subtokenized text + reverse mapping."""
     subtoks = [tokenize(unidecode(tok.lower())).split(' ') for tok in tokens]
-    rev_map = [pos for pos, tok in enumerate(subtoks) for _ in xrange(len(tok))]
+    rev_map = [pos for pos, tok in enumerate(subtoks) for _ in range(len(tok))]
     subtoks = [subtok for tok in subtoks for subtok in tok]
     return subtoks, rev_map
 
@@ -157,7 +160,7 @@ def find_value(value, toks, toks_mask):
     if pos is None:
         pos = find_substr_approx(val_toks, masked_toks)
     if pos is not None:
-        for idx in xrange(pos[0], pos[1]):  # mask found things so they're not found twice
+        for idx in range(pos[0], pos[1]):  # mask found things so they're not found twice
             toks_mask[idx] = False
     if pos is None or pos == (0, 0):  # default to -1 for unknown positions
         pos = -1, -1

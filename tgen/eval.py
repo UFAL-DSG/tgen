@@ -6,6 +6,11 @@ Evaluation (t-tree comparison functions).
 """
 
 from __future__ import unicode_literals
+from __future__ import division
+from builtins import zip
+from builtins import range
+from builtins import object
+from past.utils import old_div
 from collections import defaultdict
 from enum import Enum
 from tgen.logf import log_debug, log_warn, log_info
@@ -19,7 +24,7 @@ except ImportError:
     log_warn('Pytreex modules not available, will not be able to evaluate trees.')
 
 
-EvalTypes = Enum(b'EvalTypes', b'TOKEN NODE DEP')
+EvalTypes = Enum('EvalTypes', 'TOKEN NODE DEP')
 EvalTypes.__doc__ = """Evaluation flavors (tokens, tree node-only, tree dependency)"""
 
 
@@ -61,10 +66,10 @@ def corr_pred_gold(gold, pred, eval_type=EvalTypes.NODE):
     gold_counts = collect_counts(gold, eval_type)
     pred_counts = collect_counts(pred, eval_type)
     ccount, pcount = 0, 0
-    for node_id, node_count in pred_counts.iteritems():
+    for node_id, node_count in pred_counts.items():
         pcount += node_count
         ccount += min(node_count, gold_counts[node_id])
-    gcount = sum(node_count for node_count in gold_counts.itervalues())
+    gcount = sum(node_count for node_count in gold_counts.values())
     return ccount, pcount, gcount
 
 
@@ -101,7 +106,7 @@ def p_r_f1_from_counts(correct, predicted, gold):
         return 0.0, 0.0, 0.0
     precision = correct / float(predicted)
     recall = correct / float(gold)
-    return precision, recall, (2 * precision * recall) / (precision + recall)
+    return precision, recall, old_div((2 * precision * recall), (precision + recall))
 
 
 def to_treedata(t):
@@ -121,8 +126,8 @@ def max_common_subphrase_length(a, b):
     """Return the length of the longest common subphrase of a and b; where a and b are
     lists of tokens (form+tag)."""
     longest = 0
-    for sp_a in xrange(len(a)):
-        for sp_b in xrange(len(b)):
+    for sp_a in range(len(a)):
+        for sp_b in range(len(b)):
             pos_a = sp_a
             pos_b = sp_b
             # disregard tags for comparison
@@ -134,7 +139,7 @@ def max_common_subphrase_length(a, b):
     return longest
 
 
-class Stats:
+class Stats(object):
     """A set of important statistic values, with simple access and printing."""
 
     def __init__(self, data):
@@ -326,9 +331,9 @@ class ASearchListsAnalyzer(object):
         if self.total == 0:
             return (0.0, 0.0, 0.0)
         tot = float(self.total)
-        return (self.gold_best / tot,
-                self.gold_on_close / tot,
-                (self.gold_on_close + self.gold_on_open) / tot)
+        return (old_div(self.gold_best, tot),
+                old_div(self.gold_on_close, tot),
+                old_div((self.gold_on_close + self.gold_on_open), tot))
 
 
 class SlotErrAnalyzer(object):

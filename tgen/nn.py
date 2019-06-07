@@ -5,7 +5,13 @@
 Neural network components
 
 """
+from __future__ import division
 
+from builtins import str
+from builtins import zip
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import theano
 import theano.compile
 import theano.tensor as T
@@ -40,15 +46,15 @@ class Layer(object):
         if init_type == 'uniform_glorot10':
             w_init = np.reshape(np.asarray([rnd.uniform(-np.sqrt(6. / dim_sum),
                                                         np.sqrt(6. / dim_sum))
-                                            for _ in xrange(total_size)]),
+                                            for _ in range(total_size)]),
                                 newshape=shape)
         elif init_type == 'uniform_005':
             w_init = np.reshape(np.asarray([rnd.uniform(-0.05, 0.05)
-                                            for _ in xrange(total_size)]),
+                                            for _ in range(total_size)]),
                                 newshape=shape)
         elif init_type == 'norm_sqrt':
             w_init = np.reshape(np.asarray([rnd.gauss(0, math.sqrt(2.0 / shape[0]))
-                                            for _ in xrange(total_size)]),
+                                            for _ in range(total_size)]),
                                 newshape=shape)
         elif init_type == 'ones':
             w_init = np.ones(shape=shape)
@@ -394,8 +400,8 @@ class RankNN(NN):
         super(RankNN, self).__init__(layers, input_shapes, input_types, normgrad)
 
         # create variables
-        x = [input_types[i]('x' + str(i)) for i in xrange(len(layers[0]))]
-        x_gold = [input_types[i]('x' + str(i)) for i in xrange(len(layers[0]))]
+        x = [input_types[i]('x' + str(i)) for i in range(len(layers[0]))]
+        x_gold = [input_types[i]('x' + str(i)) for i in range(len(layers[0]))]
 
         # TODO: make this depend on input_shapes
         # Debugging: test values
@@ -440,7 +446,7 @@ class RankNN(NN):
         grad_cost = T.grad(cost, wrt=self.params)
         # normalized gradient, if applicable (TODO fix!)
         if self.normgrad:
-            grad_cost = map(lambda x: x / x.norm(2), grad_cost)
+            grad_cost = [old_div(x, x.norm(2)) for x in grad_cost]
 
         self.grad_cost = theano.function(x + x_gold, grad_cost, allow_input_downcast=True, name='grad_cost')
 
@@ -468,7 +474,7 @@ class ClassifNN(NN):
         super(ClassifNN, self).__init__(layers, input_shapes, input_types, normgrad)
 
         # create variables
-        x = [input_types[i]('x' + str(i)) for i in xrange(len(layers[0]))]
+        x = [input_types[i]('x' + str(i)) for i in range(len(layers[0]))]
         y = x
         shapes = input_shapes
 
@@ -498,7 +504,7 @@ class ClassifNN(NN):
         grad_cost = T.grad(cost, wrt=self.params)
         # normalized gradient, if applicable (TODO fix!)
         if self.normgrad:
-            grad_cost = map(lambda x: x / x.norm(2), grad_cost)
+            grad_cost = [old_div(x, x.norm(2)) for x in grad_cost]
 
         self.grad_cost = theano.function(x + [y_gold], grad_cost, allow_input_downcast=True, name='grad_cost')
 

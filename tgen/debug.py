@@ -13,7 +13,10 @@ Starting IPdb automatically on error:
 Inspecting Theano functions:
 - http://www.deeplearning.net/software/theano/tutorial/debug_faq.html
 """
+from __future__ import print_function
 
+from builtins import input
+from builtins import str
 import sys
 
 
@@ -31,8 +34,8 @@ def exc_info_hook(exc_type, value, tb):
         import pudb
         # we are NOT in interactive mode, print the exception
         traceback.print_exception(exc_type, value, tb)
-        print
-        raw_input("Press any key to start debugging...")
+        print()
+        input("Press any key to start debugging...")
         # then start the debugger in post-mortem mode.
         # pdb.pm() # deprecated
         # ipdb.post_mortem(tb)  # more modern
@@ -41,19 +44,19 @@ def exc_info_hook(exc_type, value, tb):
 
 def inspect_inputs(i, node, fn):
     """Inspecting Theano function graph in MonitorMode: print inputs."""
-    print i, node, "IN:", [inp[0] for inp in fn.inputs],
+    print(i, node, "IN:", [inp[0] for inp in fn.inputs], end=' ')
 
 
 def inspect_outputs(i, node, fn):
     """Inspecting Theano function graph in MonitorMode: print outputs."""
-    print "OUT:", [output[0] for output in fn.outputs]
+    print("OUT:", [output[0] for output in fn.outputs])
 
 
 def inspect_input_dims(i, node, fn):
     """Inspecting Theano function graph in MonitorMode: print inputs' dimensions."""
-    print i, node, "IN:", [inp[0].shape if inp[0].shape else 'scalar/' + str(inp[0]) for inp in fn.inputs],
+    print(i, node, "IN:", [inp[0].shape if inp[0].shape else 'scalar/' + str(inp[0]) for inp in fn.inputs], end=' ')
 
 
 def inspect_output_dims(i, node, fn):
     """Inspecting Theano function graph in MonitorMode: print outputs' dimensions."""
-    print "OUT:", [output[0].shape if output[0].shape else 'scalar/' + str(output[0]) for output in fn.outputs]
+    print("OUT:", [output[0].shape if output[0].shape else 'scalar/' + str(output[0]) for output in fn.outputs])

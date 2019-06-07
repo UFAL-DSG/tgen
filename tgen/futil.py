@@ -6,7 +6,14 @@ Various utility functions.
 """
 
 from __future__ import unicode_literals
-import cPickle as pickle
+from __future__ import print_function
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import zip
+from builtins import filter
+from builtins import range
+import pickle as pickle
 import codecs
 import gzip
 import regex
@@ -14,8 +21,8 @@ import re
 from io import IOBase, BytesIO
 from codecs import StreamReader, StreamWriter
 
-from tree import TreeData
-from data import Abst, DA
+from .tree import TreeData
+from .data import Abst, DA
 
 
 def file_stream(filename, mode='r', encoding='UTF-8'):
@@ -135,7 +142,7 @@ def create_ttree_doc(trees, base_doc, language, selector):
     if base_doc is None:
         from pytreex.core.document import Document
         base_doc = Document()
-        for _ in xrange(len(trees)):
+        for _ in range(len(trees)):
             base_doc.create_bundle()
     for tree, bundle in zip(trees, base_doc.bundles):
         zone = bundle.get_or_create_zone(language, selector)
@@ -191,7 +198,7 @@ def read_tokens(tok_file, ref_mode=False, do_tokenize=False):
             line = line.strip()
             if do_tokenize:
                 line = tokenize(line)
-            line = filter(bool, line.split(' '))
+            line = list(filter(bool, line.split(' ')))
             if not line:
                 empty_lines = True
             # TODO apply Morphodita here ?
@@ -219,12 +226,12 @@ def write_tokens(doc, tok_file):
         for sent in doc:
             toks = [tok for (tok, _) in sent]
             # TODO some nice detokenization etc.
-            print >> fh, ' '.join(toks)
+            print(' '.join(toks), file=fh)
 
 
 def chunk_list(l, n):
     """ Yield successive n-sized chunks from l."""
-    for i in xrange(0, len(l), n):
+    for i in range(0, len(l), n):
         yield l[i:i + n]
 
 
@@ -246,7 +253,7 @@ def trees_from_doc(ttree_doc, language, selector):
 
 def sentences_from_doc(ttree_doc, language, selector):
     """Given a Treex document, return a list of sentences in the given language and selector."""
-    return map(lambda bundle: bundle.get_zone(language, selector).sentence, ttree_doc.bundles)
+    return [bundle.get_zone(language, selector).sentence for bundle in ttree_doc.bundles]
 
 
 def tokens_from_doc(ttree_doc, language, selector):

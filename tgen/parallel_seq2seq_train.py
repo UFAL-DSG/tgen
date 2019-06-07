@@ -6,9 +6,14 @@
 
 
 from __future__ import unicode_literals
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import range
+from builtins import object
 from threading import Thread
 import socket
-import cPickle as pickle
+import pickle as pickle
 import time
 import os
 from collections import deque
@@ -22,7 +27,7 @@ from rpyc.utils.server import ThreadPoolServer
 
 from pytreex.core.util import file_stream
 
-from logf import log_info, set_debug_stream, log_debug
+from .logf import log_info, set_debug_stream, log_debug
 from tgen.logf import log_warn, is_debug_stream
 from tgen.rnd import rnd
 from tgen.parallel_percrank_train import ServiceConn
@@ -99,7 +104,7 @@ class ParallelSeq2SeqTraining(object):
         # spawn training jobs
         log_info('Spawning jobs...')
         host_short, _ = self.host.split('.', 1)  # short host name for job names
-        for j in xrange(self.jobs_number):
+        for j in range(self.jobs_number):
             # set up debugging logfile only if we have it on the head
             debug_logfile = ('"PRT%02d.debug-out.txt.gz"' % j) if is_debug_stream() else 'None'
             job = Job(header='from tgen.parallel_seq2seq_train import run_training',
@@ -114,7 +119,7 @@ class ParallelSeq2SeqTraining(object):
         try:
             cur_assign = 0
             results = [None] * self.jobs_number
-            rnd_seeds = [rnd.random() for _ in xrange(self.jobs_number)]
+            rnd_seeds = [rnd.random() for _ in range(self.jobs_number)]
 
             # assign training and wait for it to finish
             while cur_assign < self.jobs_number or self.pending_requests:

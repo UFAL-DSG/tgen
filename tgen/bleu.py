@@ -6,6 +6,11 @@ BLEU measurements
 """
 
 from __future__ import unicode_literals
+from __future__ import division
+from builtins import zip
+from builtins import range
+from builtins import object
+from past.utils import old_div
 from collections import defaultdict
 import math
 
@@ -39,7 +44,7 @@ class BLEUMeasure(object):
         @param ref_sents: the corresponding reference sentences (list/tuple of trees/tokens)
         """
 
-        for i in xrange(self.max_ngram):
+        for i in range(self.max_ngram):
             self.hits[i] += self.compute_hits(i+1, pred_sent, ref_sents)
             self.cand_lens[i] += len(pred_sent) - i
 
@@ -61,7 +66,7 @@ class BLEUMeasure(object):
 
             for ngram in self.ngrams(n, ref_sent):
                 ref_ngrams[ngram] += 1
-            for ngram, cnt in ref_ngrams.iteritems():
+            for ngram, cnt in ref_ngrams.items():
                 merged_ref_ngrams[ngram] = max((merged_ref_ngrams.get(ngram, 0), cnt))
 
         pred_ngrams = defaultdict(int)
@@ -69,7 +74,7 @@ class BLEUMeasure(object):
             pred_ngrams[ngram] += 1
 
         hits = 0
-        for ngram, cnt in pred_ngrams.iteritems():
+        for ngram, cnt in pred_ngrams.items():
             hits += min(merged_ref_ngrams.get(ngram, 0), cnt)
 
         return hits
@@ -83,11 +88,11 @@ class BLEUMeasure(object):
         """
         # with sents
         if isinstance(sent, TreeData):
-            return zip(*[sent.nodes[i:] for i in range(n)])
+            return list(zip(*[sent.nodes[i:] for i in range(n)]))
         # with tokens (as lists of pairs form+tag, or plain forms only)
         if sent and isinstance(sent[0], tuple):
             sent = [form for (form, _) in sent]  # ignore tags, use just forms
-        return zip(*[sent[i:] for i in range(n)])
+        return list(zip(*[sent[i:] for i in range(n)]))
 
     def bleu(self):
         """Return the current BLEU score, according to the accumulated counts."""
@@ -96,8 +101,8 @@ class BLEUMeasure(object):
         # to avoid division by zero)
         bp = 1.0
         if (self.cand_lens[0] <= self.ref_len):
-            bp = math.exp(1.0 - self.ref_len /
-                          (float(self.cand_lens[0]) if self.cand_lens[0] else 1e-5))
+            bp = math.exp(1.0 - old_div(self.ref_len,
+                          (float(self.cand_lens[0]) if self.cand_lens[0] else 1e-5)))
 
         return bp * self.ngram_precision()
 

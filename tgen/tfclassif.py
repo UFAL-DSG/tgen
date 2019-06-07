@@ -6,7 +6,12 @@ Classifying trees to determine which DAIs are represented.
 """
 
 from __future__ import unicode_literals
-import cPickle as pickle
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import zip
+from builtins import range
+import pickle as pickle
 import time
 import datetime
 import sys
@@ -218,8 +223,8 @@ class RerankingClassifier(TFModel):
         # start training
         top_comb_cost = float('nan')
 
-        for iter_no in xrange(1, self.passes + 1):
-            self.train_order = range(len(self.train_trees))
+        for iter_no in range(1, self.passes + 1):
+            self.train_order = list(range(len(self.train_trees)))
             if self.randomize:
                 rnd.shuffle(self.train_order)
             pass_cost, pass_diff = self._training_pass(iter_no)
@@ -342,7 +347,7 @@ class RerankingClassifier(TFModel):
         empty_da = DA.parse('inform()')
         self.train_das.append(empty_da)
 
-        self.train_order = range(len(self.train_trees))
+        self.train_order = list(range(len(self.train_trees)))
         log_info('Using %d training instances.' % train_size)
 
         # initialize input features/embeddings
@@ -397,7 +402,7 @@ class RerankingClassifier(TFModel):
         parameter (as set in configuration)."""
 
         # set TensorFlow random seed
-        tf.set_random_seed(rnd.randint(-sys.maxint, sys.maxint))
+        tf.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
 
         self.targets = tf.placeholder(tf.float32, [None, self.num_outputs], name='targets')
 
@@ -415,7 +420,7 @@ class RerankingClassifier(TFModel):
             elif self.nn_shape.startswith('rnn'):
                 self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
                 self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
-                               for i in xrange(self.input_shape[0])]
+                               for i in range(self.input_shape[0])]
                 self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
                 self.outputs = self._rnn('rnn', self.inputs)
 
@@ -456,7 +461,7 @@ class RerankingClassifier(TFModel):
         # so the output is "unnormalized sigmoids"
         activ = (num_layers * [tf.tanh]) + [tf.identity]
         Y = X
-        for i in xrange(num_layers + 1):
+        for i in range(num_layers + 1):
             w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i + 1]),
                                 initializer=tf.random_normal_initializer(stddev=0.1))
             b = tf.get_variable(name + ('-b%d' % i), (width[i + 1],),
@@ -484,7 +489,7 @@ class RerankingClassifier(TFModel):
 
     def _batches(self):
         """Create batches from the input; use as iterator."""
-        for i in xrange(0, len(self.train_order), self.batch_size):
+        for i in range(0, len(self.train_order), self.batch_size):
             yield self.train_order[i: i + self.batch_size]
 
     def _add_inputs_to_feed_dict(self, inputs, fd):
@@ -513,7 +518,7 @@ class RerankingClassifier(TFModel):
         for tree_nos in self._batches():
 
             log_debug('TREE-NOS: ' + str(tree_nos))
-            log_debug("\n".join(unicode(self.train_trees[i]) + "\n" + unicode(self.train_das[i])
+            log_debug("\n".join(str(self.train_trees[i]) + "\n" + str(self.train_das[i])
                                 for i in tree_nos))
             log_debug('Y: ' + str(self.y[tree_nos]))
 
