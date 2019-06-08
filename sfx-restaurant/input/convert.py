@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -6,8 +6,14 @@ Converting the SFX data sets (Cambridge, Wen et al. NAACL 2015) to our data form
 """
 
 from __future__ import unicode_literals
+from __future__ import division
+from __future__ import print_function
 
 
+from builtins import zip
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import json
 import re
 import argparse
@@ -91,7 +97,7 @@ def convert(args):
         text = fix_capitalization(text)
         conc = fix_capitalization(conc)
 
-        da_keys[unicode(da)] = da_keys.get(unicode(da), 0) + 1
+        da_keys[str(da)] = da_keys.get(str(da), 0) + 1
         das.append(da)
         concs.append(conc)
         absts.append(abst)
@@ -115,9 +121,9 @@ def convert(args):
                 process_instance(da, conc)
                 turns += 1
 
-        print 'Processed', turns, 'turns.'
-        print '%d different DAs.' % len(da_keys)
-        print '%.2f average DAIs per DA' % (sum([len(d) for d in das]) / float(len(das)))
+        print('Processed', turns, 'turns.')
+        print('%d different DAs.' % len(da_keys))
+        print('%.2f average DAIs per DA' % (sum([len(d) for d in das]) / float(len(das))))
 
     if args.split:
         # get file name prefixes and compute data sizes for all the parts to be split
@@ -127,8 +133,8 @@ def convert(args):
         # compute sizes for all but the 1st part (+ round them up, as Wen does)
         total = float(sum(data_sizes))
         remain = turns
-        for part_no in xrange(len(data_sizes) - 1, 0, -1):
-            part_size = int(ceil(turns * (data_sizes[part_no] / total)))
+        for part_no in range(len(data_sizes) - 1, 0, -1):
+            part_size = int(ceil(turns * (old_div(data_sizes[part_no], total))))
             data_sizes[part_no] = part_size
             remain -= part_size
         # put whatever remained into the 1st part
@@ -148,10 +154,10 @@ def convert(args):
             # group sentences with the same DA
             da_groups = {}
             for da, text, abst in zip(das[0:part_size], texts[0:part_size], absts[0:part_size]):
-                da_groups[unicode(da)] = da_groups.get(unicode(da), [])
-                da_groups[unicode(da)].append((text, filter_abst(abst, slots_to_abstract)))
+                da_groups[str(da)] = da_groups.get(str(da), [])
+                da_groups[str(da)].append((text, filter_abst(abst, slots_to_abstract)))
 
-            for da_str in da_groups.keys():
+            for da_str in list(da_groups.keys()):
                 seen = set()
                 uniq = []
                 for text, abst in da_groups[da_str]:
@@ -164,36 +170,36 @@ def convert(args):
             # relexicalize all abstract sentences for each DA
             relex = []
             for da, abst in zip(das[0:part_size], absts[0:part_size]):
-                relex.append(relexicalize(da_groups[unicode(da)],
+                relex.append(relexicalize(da_groups[str(da)],
                                           filter_abst(abst, slots_to_abstract)))
 
-            with open(part_name + '-ref.txt', 'w') as fh:
+            with open(part_name + '-ref.txt', 'w', encoding='UTF-8') as fh:
                 for relex_pars in relex:
-                    fh.write("\n".join(relex_pars).encode('utf-8') + "\n\n")
+                    fh.write("\n".join(relex_pars) + "\n\n")
 
-        with open(part_name + '-das.txt', 'w') as fh:
+        with open(part_name + '-das.txt', 'w', encoding='UTF-8') as fh:
             for da in das[0:part_size]:
-                fh.write(unicode(da).encode('utf-8') + "\n")
+                fh.write(str(da) + "\n")
             del das[0:part_size]
 
-        with open(part_name + '-conc_das.txt', 'w') as fh:
+        with open(part_name + '-conc_das.txt', 'w', encoding='UTF-8') as fh:
             for conc_da in conc_das[0:part_size]:
-                fh.write(unicode(conc_da).encode('utf-8') + "\n")
+                fh.write(str(conc_da) + "\n")
             del conc_das[0:part_size]
 
-        with open(part_name + '-conc.txt', 'w') as fh:
+        with open(part_name + '-conc.txt', 'w', encoding='UTF-8') as fh:
             for conc in concs[0:part_size]:
-                fh.write(conc.encode('utf-8') + "\n")
+                fh.write(conc + "\n")
             del concs[0:part_size]
 
-        with open(part_name + '-abst.txt', 'w') as fh:
+        with open(part_name + '-abst.txt', 'w', encoding='UTF-8') as fh:
             for abst in absts[0:part_size]:
-                fh.write("\t".join([unicode(a) for a in abst]).encode('utf-8') + "\n")
+                fh.write("\t".join([str(a) for a in abst]) + "\n")
             del absts[0:part_size]
 
-        with open(part_name + '-text.txt', 'w') as fh:
+        with open(part_name + '-text.txt', 'w', encoding='UTF-8') as fh:
             for text in texts[0:part_size]:
-                fh.write(text.encode('utf-8') + "\n")
+                fh.write(text + "\n")
             del texts[0:part_size]
 
 

@@ -21,7 +21,7 @@ class DAI(object):
         self.slot = slot
         self.value = value
 
-    def __unicode__(self):
+    def __str__(self):
         if self.slot is None:
             return self.da_type + '()'
         if self.value is None:
@@ -29,7 +29,7 @@ class DAI(object):
         quote = '\'' if (' ' in self.value or ':' in self.value) else ''
         return self.da_type + '(' + self.slot + '=' + quote + self.value + quote + ')'
 
-    def __str__(self):
+    def __bytes__(self):
         return str(self).encode('ascii', errors='replace')
 
     def __repr__(self):
@@ -97,10 +97,10 @@ class DA(object):
     def append(self, value):
         self.dais.append(value)
 
-    def __unicode__(self):
+    def __str__(self):
         return '&'.join([str(dai) for dai in self.dais])
 
-    def __str__(self):
+    def __bytes__(self):
         return str(self).encode('ascii', errors='xmlcharrefreplace')
 
     def __repr__(self):
@@ -302,7 +302,7 @@ class Abst(object):
         if self.start is not None and self.end is None:
             self.end = self.start + 1
 
-    def __unicode__(self):
+    def __str__(self):
         """Create string representation of the abstraction instruction, in the following format:
         slot="value":"surface_form":start-end. Surface form is omitted if None, quotes are omitted
         if not needed."""
@@ -317,7 +317,7 @@ class Abst(object):
         out += str(self.start) + '-' + str(self.end)
         return out
 
-    def __str__(self):
+    def __bytes__(self):
         return str(self).encode('ascii', errors='xmlcharrefreplace')
 
     @staticmethod

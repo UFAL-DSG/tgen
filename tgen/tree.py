@@ -76,7 +76,7 @@ class TreeData(object):
 
     @staticmethod
     def from_string(string):
-        """Parse a string representation of the tree, as returned by `__unicode__`."""
+        """Parse a string representation of the tree, as returned by `__str__`."""
         tree = TreeData()
         for node in string.split(' ')[1:]:
             _, parent, t_lemma, formeme = node.split('|')
@@ -219,7 +219,7 @@ class TreeData(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __unicode__(self):
+    def __str__(self):
         return ' '.join(['%d|%d|%s|%s' % (idx, parent_idx, node.t_lemma, node.formeme)
                          for idx, (parent_idx, node)
                          in enumerate(zip(self.parents, self.nodes))])
@@ -227,8 +227,8 @@ class TreeData(object):
     def __getitem__(self, idx):
         return self.nodes[idx]
 
-    def __str__(self):
-        return str(self).encode('UTF-8', 'replace')
+    def __bytes__(self):
+        return str(self).encode('ascii', 'replace')
 
     def __repr__(self):
         return str(self)

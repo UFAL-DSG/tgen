@@ -18,7 +18,7 @@ from time import asctime
 
 
 debug_stream = None
-log_stream = codecs.getwriter('utf-8')(sys.stderr)
+log_stream = sys.stderr
 
 
 def log_info(message):

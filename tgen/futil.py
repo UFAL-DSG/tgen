@@ -31,18 +31,12 @@ def file_stream(filename, mode='r', encoding='UTF-8'):
     (A copy from pytreex.core.util to remove dependency)
     """
     # open file
-    if isinstance(filename, (file, IOBase, StreamReader, StreamWriter)):
+    if isinstance(filename, (IOBase, StreamReader, StreamWriter)):
         fh = filename
     elif filename.endswith('.gz'):
-        fh = gzip.open(filename, mode)
+        fh = gzip.open(filename, mode, encoding=encoding)
     else:
-        fh = open(filename, mode)
-    # support encodings
-    if encoding is not None:
-        if mode.startswith('r'):
-            fh = codecs.getreader(encoding)(fh)
-        else:
-            fh = codecs.getwriter(encoding)(fh)
+        fh = open(filename, mode, encoding=encoding)
     return fh
 
 

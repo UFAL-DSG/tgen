@@ -7,9 +7,9 @@ SHELL = /bin/bash
 TGEN = ../run_tgen.py
 MEM = 8g
 CPUS = 4
-QP = --queue troja-all.q
-#QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
-QSUBMIT = sbatch --partition=longq --output=$(TRY_DIR)/T.$(TRY_NUM).$(RUN_NAME)
+QP = --queue cpu-troja.q
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD) -- # https://github.com/tuetschek/qsubmit
+#QSUBMIT = sbatch --partition=longq --output=$(TRY_DIR)/T.$(TRY_NUM).$(RUN_NAME)
 
 ifdef PYPY
   ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
