@@ -24,6 +24,7 @@ ifdef DEBUG_GEN
   DEBUG_LOG_GEN = -d $(TRY_DIR)/asearch.debug-log.txt
 endif
 MTEVAL = ../util/mteval-v11b.pl
+NOWRAP = ../util/nowrap.pl
 AVERAGE_SCORES = ../util/average_scores.pl
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=73:78.5
 DESC_EXP = ../util/describe_experiment.pl
@@ -166,17 +167,18 @@ help:
 
 # List all experiments, find scores in logs (of various versions)
 desc:
-	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
+	@COLS=`tput cols`; \
+	ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
 	    	if [[ -f $$file/$(SCOREFILE) && -z "$(REFRESH)" ]]; then \
-			cat $$file/$(SCOREFILE) ; \
+			cat $$file/$(SCOREFILE) | $(NOWRAP) $$COLS ; \
 			continue ; \
 		fi ; \
-		echo -ne $$file ":\t" | sed 's/runs\///;s/_/\t/;s/_/ /;s/_/\t/' > $$file/$(SCOREFILE);  \
+		echo -ne $$file ":  " | sed 's/runs\///;s/_/  /;s/_/ /;s/_/  /' > $$file/$(SCOREFILE);  \
 		$(GREP_SCORES) $(LOGFILES) >> $$file/$(SCOREFILE) ; \
 		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
 		echo >> $$file/$(SCOREFILE); \
-		cat $$file/$(SCOREFILE); \
+		cat $$file/$(SCOREFILE) | $(NOWRAP) $$COLS ; \
 	done
 
 train_desc:

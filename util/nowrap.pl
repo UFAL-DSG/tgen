@@ -15,7 +15,6 @@ while (my $line = <>){
     my $lastpos = 0;
     my $start = -1;
     while ( $line =~ /(\x1B\[(?:(?:[0-9]+)(?:;[0-9]+)*)?[mKHfJ])/g){
-        # TODO use (pos $line - length $1), keep previous pos => have length to add to len
         my $pos = pos $line;
         $start = $pos - length $1;
         $len += $start - $lastpos;
