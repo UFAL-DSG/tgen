@@ -5,6 +5,6 @@ numpy
 rpyc
 pudb
 recordclass
-https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.0.1-cp27-none-linux_x86_64.whl
+tensorflow==1.13.1
 https://github.com/kpu/kenlm/archive/master.zip
 git+https://github.com/ufal/pytreex
