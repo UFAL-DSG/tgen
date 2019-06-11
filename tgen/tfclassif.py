@@ -24,12 +24,10 @@ import os
 import numpy as np
 import tensorflow as tf
 
-from pytreex.core.util import file_stream
-
 from tgen.rnd import rnd
 from tgen.logf import log_debug, log_info
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, \
-    tagged_lemmas_from_doc
+    tagged_lemmas_from_doc, file_stream
 from tgen.features import Features
 from tgen.ml import DictVectorizer
 from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract, \

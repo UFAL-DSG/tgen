@@ -18,11 +18,9 @@ import theano.tensor as T
 import numpy as np
 
 
-from pytreex.core.util import file_stream
-
 from tgen.rnd import rnd
 from tgen.logf import log_debug, log_info, log_warn
-from tgen.futil import read_das, read_ttrees, trees_from_doc
+from tgen.futil import read_das, read_ttrees, trees_from_doc, file_stream
 from tgen.features import Features
 from tgen.ml import DictVectorizer
 from tgen.nn import ClassifNN, FeedForward, Flatten, Conv1D, Pool1D, Embedding

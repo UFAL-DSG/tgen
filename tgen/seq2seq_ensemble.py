@@ -17,7 +17,7 @@ from tgen.seq2seq import Seq2SeqBase, Seq2SeqGen, cut_batch_into_steps
 from tgen.tfclassif import RerankingClassifier
 
 from tgen.logf import log_info
-from pytreex.core.util import file_stream
+from tgen.futil import file_stream
 
 
 class Seq2SeqEnsemble(Seq2SeqBase):

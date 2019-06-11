@@ -24,11 +24,10 @@ import shutil
 import os
 from functools import partial
 
-from pytreex.core.util import file_stream
 
 from tgen.logf import log_info, log_debug, log_warn
 from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list, \
-    read_tokens, tagged_lemmas_from_doc
+    read_tokens, tagged_lemmas_from_doc, file_stream
 from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtract, \
     TreeEmbeddingSeq2SeqExtract, ContextDAEmbeddingSeq2SeqExtract, \
     TaggedLemmasEmbeddingSeq2SeqExtract

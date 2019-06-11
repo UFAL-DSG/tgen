@@ -17,9 +17,8 @@ from collections import defaultdict, Counter
 import pickle as pickle
 
 from .logf import log_info
-from pytreex.core.util import file_stream
 
-from .futil import read_das, read_ttrees, ttrees_from_doc
+from .futil import read_das, read_ttrees, ttrees_from_doc, file_stream
 from .tree import TreeNode, NodeData
 from tgen.logf import log_warn, log_debug
 from tgen.tree import TreeData

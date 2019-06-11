@@ -21,7 +21,7 @@ import time
 import datetime
 from collections import defaultdict, namedtuple
 
-from pytreex.core.util import file_stream
+from tgen.futil import file_stream
 
 from .ml import DictVectorizer, StandardScaler
 from .logf import log_info, log_debug

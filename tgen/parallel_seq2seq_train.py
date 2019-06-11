@@ -25,9 +25,8 @@ import hashlib
 from rpyc import Service, connect, async
 from rpyc.utils.server import ThreadPoolServer
 
-from pytreex.core.util import file_stream
-
-from .logf import log_info, set_debug_stream, log_debug
+from tgen.futil import file_stream
+from tgen.logf import log_info, set_debug_stream, log_debug
 from tgen.logf import log_warn, is_debug_stream
 from tgen.rnd import rnd
 from tgen.parallel_percrank_train import ServiceConn
