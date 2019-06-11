@@ -199,6 +199,16 @@ class DA(object):
 
         return da
 
+    @staticmethod
+    def parse_dict(da_dict, assume_da_type='inform'):
+        """Parse an attribute-value dict, assuming the given DA type for all resulting DAIs."""
+        da = DA()
+        for slot, values in da_dict.items():
+            for value in values.keys():
+                da.append(DAI(assume_da_type, slot, value))
+        da.sort()
+        return da
+
     def value_for_slot(self, slot):
         """Return the value for the given slot (None if unset or not present at all).
         Uses the first occurrence of this slot if found."""
