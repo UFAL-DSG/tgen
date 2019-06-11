@@ -5,7 +5,7 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
-MEM = 8g
+MEM = 10g
 CPUS = 4
 QP = --queue cpu-troja.q
 QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD) -- # https://github.com/tuetschek/qsubmit
