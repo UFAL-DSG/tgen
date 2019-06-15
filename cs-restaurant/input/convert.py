@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
@@ -7,8 +7,10 @@ import codecs
 import json
 import re
 from argparse import ArgumentParser
-from collections import deque
+from collections import deque, namedtuple
 from itertools import islice
+
+import numpy as np
 
 from ufal.morphodita import Tagger, Forms, TaggedLemma, TaggedLemmas, TokenRanges, Analyses, Indices
 
@@ -24,11 +26,10 @@ import sys
 sys.excepthook = exc_info_hook
 
 
-#
-# Morphology & delexicalization
+Inst = namedtuple('Inst', ['da', 'text', 'delex_da', 'delex_text', 'abst'])
 
 
-class MorphoAnalyzer(object):
+class Reader(object):
 
     def __init__(self, tagger_model, abst_slots):
         self._tagger = Tagger.load(tagger_model)
@@ -49,7 +50,7 @@ class MorphoAnalyzer(object):
         """Load all proper name surface forms from a file."""
         with codecs.open(surface_forms_fname, 'rb', 'UTF-8') as fh:
             data = json.load(fh)
-        for slot, values in data.iteritems():
+        for slot, values in data.items():
             for value in values.keys():
                 for surface_form in values[value]:
                     lemma, form, tag = surface_form.split("\t")
@@ -72,7 +73,7 @@ class MorphoAnalyzer(object):
         @param forms_in: a deque of forms tokens
         @return: (form, tagged lemmas list) or (None, None)
         """
-        for test_len in xrange(min(self._sf_max_len, len(forms_in)), 0, -1):
+        for test_len in range(min(self._sf_max_len, len(forms_in)), 0, -1):
             # test the string, handle number placeholders
             full_substr = [form for form in islice(forms_in, 0, test_len)]
             test_substr = tuple(['_' if re.match(r'^[0-9]+$', form) else form.lower()
@@ -86,7 +87,7 @@ class MorphoAnalyzer(object):
                         lemma = re.sub(r'_', num, lemma, count=1)
                     tls[-1].lemma = lemma
                     tls[-1].tag = tag
-                for _ in xrange(len(test_substr)):  # move on in the sentence
+                for _ in range(len(test_substr)):  # move on in the sentence
                     forms_in.popleft()
                 return " ".join(full_substr), tls
         return None, None
@@ -112,7 +113,7 @@ class MorphoAnalyzer(object):
                     form = forms_in.popleft()
                     analyses = TaggedLemmas()
                     self._analyzer.analyze(form, 1, analyses)
-                    for i in xrange(len(analyses)):  # shorten lemmas (must access the vector directly)
+                    for i in range(len(analyses)):  # shorten lemmas (must access the vector directly)
                         analyses[i].lemma = self._analyzer.rawLemma(analyses[i].lemma)
                     self._analyses_buf.push_back(analyses)
 
@@ -125,126 +126,38 @@ class MorphoAnalyzer(object):
                              in zip(self._forms_buf, self._analyses_buf, self._indices_buf)])
         return analyzed
 
-    def process_files(self, input_text_file, input_da_file, skip_hello=False):
+    def process_dataset(self, input_data):
         """Load DAs & sentences, obtain abstraction instructions, and store it all in member
         variables (to be used later by writing methods).
-        @param input_text_file: path to the input file with sentences
-        @param input_da_file: path to the input file with DAs
-        @param skip_hello: skip hello() DAs (remove them from the output?)
+        @param input_data: path to the input JSON file with the data
         """
-        # load DAs
+        # load data from JSON
         self._das = []
-        with codecs.open(input_da_file, 'r', encoding='UTF-8') as fh:
-            for line in fh:
-                self._das.append(DA.parse(line.strip()))
-        # load & process sentences
-        self._sents = []
-        with codecs.open(input_text_file, 'r', encoding='UTF-8') as fh:
-            for line in fh:
-                self._sents.append(self.analyze(line.strip()))
-        assert(len(self._das) == len(self._sents))
-        # skip hello() DAs, if required
-        if skip_hello:
-            pos = 0
-            while pos < len(self._das):
-                da = self._das[pos]
-                if len(da) == 1 and da[0].da_type == 'hello':
-                    del self._das[pos]
-                    del self._sents[pos]
-                else:
-                    pos += 1
+        self._texts = []
+        with codecs.open(input_data, 'r', encoding='UTF-8') as fh:
+            data = json.load(fh)
+            for inst in data:
+                da = DA.parse(inst['da'])
+                da.sort()
+                self._das.append(da)
+                self._texts.append(self.analyze(inst['text']))
+
         # delexicalize DAs and sentences
-        self._delex_texts()
-        self._delex_das()
+        self._create_delex_texts()
+        self._create_delex_das()
 
-    def buf_length(self):
-        """Return the number of sentence-DA pairs currently loaded in the buffer."""
-        return len(self._sents)
-
-    def _write_plain(self, output_file, data_items):
-        with codecs.open(output_file, 'wb', encoding='UTF-8') as fh:
-            for data_item in data_items:
-                print >> fh, unicode(data_item)
-
-    def _write_conll(self, output_file, data_items):
-        with codecs.open(output_file, 'wb', encoding='UTF-8') as fh:
-            for line in data_items:
-                for idx, tok in enumerate(line, start=1):
-                    print >> fh, "\t".join((str(idx),
-                                            tok[0].replace(' ', '_'),
-                                            tok[1].replace(' ', '_'),
-                                            '_', tok[2], '_',
-                                            '0', '_', '_', '_'))
-                print >> fh
-
-    def _write_interleaved(self, output_file, data_items):
-        with codecs.open(output_file, 'wb', encoding='UTF-8') as fh:
-            for line in data_items:
-                for _, lemma, tag in line:
-                    print >> fh, lemma.replace(' ', '_'), tag,
-                print >> fh
-
-    def write_text(self, data_file, out_format, subrange, delex=False):
-        """Write output sentences for the given data subrange.
-        @param data_file: output file name
-        @param out_format: output format ('conll' -- CoNLL-U morphology, \
-            'interleaved' -- lemma/tag interleaved, 'plain' -- plain text)
-        @param subrange: data range (slice) from buffers to write
-        @param delex: delexicalize? false by default
-        """
-        if delex:
-            texts = self._delexed_texts[subrange]
-        else:
-            texts = self._sents[subrange]
-        if out_format == 'interleaved':
-            self._write_interleaved(data_file, texts)
-        elif out_format == 'conll':
-            self._write_conll(data_file, texts)
-        else:
-            self._write_plain(data_file, [" ".join([form for form, _, _ in sent])
-                                          for sent in texts])
-
-    def write_absts(self, data_file, subrange):
-        """Write delexicalization/abstraction instructions (for the given data subrange).
-        @param data_file: output file name
-        @param subrange: data range (slice) from buffers to write
-        """
-        self._write_plain(data_file, ["\t".join([unicode(abst_) for abst_ in abst])
-                                      for abst in self._absts[subrange]])
-
-    def write_das(self, data_file, subrange, delex=False):
-        """Write DAs (for the given subrange).
-        @param data_file: output file name
-        @param subrange: data range (slice) from buffers to write
-        @param delex: delexicalize? false by default
-        """
-        if delex:
-            das = self._delexed_das[subrange]
-        else:
-            das = self._das[subrange]
-        self._write_plain(data_file, das)
-
-    def _delex_das(self):
-        """Delexicalize DAs in the buffers, save them separately."""
+        # return the result
         out = []
-        for da in self._das:
-            delex_da = DA()
-            for dai in da:
-                delex_dai = DAI(dai.da_type, dai.slot,
-                                'X-' + dai.slot
-                                if (dai.value not in [None, 'none', 'dont_care'] and
-                                    dai.slot in self._abst_slots)
-                                else dai.value)
-                delex_da.append(delex_dai)
-            out.append(delex_da)
-        self._delexed_das = out
+        for da, text, delex_da, delex_text, abst in zip(self._das, self._texts, self._delex_das, self._delex_texts, self._absts):
+            out.append(Inst(da, text, delex_da, delex_text, abst))
+        return out
 
-    def _delex_texts(self):
+    def _create_delex_texts(self):
         """Delexicalize texts in the buffers and save them separately in the member variables,
         along with the delexicalization instructions used for the operation."""
-        self._delexed_texts = []
+        self._delex_texts = []
         self._absts = []
-        for text_idx, (text, da) in enumerate(zip(self._sents, self._das)):
+        for text_idx, (text, da) in enumerate(zip(self._texts, self._das)):
             delex_text = []
             absts = []
             # do the delexicalization, keep track of which slots we used
@@ -282,10 +195,10 @@ class MorphoAnalyzer(object):
                     log_info("Cannot delexicalize slot  %s  at %d:\nDA: %s\nTx: %s\n" %
                              (dai.slot,
                               text_idx,
-                              unicode(da),
+                              str(da),
                               " ".join([form for form, _, _ in text])))
             # save the delexicalized text and the delexicalization instructions
-            self._delexed_texts.append(delex_text)
+            self._delex_texts.append(delex_text)
             self._absts.append(absts)
 
     def _delex_fix_coords(self, text, da, absts):
@@ -308,57 +221,157 @@ class MorphoAnalyzer(object):
                 del absts[idx + 1]
             idx += 1
 
+    def _create_delex_das(self):
+        """Delexicalize DAs in the buffers, save them separately."""
+        out = []
+        for da in self._das:
+            delex_da = DA()
+            for dai in da:
+                delex_dai = DAI(dai.da_type, dai.slot,
+                                'X-' + dai.slot
+                                if (dai.value not in [None, 'none', 'dont_care'] and
+                                    dai.slot in self._abst_slots)
+                                else dai.value)
+                delex_da.append(delex_dai)
+            out.append(delex_da)
+        self._delex_das = out
+
+
+class Writer(object):
+
+    def __init__(self):
+        pass
+
+    def _write_plain(self, output_file, data_items):
+        with codecs.open(output_file, 'wb', encoding='UTF-8') as fh:
+            for data_item in data_items:
+                print(str(data_item), file=fh)
+
+    def _write_conll(self, output_file, data_items):
+        with codecs.open(output_file, 'wb', encoding='UTF-8') as fh:
+            for line in data_items:
+                for idx, tok in enumerate(line, start=1):
+                    print("\t".join((str(idx),
+                                     tok[0].replace(' ', '_'),
+                                     tok[1].replace(' ', '_'),
+                                     '_', tok[2], '_',
+                                     '0', '_', '_', '_')),
+                          file=fh)
+
+    def _write_interleaved(self, output_file, data_items):
+        with codecs.open(output_file, 'wb', encoding='UTF-8') as fh:
+            for line in data_items:
+                for _, lemma, tag in line:
+                    print(lemma.replace(' ', '_'), tag, end=' ', file=fh)
+                print('', file=fh)
+
+    def write_text(self, data_file, out_format, insts, delex=False):
+        """Write output sentences for the given data subrange.
+        @param data_file: output file name
+        @param out_format: output format ('conll' -- CoNLL-U morphology, \
+            'interleaved' -- lemma/tag interleaved, 'plain' -- plain text)
+        @param insts: instances to write
+        @param delex: delexicalize? false by default
+        """
+        texts = [inst.delex_text if delex else inst.text for inst in insts]
+        if out_format == 'interleaved':
+            self._write_interleaved(data_file, texts)
+        elif out_format == 'conll':
+            self._write_conll(data_file, texts)
+        else:
+            self._write_plain(data_file, [" ".join([form for form, _, _ in sent])
+                                          for sent in texts])
+
+    def write_absts(self, data_file, insts):
+        """Write delexicalization/abstraction instructions (for the given data subrange).
+        @param data_file: output file name
+        @param insts: instances to write
+        """
+        self._write_plain(data_file, ["\t".join([str(abst_) for abst_ in inst.abst])
+                                      for inst in insts])
+
+    def write_das(self, data_file, insts, delex=False):
+        """Write DAs (for the given subrange).
+        @param data_file: output file name
+        @param insts: instances to write
+        @param delex: delexicalize? false by default
+        """
+        das = [inst.delex_da if delex else inst.da for inst in insts]
+        self._write_plain(data_file, das)
+
+
+def split_roughly_equally(da_to_insts, num_parts):
+    """Split a DA-to-inst mapping into num_part roughly equal-sized parts,
+    keeping the division along the mapping."""
+    parts = [[] for _ in range(num_parts)]
+    # first-fit decreasing algorithm: sort decreasing by size, always add to currently smallest
+    for da, insts in sorted(list(da_to_insts.items()), key=lambda item: len(item[1]), reverse=True):
+        next_part = np.argmin([len(g) for g in parts])  # find the part that has least items
+        parts[next_part].extend(insts)  # give it the instances
+    print(" ".join([str(len(part)) for part in parts]))
+    return parts
+
 
 def convert(args):
     """Main conversion function (using command-line arguments as parsed by Argparse)."""
     log_info('Loading...')
-    analyzer = MorphoAnalyzer(args.tagger_model, args.abst_slots)
-    analyzer.load_surface_forms(args.surface_forms)
+    reader = Reader(args.tagger_model, args.abst_slots)
+    reader.load_surface_forms(args.surface_forms)
     log_info('Processing input files...')
-    analyzer.process_files(args.input_text_file, args.input_da_file, args.skip_hello)
-    log_info('Loaded %d data items.' % analyzer.buf_length())
+    insts = reader.process_dataset(args.input_data)
+    log_info('Loaded %d data items.' % len(insts))
 
-    # outputs: plain delex, plain lex, interleaved delex & lex, CoNLL-U delex & lex, DAs, abstrs
-    # TODO maybe do relexicalization, but not now (no time)
-
+    # regroup data by delex DA & split from there
     if args.split:
-        # get file name prefixes and compute data sizes for all the parts to be split
-        out_names = re.split(r'[, ]+', args.out_prefix)
-        data_sizes = [int(part_size) for part_size in args.split.split(':')]
-        assert len(out_names) == len(data_sizes)
-        # compute sizes for all but the 1st part (+ round them)
-        total = float(sum(data_sizes))
-        remain = analyzer.buf_length()
-        for part_no in xrange(len(data_sizes) - 1, 0, -1):
-            part_size = int(round(analyzer.buf_length() * (data_sizes[part_no] / total)))
-            data_sizes[part_no] = part_size
-            remain -= part_size
-        # put whatever remained into the 1st part
-        data_sizes[0] = remain
+        # mapping delex. DA to instance
+        da_to_insts = {}
+        for inst in insts:
+            da_to_insts[inst.delex_da] = da_to_insts.get(inst.delex_da, []) + [inst]
+
+        data_sizes = [int(size) for size in args.split.split(':')]
+        num_parts = sum(data_sizes)
+        groups = [[] for _ in range(len(data_sizes))]
+        for da_type in set([inst.delex_da.dais[0].da_type for inst in insts]):
+            # split instances of given DA type into equally sized parts
+            print(da_type)
+            insts_for_da_type = {da: insts for da, insts in da_to_insts.items() if da.dais[0].da_type == da_type}
+            parts_for_da_type = split_roughly_equally(insts_for_da_type, num_parts)
+
+            # merge parts into groups sequentially, e.g. add to 1, 2, 3, 1, 1 for size parts 3:1:1
+            trg_idx = 0
+            src_idx = 0
+            added = [0] * len(data_sizes)
+            while src_idx < num_parts:
+                if added[trg_idx] < data_sizes[trg_idx]:
+                    groups[trg_idx].extend(parts_for_da_type[src_idx])
+                    added[trg_idx] += 1
+                    src_idx += 1
+                trg_idx = (trg_idx + 1) % len(data_sizes)
+
+        out_names = re.split(r'[, ]+', args.out_prefix)  # get output file name prefixes
+
+    # use just one group -- containing all the data
     else:
-        # use just one part -- containing all the data
-        data_sizes = [analyzer.buf_length()]
+        groups = [insts]
         out_names = [args.out_prefix]
 
-    # write all data parts
-    offset = 0
-    for part_size, part_name in zip(data_sizes, out_names):
-        log_info('Writing %s (size: %d)...' % (part_name, part_size))
-        subrange = slice(offset, offset + part_size)
+    # write all data groups
+    # outputs: plain delex, plain lex, interleaved delex & lex, CoNLL-U delex & lex, DAs, abstrs
+    writer = Writer()
+    for group, group_name in zip(groups, out_names):
+        log_info('Writing %s (size: %d)...' % (group_name, len(group)))
 
-        analyzer.write_absts(part_name + '-abst.txt', subrange)
+        writer.write_absts(group_name + '-abst.txt', group)
 
-        analyzer.write_das(part_name + '-das_l.txt', subrange)
-        analyzer.write_das(part_name + '-das.txt', subrange, delex=True)
+        writer.write_das(group_name + '-das_l.txt', group)
+        writer.write_das(group_name + '-das.txt', group, delex=True)
 
-        analyzer.write_text(part_name + '-text_l.txt', 'plain', subrange)
-        analyzer.write_text(part_name + '-text.txt', 'plain', subrange, delex=True)
-        analyzer.write_text(part_name + '-tls_l.txt', 'interleaved', subrange)
-        analyzer.write_text(part_name + '-tls.txt', 'interleaved', subrange, delex=True)
-        analyzer.write_text(part_name + '-text_l.conll', 'conll', subrange)
-        analyzer.write_text(part_name + '-text.conll', 'conll', subrange, delex=True)
-
-        offset += part_size
+        writer.write_text(group_name + '-text_l.txt', 'plain', group)
+        writer.write_text(group_name + '-text.txt', 'plain', group, delex=True)
+        writer.write_text(group_name + '-tls_l.txt', 'interleaved', group)
+        writer.write_text(group_name + '-tls.txt', 'interleaved', group, delex=True)
+        writer.write_text(group_name + '-text_l.conll', 'conll', group)
+        writer.write_text(group_name + '-text.conll', 'conll', group, delex=True)
 
 
 if __name__ == '__main__':
@@ -366,12 +379,10 @@ if __name__ == '__main__':
 
     ap.add_argument('tagger_model', type=str, help='MorphoDiTa tagger model')
     ap.add_argument('surface_forms', type=str, help='Input JSON with base forms')
-    ap.add_argument('input_da_file', type=str, help='Input DA file')
-    ap.add_argument('input_text_file', type=str, help='Input text file')
+    ap.add_argument('input_data', type=str, help='Input data JSON')
     ap.add_argument('out_prefix', help='Output files name prefix(es - when used with -s, comma-separated)')
     ap.add_argument('-a', '--abst-slots', help='List of slots to delexicalize/abstract (comma-separated)')
     ap.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
-    ap.add_argument('-i', '--skip-hello', help='Ignore hello() DAs', action='store_true')
 
     args = ap.parse_args()
     convert(args)
