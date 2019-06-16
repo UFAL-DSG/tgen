@@ -11,6 +11,7 @@ from collections import deque, namedtuple
 from itertools import islice
 
 import numpy as np
+import random
 
 from ufal.morphodita import Tagger, Forms, TaggedLemma, TaggedLemmas, TokenRanges, Analyses, Indices
 
@@ -176,9 +177,10 @@ class Reader(object):
                     slot = da.has_value(lemma)
                     value = lemma
 
-                # if we found something, delexicalize it
+                # if we found something, delexicalize it (check if the value corresponds to the DA!)
                 if (slot and slot in self._abst_slots and
-                        da.value_for_slot(slot) not in [None, 'none', 'dont_care']):
+                        da.value_for_slot(slot) not in [None, 'none', 'dont_care'] and
+                        value in da.value_for_slot(slot)):
                     delex_text.append(('X-' + slot, 'X-' + slot, tag))
                     absts.append(Abst(slot, value, form, tok_idx, tok_idx + 1))
                 # otherwise keep the token as it is
@@ -299,6 +301,14 @@ class Writer(object):
         das = [inst.delex_da if delex else inst.da for inst in insts]
         self._write_plain(data_file, das)
 
+    def write_json(self, data_file, insts):
+        with codecs.open(data_file, 'w', 'UTF-8') as fh:
+            json.dump([{"da": inst.da.to_cambridge_da_string(),
+                        "delex_da": inst.delex_da.to_cambridge_da_string(),
+                        "text": " ".join([w[0] for w in inst.text]),
+                        "delex_text": " ".join([w[0] for w in inst.delex_text])}
+                       for inst in insts], fh, indent=4, ensure_ascii=False)
+
 
 def split_roughly_equally(da_to_insts, num_parts):
     """Split a DA-to-inst mapping into num_part roughly equal-sized parts,
@@ -308,7 +318,6 @@ def split_roughly_equally(da_to_insts, num_parts):
     for da, insts in sorted(list(da_to_insts.items()), key=lambda item: len(item[1]), reverse=True):
         next_part = np.argmin([len(g) for g in parts])  # find the part that has least items
         parts[next_part].extend(insts)  # give it the instances
-    print(" ".join([str(len(part)) for part in parts]))
     return parts
 
 
@@ -331,11 +340,15 @@ def convert(args):
         data_sizes = [int(size) for size in args.split.split(':')]
         num_parts = sum(data_sizes)
         groups = [[] for _ in range(len(data_sizes))]
-        for da_type in set([inst.delex_da.dais[0].da_type for inst in insts]):
+        for da_type in sorted(set([inst.delex_da.dais[0].da_type for inst in insts])):
             # split instances of given DA type into equally sized parts
-            print(da_type)
             insts_for_da_type = {da: insts for da, insts in da_to_insts.items() if da.dais[0].da_type == da_type}
             parts_for_da_type = split_roughly_equally(insts_for_da_type, num_parts)
+
+            # shuffle the parts, keeping the first at its place (if there's only 1 DA, it'll end up in training)
+            all_but_1st = parts_for_da_type[1:]
+            random.shuffle(all_but_1st)
+            parts_for_da_type = parts_for_da_type[:1] + all_but_1st
 
             # merge parts into groups sequentially, e.g. add to 1, 2, 3, 1, 1 for size parts 3:1:1
             trg_idx = 0
@@ -348,7 +361,12 @@ def convert(args):
                     src_idx += 1
                 trg_idx = (trg_idx + 1) % len(data_sizes)
 
-        out_names = re.split(r'[, ]+', args.out_prefix)  # get output file name prefixes
+        # shuffle the order in the resulting groups
+        for group in groups:
+            random.shuffle(group)
+
+        # get output file name prefixes
+        out_names = re.split(r'[, ]+', args.out_prefix)
 
     # use just one group -- containing all the data
     else:
@@ -361,6 +379,10 @@ def convert(args):
     for group, group_name in zip(groups, out_names):
         log_info('Writing %s (size: %d)...' % (group_name, len(group)))
 
+        writer.write_json(group_name + '.json', group)
+
+        # TODO original delexicalization is basically invalid, there are various fixes
+        # -> new dataset release needs to use updated re-delexicalization
         writer.write_absts(group_name + '-abst.txt', group)
 
         writer.write_das(group_name + '-das_l.txt', group)
@@ -375,6 +397,8 @@ def convert(args):
 
 
 if __name__ == '__main__':
+
+    random.seed(1206)
     ap = ArgumentParser()
 
     ap.add_argument('tagger_model', type=str, help='MorphoDiTa tagger model')
