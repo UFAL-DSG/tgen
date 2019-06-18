@@ -259,6 +259,7 @@ class Writer(object):
                                      '_', tok[2], '_',
                                      '0', '_', '_', '_')),
                           file=fh)
+                print("", file=fh)
 
     def _write_interleaved(self, output_file, data_items):
         with codecs.open(output_file, 'wb', encoding='UTF-8') as fh:
