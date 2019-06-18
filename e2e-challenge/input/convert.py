@@ -50,13 +50,14 @@ def convert(args):
     da_keys = {}
     insts = 0
 
-    def process_instance(da, conc):
-        da.sort()
-        conc_das.append(da)
+    def process_instance(conc_da, conc):
+        # sort the DA using the same order as in E2E NLG data
+        conc_da.dais.sort(key=lambda dai: (['name', 'eat_type', 'food', 'price_range', 'rating', 'area', 'family_friendly', 'near'].index(dai.slot), dai.value))
+        conc_das.append(conc_da)
 
-        text, da, abst = delex_sent(da, tokenize(conc), slots_to_abstract, args.slot_names, repeated=True)
+        text, da, abst = delex_sent(conc_da, tokenize(conc), slots_to_abstract, args.slot_names, repeated=True)
         text = text.lower().replace('x-', 'X-')  # lowercase all but placeholders
-        da.sort()
+        da.dais.sort(key=lambda dai: (['name', 'eat_type', 'food', 'price_range', 'rating', 'area', 'family_friendly', 'near'].index(dai.slot), dai.value))
 
         da_keys[str(da)] = da_keys.get(str(da), 0) + 1
         das.append(da)
