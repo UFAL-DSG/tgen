@@ -14,7 +14,6 @@ from builtins import zip
 from builtins import filter
 from builtins import range
 import pickle as pickle
-import codecs
 import gzip
 import regex
 import re
@@ -115,6 +114,24 @@ def read_ttrees(ttree_file):
         pickle.Pickler(fh, pickle.HIGHEST_PROTOCOL).dump(ttrees)
         fh.close()
     return ttrees
+
+
+def read_trees_or_tokens(input_file, mode, language=None, selector=None):
+    """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
+    if input_file.endswith('.txt'):
+        if mode == 'trees':
+            raise ValueError("Cannot read trees from a .txt file (%s)!" % input_file)
+        return read_tokens(input_file)
+    else:
+        ttree_doc = read_ttrees(input_file)
+        if selector is None or selector is None:  # for txt files, language/selector can be None, but not here
+            raise ValueError("Undefined language or selector while reading from a trees file (%s)!" % input_file)
+        if mode == 'tokens':
+            return tokens_from_doc(ttree_doc, language, selector)
+        elif mode == 'tagged_lemmas':
+            return tagged_lemmas_from_doc(ttree_doc, language, selector)
+        else:
+            return trees_from_doc(ttree_doc, language, selector)
 
 
 def write_ttrees(ttree_doc, fname):

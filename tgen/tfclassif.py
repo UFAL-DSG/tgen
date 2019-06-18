@@ -26,8 +26,7 @@ import tensorflow as tf
 
 from tgen.rnd import rnd
 from tgen.logf import log_debug, log_info
-from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, \
-    tagged_lemmas_from_doc, file_stream
+from tgen.futil import read_das, file_stream, read_trees_or_tokens
 from tgen.features import Features
 from tgen.ml import DictVectorizer
 from tgen.embeddings import EmbeddingExtract, TokenEmbeddingSeq2SeqExtract, \
@@ -313,17 +312,10 @@ class RerankingClassifier(TFModel):
             log_info('Reading DAs from ' + das + '...')
             das = read_das(das)
         if not isinstance(trees, list):
-            log_info('Reading t-trees from ' + trees + '...')
-            ttree_doc = read_ttrees(trees)
-            if self.mode == 'tokens':
-                tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
-                trees = self._tokens_to_flat_trees(tokens)
-            elif self.mode == 'tagged_lemmas':
-                tls = tagged_lemmas_from_doc(ttree_doc, self.language, self.selector)
-                trees = self._tokens_to_flat_trees(tls, use_tags=True)
-            else:
-                trees = trees_from_doc(ttree_doc, self.language, self.selector)
-        elif self.mode in ['tokens', 'tagged_lemmas']:
+            log_info('Reading t-trees/tokens from ' + trees + '...')
+            trees = read_trees_or_tokens(trees, self.mode, self.language, self.selector)
+
+        if self.mode in ['tokens', 'tagged_lemmas']:
             trees = self._tokens_to_flat_trees(trees, use_tags=self.mode == 'tagged_lemmas')
 
         # make training data smaller if necessary
@@ -556,17 +548,12 @@ class RerankingClassifier(TFModel):
         @param ttree_file: trees/sentences file path
         @return: a tuple (total DAIs, distance)
         """
+        log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
-        ttree_doc = read_ttrees(ttree_file)
-        if self.mode == 'tokens':
-            tokens = tokens_from_doc(ttree_doc, self.language, self.selector)
-            trees = self._tokens_to_flat_trees(tokens)
-        elif self.mode == 'tagged_lemmas':
-            tls = tagged_lemmas_from_doc(ttree_doc, self.language, self.selector)
-            trees = self._tokens_to_flat_trees(tls)
-        else:
-            trees = trees_from_doc(ttree_doc, self.language, self.selector)
-
+        log_info('Reading t-trees/tokens from ' + ttree_file + '...')
+        trees = read_trees_or_tokens(ttree_file, self.mode, self.language, self.selector)
+        if self.mode in ['tokens', 'tagged_lemmas']:
+            trees = self._tokens_to_flat_trees(trees, use_tags=self.mode == 'tagged_lemmas')
         da_len = 0
         dist = 0
 

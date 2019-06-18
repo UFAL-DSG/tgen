@@ -129,7 +129,7 @@ def rerank_cl_train(args):
                     help='Replace trained classifier in an existing seq2seq model (path to file)')
     ap.add_argument('fname_config', type=str, help='Reranking classifier configuration file path')
     ap.add_argument('fname_da_train', type=str, help='Training DAs file path')
-    ap.add_argument('fname_trees_train', type=str, help='Training trees file path (must be trees!)')
+    ap.add_argument('fname_trees_train', type=str, help='Training trees/sentences file path')
     ap.add_argument('fname_cl_model', type=str, help='Path for the output trained model')
     args = ap.parse_args(args)
 
@@ -558,7 +558,7 @@ def rerank_cl_eval(args):
                     help='Override classifier selector (for t-tree input files)')
     ap.add_argument('fname_cl_model', type=str, help='Path to trained reranking classifier model')
     ap.add_argument('fname_test_da', type=str, help='Path to test DA file')
-    ap.add_argument('fname_test_sent', type=str, help='Path to test trees file (must be trees!)')
+    ap.add_argument('fname_test_sent', type=str, help='Path to test trees/sentences file')
     args = ap.parse_args(args)
 
     log_info("Loading reranking classifier...")

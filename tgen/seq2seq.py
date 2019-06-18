@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
@@ -12,6 +11,7 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 from builtins import object
+
 import re
 import numpy as np
 import tensorflow as tf
@@ -26,8 +26,7 @@ from functools import partial
 
 
 from tgen.logf import log_info, log_debug, log_warn
-from tgen.futil import read_das, read_ttrees, trees_from_doc, tokens_from_doc, chunk_list, \
-    read_tokens, tagged_lemmas_from_doc, file_stream
+from tgen.futil import read_das, chunk_list, file_stream, read_trees_or_tokens
 from tgen.embeddings import DAEmbeddingSeq2SeqExtract, TokenEmbeddingSeq2SeqExtract, \
     TreeEmbeddingSeq2SeqExtract, ContextDAEmbeddingSeq2SeqExtract, \
     TaggedLemmasEmbeddingSeq2SeqExtract
@@ -427,7 +426,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # read training data
         log_info('Reading DAs from ' + das_file + '...')
         das = read_das(das_file)
-        trees = self._load_trees(ttree_file)
+        log_info('Reading t-trees/sentences from ' + ttree_file + '...')
+        trees = read_trees_or_tokens(ttree_file, self.mode, self.language, self.selector)
         if self.use_context:
             das = self._load_contexts(das, context_file)
 
@@ -504,24 +504,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # initialize the NN variables
         self.session.run(tf.global_variables_initializer())
 
-    def _load_trees(self, ttree_file, selector=None):
-        """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
-        log_info('Reading t-trees/sentences from ' + ttree_file + '...')
-        if ttree_file.endswith('.txt'):
-            if self.mode == 'trees':
-                raise ValueError("Cannot read trees from a .txt file (%s)!" % ttree_file)
-            return read_tokens(ttree_file)
-        else:
-            ttree_doc = read_ttrees(ttree_file)
-            if selector is None:
-                selector = self.selector
-            if self.mode == 'tokens':
-                return tokens_from_doc(ttree_doc, self.language, selector)
-            elif self.mode == 'tagged_lemmas':
-                return tagged_lemmas_from_doc(ttree_doc, self.language, selector)
-            else:
-                return trees_from_doc(ttree_doc, self.language, selector)
-
     def _load_contexts(self, das, context_file):
         """Load input context utterances from a .yaml.gz/.pickle.gz/.txt file and add them to the
         given DAs (each returned item is then a tuple of context + DA)."""
@@ -529,10 +511,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         if context_file is None:
             raise ValueError('Expected context utterances file name!')
         log_info('Reading context utterances from %s...' % context_file)
-        if context_file.endswith('.txt'):
-            contexts = read_tokens(context_file)
-        else:
-            contexts = tokens_from_doc(read_ttrees(context_file), self.language, self.selector)
+        contexts = read_trees_or_tokens(context_file, 'tokens', self.language, self.selector)
         return [(context, da) for context, da in zip(contexts, das)]
 
     def _load_valid_data(self, valid_data_paths):
@@ -548,7 +527,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # load the validation data
         log_info('Reading DAs from ' + valid_das_file + '...')
         self.valid_das = read_das(valid_das_file)
-        self.valid_trees = self._load_trees(valid_trees_file, selector=self.ref_selectors)
+        log_info('Reading t-trees/sentences from ' + valid_trees_file + '...')
+        self.valid_trees = read_trees_or_tokens(valid_trees_file, self.mode, self.language, self.ref_selectors)
         if self.use_context:
             self.valid_das = self._load_contexts(self.valid_das, valid_context_file)
 
@@ -649,7 +629,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
                                    chunk_list(self.train_das, old_div(train_size, num_refs))]
                 self.valid_trees = [[chunk[i] for chunk in train_tree_chunks]
                                     for i in range(old_div(train_size, num_refs) - self.validation_size,
-                                                    old_div(train_size, num_refs))]
+                                                   old_div(train_size, num_refs))]
                 self.valid_das = train_da_chunks[0][-self.validation_size:]
                 self.train_trees = sum([chunk[:-self.validation_size]
                                         for chunk in train_tree_chunks], [])
