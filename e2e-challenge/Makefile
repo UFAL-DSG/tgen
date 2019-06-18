@@ -5,9 +5,9 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
-MEM = 8g
-CPUS = 4
-QP = --engine=slurm --queue=amd-longq
+MEM = 12g
+CPUS = 8
+QP = --queue=cpu-troja.q
 ifdef LOCAL
   QP = --engine=console
 endif
