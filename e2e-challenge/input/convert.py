@@ -1,16 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
 Converting the E2E Challenge dataset (http://www.macs.hw.ac.uk/InteractionLab/E2E/) to our data format.
 """
 
-from __future__ import unicode_literals
-
-
 import re
 import argparse
-import unicodecsv as csv
+import pandas as pd
 import codecs
 from collections import OrderedDict
 
@@ -61,58 +58,60 @@ def convert(args):
         text = text.lower().replace('x-', 'X-')  # lowercase all but placeholders
         da.sort()
 
-        da_keys[unicode(da)] = da_keys.get(unicode(da), 0) + 1
+        da_keys[str(da)] = da_keys.get(str(da), 0) + 1
         das.append(da)
         concs.append(conc)
         absts.append(abst)
         texts.append(text)
 
     # process the input data and store it in memory
-    with open(args.in_file, 'r') as fh:
-        csvread = csv.reader(fh, encoding='UTF-8')
-        csvread.next()  # skip header
-        for mr, text in csvread:
-            da = DA.parse_diligent_da(mr)
-            process_instance(da, text)
-            insts += 1
+    data = pd.read_csv(args.in_file, sep=',', encoding='UTF-8')
+    for inst in data.itertuples():
+        da = DA.parse_diligent_da(inst.mr)
+        process_instance(da, inst.ref)
+        insts += 1
+        if insts % 100 == 0:
+            print('%d...' % insts, end='', flush=True, file=sys.stderr)
 
-        print 'Processed', insts, 'instances.'
-        print '%d different DAs.' % len(da_keys)
-        print '%.2f average DAIs per DA' % (sum([len(d) for d in das]) / float(len(das)))
-        print 'Max DA len: %d, max text len: %d' % (max([len(da) for da in das]),
-                                                    max([text.count(' ') + 1 for text in texts]))
+    print('Processed', insts, 'instances.', file=sys.stderr)
+    print('%d different DAs.' % len(da_keys), file=sys.stderr)
+    print('%.2f average DAIs per DA' % (sum([len(d) for d in das]) / float(len(das))),
+          file=sys.stderr)
+    print('Max DA len: %d, max text len: %d' % (max([len(da) for da in das]),
+                                                max([text.count(' ') + 1 for text in texts])),
+          file=sys.stderr)
 
     # for multi-ref mode, group by the same conc DA
     if args.multi_ref:
-        groups = OrderedDict()
+        groups = OrderedDict()  # keep the original order (by 1st occurrence of DA)
         for conc_da, da, conc, text, abst in zip(conc_das, das, concs, texts, absts):
-            group = groups.get(unicode(conc_da), {})
+            group = groups.get(str(conc_da), {})
             group['da'] = da
             group['conc_da'] = conc_da
             group['abst'] = group.get('abst', []) + [abst]
             group['conc'] = group.get('conc', []) + [conc]
             group['text'] = group.get('text', []) + [text]
-            groups[unicode(conc_da)] = group
+            groups[str(conc_da)] = group
 
         conc_das, das, concs, texts, absts = [], [], [], [], []
-        for group in groups.itervalues():
+        for group in groups.values():
             conc_das.append(group['conc_da'])
             das.append(group['da'])
             concs.append("\n".join(group['conc']) + "\n")
             texts.append("\n".join(group['text']) + "\n")
-            absts.append("\n".join(["\t".join([unicode(a) for a in absts_])
+            absts.append("\n".join(["\t".join([str(a) for a in absts_])
                                     for absts_ in group['abst']]) + "\n")
     else:
         # convert abstraction instruction to string (coordinate output with multi-ref mode)
-        absts = ["\t".join([unicode(a) for a in absts_]) for absts_ in absts]
+        absts = ["\t".join([str(a) for a in absts_]) for absts_ in absts]
 
     with codecs.open(args.out_name + '-das.txt', 'w', 'UTF-8') as fh:
         for da in das:
-            fh.write(unicode(da) + "\n")
+            fh.write(str(da) + "\n")
 
     with codecs.open(args.out_name + '-conc_das.txt', 'w', 'UTF-8') as fh:
         for conc_da in conc_das:
-            fh.write(unicode(conc_da) + "\n")
+            fh.write(str(conc_da) + "\n")
 
     with codecs.open(args.out_name + '-conc.txt', 'w', 'UTF-8') as fh:
         for conc in concs:
@@ -133,7 +132,7 @@ if __name__ == '__main__':
     argp.add_argument('out_name', help='Output files name prefix')
     argp.add_argument('-a', '--abstract', help='Comma-separated list of slots to be abstracted')
     argp.add_argument('-m', '--multi-ref',
-                      help='Multiple reference mode: relexicalize all possible references', action='store_true')
+                      help='Multiple reference mode: group by the same DA', action='store_true')
     argp.add_argument('-n', '--slot-names', help='Include slot names in delexicalized texts', action='store_true')
     args = argp.parse_args()
     convert(args)
