@@ -61,7 +61,7 @@ config = {
               },
 
         'lexicalizer': {
-            'form_select_type': 'random',
+            'form_select_type': 'rnnlm',
             'form_sample': False,
             'randomize': True,
             'passes': 50,
