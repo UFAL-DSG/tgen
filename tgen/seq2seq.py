@@ -707,6 +707,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
                 rnn_func = tf06s2s.embedding_attention_seq2seq
+            elif self.nn_type == 'emb_bidi_attention_seq2seq':
+                rnn_func = partial(tf06s2s.embedding_attention_seq2seq, bidi_encoder=True)
             elif self.nn_type == 'emb_attention2_seq2seq':
                 rnn_func = partial(tf06s2s.embedding_attention_seq2seq, num_heads=2)
             elif self.nn_type == 'emb_attention_seq2seq_context':

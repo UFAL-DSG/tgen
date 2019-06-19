@@ -45,11 +45,13 @@ except ImportError: # TF 1.4.1
 
 def rnn(cell, inputs, initial_state=None, dtype=None,
         sequence_length=None, scope=None, bidi=False):
-    """Create encoder RNN."""
-    # TODO allow bidi to be propagated over seq2seq
+    """Create encoder RNN with the given cell type
+    (allows left-to-right or bidi encoders)."""
     if bidi:
         outputs, state_fw, state_bw = static_bidirectional_rnn(
             cell, cell, inputs, initial_state, initial_state, dtype, sequence_length, scope)
+        if isinstance(state_fw, tuple):  # add up LSTM states part-by-part
+            return outputs, (state_fw[0] + state_bw[0], state_fw[1] + state_bw[1])
         return outputs, state_fw + state_bw
     else:
         return static_rnn(cell, inputs, initial_state, dtype, sequence_length, scope)
@@ -585,7 +587,7 @@ def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
                                 embedding_size,
                                 num_heads=1, output_projection=None,
                                 feed_previous=False, dtype=dtypes.float32,
-                                scope=None):
+                                scope=None, bidi_encoder=False):
   """Embedding sequence-to-sequence model with attention.
 
   This model first embeds encoder_inputs by a newly created embedding (of shape
@@ -626,10 +628,11 @@ def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
     # Encoder.
     encoder_cell = EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
     encoder_outputs, encoder_state = rnn(
-        encoder_cell, encoder_inputs, dtype=dtype)
+        encoder_cell, encoder_inputs, dtype=dtype, bidi=bidi_encoder)
+    import pudb; pu.db
 
     # First calculate a concatenation of encoder outputs to put attention on.
-    top_states = [array_ops.reshape(e, [-1, 1, cell.output_size])
+    top_states = [array_ops.reshape(e, [-1, 1, cell.output_size * (2 if bidi_encoder else 1)])
                   for e in encoder_outputs]
     attention_states = array_ops.concat(top_states, 1)
 
