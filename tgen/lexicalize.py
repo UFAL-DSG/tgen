@@ -294,11 +294,11 @@ class RNNLMFormSelect(FormSelect, TFModel):
             self._initial_state = self._cell.zero_state(tf.shape(self._inputs)[0], tf.float32)
 
             # embeddings
-            emb_cell = tf.contrib.rnn.EmbeddingWrapper(self._cell, self.vocab_size)
+            emb_cell = tf.contrib.rnn.EmbeddingWrapper(self._cell, self.vocab_size, self.emb_size)
             # RNN encoder
             inputs = [tf.squeeze(input_, [1])
                       for input_ in tf.split(axis=1, num_or_size_splits=self.max_sent_len, value=self._inputs)]
-            outputs, states = tf.contrib.rnn.static_rnn(emb_cell, inputs, initial_state=self._initial_state)
+            outputs, _ = tf.contrib.rnn.static_rnn(emb_cell, inputs, initial_state=self._initial_state)
 
             # output layer
             output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.emb_size])
