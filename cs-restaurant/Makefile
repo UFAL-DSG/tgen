@@ -136,7 +136,7 @@ help:
 # List all experiments, find scores in logs (of various versions)
 desc:
 	@COLS=`tput cols`; \
-	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
+	ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
 		if [[ -f $$file/$(SCOREFILE) && -z "$(REFRESH)" ]]; then \
 			cat $$file/$(SCOREFILE) | $(NOWRAP) $$COLS; \
 			continue ; \
