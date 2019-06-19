@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -17,7 +17,7 @@ import pickle as pickle
 import gzip
 import regex
 import re
-from io import IOBase, BytesIO
+from io import IOBase, StringIO
 from codecs import StreamReader, StreamWriter
 
 from .tree import TreeData
@@ -71,7 +71,7 @@ def smart_load_absts(fname, num_expected=None):
     or abstraction files with multi-reference mode."""
     with file_stream(fname) as fh:
         contents = fh.read()
-        buf = BytesIO(contents.encode('UTF-8'))
+        buf = StringIO(contents)
         # read DAs and convert them to Absts
         if not re.search(r'\t', contents):
             return [[Abst(dai.slot, dai.value) for dai in da
