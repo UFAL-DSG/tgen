@@ -195,6 +195,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self._sample = cfg.get('form_sample', False)
 
         self.randomize = cfg.get('randomize', True)
+        self.bidi = cfg.get('bidi', False)
         self.emb_size = cfg.get('emb_size', 50)
         self.passes = cfg.get('passes', 200)
         self.alpha = cfg.get('alpha', 1)
@@ -291,19 +292,23 @@ class RNNLMFormSelect(FormSelect, TFModel):
                 self._cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
             if re.match(r'/[0-9]$', self.cell_type):
                 self._cell = tf.contrib.rnn.MultiRNNCell([self.cell] * int(self.cell_type[-1]))
-            self._initial_state = self._cell.zero_state(tf.shape(self._inputs)[0], tf.float32)
 
             # embeddings
             emb_cell = tf.contrib.rnn.EmbeddingWrapper(self._cell, self.vocab_size, self.emb_size)
             # RNN encoder
             inputs = [tf.squeeze(input_, [1])
                       for input_ in tf.split(axis=1, num_or_size_splits=self.max_sent_len, value=self._inputs)]
-            outputs, _ = tf.contrib.rnn.static_rnn(emb_cell, inputs, initial_state=self._initial_state)
+            if self.bidi:
+                enc_outputs, _, _ = tf.nn.static_bidirectional_rnn(emb_cell, emb_cell, inputs, dtype=tf.float32)
+                enc_size = 2 * self.emb_size
+            else:
+                enc_outputs, _ = tf.nn.static_rnn(emb_cell, inputs, dtype=tf.float32)
+                enc_size = self.emb_size
 
             # output layer
-            output = tf.reshape(tf.concat(axis=1, values=outputs), [-1, self.emb_size])
-            self._logits = (tf.matmul(output,
-                                      tf.get_variable("W", [self.emb_size, self.vocab_size])) +
+            enc_output = tf.reshape(tf.concat(axis=1, values=enc_outputs), [-1, enc_size])
+            self._logits = (tf.matmul(enc_output,
+                                      tf.get_variable("W", [enc_size, self.vocab_size])) +
                             tf.get_variable("b", [self.vocab_size]))
 
             # cost
