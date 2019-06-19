@@ -31,6 +31,7 @@ from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import sparse_ops
 from tensorflow.python.ops import variable_scope as vs
 from tensorflow.contrib.rnn import EmbeddingWrapper, RNNCell, OutputProjectionWrapper
+from tensorflow.nn import static_rnn, static_bidirectional_rnn
 
 # TODO(ebrevdo): Remove once _linear is fully deprecated.
 try:  # TF 1.0.1
@@ -43,95 +44,15 @@ except ImportError: # TF 1.4.1
 
 
 def rnn(cell, inputs, initial_state=None, dtype=None,
-        sequence_length=None, scope=None):
-  """Creates a recurrent neural network specified by RNNCell "cell".
-
-  The simplest form of RNN network generated is:
-    state = cell.zero_state(...)
-    outputs = []
-    states = []
-    for input_ in inputs:
-      output, state = cell(input_, state)
-      outputs.append(output)
-      states.append(state)
-    return (outputs, states)
-
-  However, a few other options are available:
-
-  An initial state can be provided.
-  If sequence_length is provided, dynamic calculation is performed.
-
-  Dynamic calculation returns, at time t:
-    (t >= max(sequence_length)
-        ? (zeros(output_shape), zeros(state_shape))
-        : cell(input, state)
-
-  Thus saving computational time when unrolling past the max sequence length.
-
-  Args:
-    cell: An instance of RNNCell.
-    inputs: A length T list of inputs, each a tensor of shape
-      [batch_size, cell.input_size].
-    initial_state: (optional) An initial state for the RNN.  This must be
-      a tensor of appropriate type and shape [batch_size x cell.state_size].
-    dtype: (optional) The data type for the initial state.  Required if
-      initial_state is not provided.
-    sequence_length: An int64 vector (tensor) size [batch_size].
-    scope: VariableScope for the created subgraph; defaults to "RNN".
-
-  Returns:
-    A pair (outputs, states) where:
-      outputs is a length T list of outputs (one for each input)
-      states is a length T list of states (one state following each input)
-
-  Raises:
-    TypeError: If "cell" is not an instance of RNNCell.
-    ValueError: If inputs is None or an empty list.
-  """
-
-  if not isinstance(cell, RNNCell):
-    raise TypeError("cell must be an instance of RNNCell")
-  if not isinstance(inputs, list):
-    raise TypeError("inputs must be a list")
-  if not inputs:
-    raise ValueError("inputs must not be empty")
-
-  outputs = []
-  states = []
-  with vs.variable_scope(scope or "RNN"):
-    batch_size = array_ops.shape(inputs[0])[0]
-    if initial_state is not None:
-      state = initial_state
+        sequence_length=None, scope=None, bidi=False):
+    """Create encoder RNN."""
+    # TODO allow bidi to be propagated over seq2seq
+    if bidi:
+        outputs, state_fw, state_bw = static_bidirectional_rnn(
+            cell, cell, inputs, initial_state, initial_state, dtype, sequence_length, scope)
+        return outputs, state_fw + state_bw
     else:
-      if not dtype:
-        raise ValueError("If no initial_state is provided, dtype must be.")
-      state = cell.zero_state(batch_size, dtype)
-
-    if sequence_length:  # Prepare variables
-      zero_output_state = (
-          array_ops.zeros(array_ops.pack([batch_size, cell.output_size]),
-                          inputs[0].dtype),
-          array_ops.zeros(array_ops.pack([batch_size, cell.state_size]),
-                          state.dtype))
-      max_sequence_length = math_ops.reduce_max(sequence_length)
-
-    for time, input_ in enumerate(inputs):
-      if time > 0: vs.get_variable_scope().reuse_variables()
-      # pylint: disable=cell-var-from-loop
-      def output_state():
-        return cell(input_, state)
-      # pylint: enable=cell-var-from-loop
-      if sequence_length:
-        (output, state) = control_flow_ops.cond(
-            time >= max_sequence_length,
-            lambda: zero_output_state, output_state)
-      else:
-        (output, state) = output_state()
-
-      outputs.append(output)
-      states.append(state)
-
-    return (outputs, states)
+        return static_rnn(cell, inputs, initial_state, dtype, sequence_length, scope)
 
 
 def rnn_decoder(decoder_inputs, initial_state, cell, loop_function=None,
@@ -204,8 +125,8 @@ def basic_rnn_seq2seq(
       Each item is a 2D Tensor of shape [batch_size x cell.state_size].
   """
   with vs.variable_scope(scope or "basic_rnn_seq2seq"):
-    _, enc_states = rnn(cell, encoder_inputs, dtype=dtype)
-    return rnn_decoder(decoder_inputs, enc_states[-1], cell)
+    _, enc_state = rnn(cell, encoder_inputs, dtype=dtype)
+    return rnn_decoder(decoder_inputs, enc_state, cell)
 
 
 def tied_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
@@ -235,10 +156,10 @@ def tied_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
   """
   with vs.variable_scope("combined_tied_rnn_seq2seq"):
     scope = scope or "tied_rnn_seq2seq"
-    _, enc_states = rnn(
+    _, enc_state = rnn(
         cell, encoder_inputs, dtype=dtype, scope=scope)
     vs.get_variable_scope().reuse_variables()
-    return rnn_decoder(decoder_inputs, enc_states[-1], cell,
+    return rnn_decoder(decoder_inputs, enc_state, cell,
                        loop_function=loop_function, scope=scope)
 
 
@@ -348,23 +269,23 @@ def embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
   with vs.variable_scope(scope or "embedding_rnn_seq2seq"):
     # Encoder.
     encoder_cell = EmbeddingWrapper(cell, num_encoder_symbols)
-    _, encoder_states = rnn(encoder_cell, encoder_inputs, dtype=dtype)
+    _, encoder_state = rnn(encoder_cell, encoder_inputs, dtype=dtype)
 
     # Decoder.
     if output_projection is None:
       cell = OutputProjectionWrapper(cell, num_decoder_symbols)
 
     if isinstance(feed_previous, bool):
-      return embedding_rnn_decoder(decoder_inputs, encoder_states[-1], cell,
+      return embedding_rnn_decoder(decoder_inputs, encoder_state, cell,
                                    num_decoder_symbols, output_projection,
                                    feed_previous)
     else:  # If feed_previous is a Tensor, we construct 2 graphs and use cond.
       outputs1, states1 = embedding_rnn_decoder(
-          decoder_inputs, encoder_states[-1], cell, num_decoder_symbols,
+          decoder_inputs, encoder_state, cell, num_decoder_symbols,
           output_projection, True)
       vs.get_variable_scope().reuse_variables()
       outputs2, states2 = embedding_rnn_decoder(
-          decoder_inputs, encoder_states[-1], cell, num_decoder_symbols,
+          decoder_inputs, encoder_state, cell, num_decoder_symbols,
           output_projection, False)
 
       outputs = control_flow_ops.cond(feed_previous,
@@ -704,7 +625,7 @@ def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
   with vs.variable_scope(scope or "embedding_attention_seq2seq"):
     # Encoder.
     encoder_cell = EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
-    encoder_outputs, encoder_states = rnn(
+    encoder_outputs, encoder_state = rnn(
         encoder_cell, encoder_inputs, dtype=dtype)
 
     # First calculate a concatenation of encoder outputs to put attention on.
@@ -720,17 +641,17 @@ def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
 
     if isinstance(feed_previous, bool):
       return embedding_attention_decoder(
-          decoder_inputs, encoder_states[-1], attention_states, cell,
+          decoder_inputs, encoder_state, attention_states, cell,
           num_decoder_symbols, embedding_size, num_heads, output_size,
           output_projection, feed_previous)
     else:  # If feed_previous is a Tensor, we construct 2 graphs and use cond.
       outputs1, states1 = embedding_attention_decoder(
-          decoder_inputs, encoder_states[-1], attention_states, cell,
+          decoder_inputs, encoder_state, attention_states, cell,
           num_decoder_symbols, embedding_size, num_heads, output_size,
           output_projection, True)
       vs.get_variable_scope().reuse_variables()
       outputs2, states2 = embedding_attention_decoder(
-          decoder_inputs, encoder_states[-1], attention_states, cell,
+          decoder_inputs, encoder_state, attention_states, cell,
           num_decoder_symbols, embedding_size, num_heads, output_size,
           output_projection, False)
 
