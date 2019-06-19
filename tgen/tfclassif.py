@@ -407,12 +407,12 @@ class RerankingClassifier(TFModel):
                 self.outputs = self._ff_layers('ff', num_ff_layers, self.inputs)
 
             # RNNs
-            elif self.nn_shape.startswith('rnn'):
+            elif self.nn_shape.endswith('rnn'):
                 self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
                 self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
                                for i in range(self.input_shape[0])]
                 self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
-                self.outputs = self._rnn('rnn', self.inputs)
+                self.outputs = self._rnn('rnn', self.inputs, bidi=self.nn_shape.startswith('bidi'))
 
         # the cost as computed by TF actually adds a "fake" sigmoid layer on top
         # (or is computed as if there were a sigmoid layer on top)
@@ -459,23 +459,27 @@ class RerankingClassifier(TFModel):
             Y = activ[i](tf.matmul(Y, w) + b)
         return Y
 
-    def _rnn(self, name, enc_inputs):
-        encoder_cell = tf.contrib.rnn.EmbeddingWrapper(self.cell, self.dict_size, self.emb_size)
-        encoder_outputs, encoder_state = tf.contrib.rnn.static_rnn(encoder_cell, enc_inputs, dtype=tf.float32)
+    def _rnn(self, name, enc_inputs, bidi=False):
+        cell = tf.contrib.rnn.EmbeddingWrapper(self.cell, self.dict_size, self.emb_size)
+        if bidi:
+            _, state_fw, state_bw = tf.nn.static_bidirectional_rnn(cell, cell, enc_inputs, dtype=tf.float32)
+            if isinstance(state_fw, tuple):  # add up LSTM states part-by-part
+                enc_state = (state_fw[0] + state_bw[0], state_fw[1] + state_bw[1])
+            else:
+                enc_state = state_fw + state_bw
+        else:
+            _, enc_state = tf.nn.static_rnn(cell, enc_inputs, dtype=tf.float32)
 
-        # TODO for historical reasons, the last layer uses both output and state.
-        # try this just with outputs (might work exactly the same)
-        if isinstance(self.cell.state_size, tf.contrib.rnn.LSTMStateTuple):
+        if isinstance(enc_state, tuple):
             state_size = self.cell.state_size.c + self.cell.state_size.h
-            final_input = tf.concat(axis=1, values=encoder_state)  # concat c + h
+            enc_state = tf.concat(axis=1, values=enc_state)  # concat c + h
         else:
             state_size = self.cell.state_size
-            final_input = encoder_state
 
         w = tf.get_variable(name + '-w', (state_size, self.num_outputs),
                             initializer=tf.random_normal_initializer(stddev=0.1))
         b = tf.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
-        return tf.matmul(final_input, w) + b
+        return tf.matmul(enc_state, w) + b
 
     def _batches(self):
         """Create batches from the input; use as iterator."""
@@ -484,7 +488,7 @@ class RerankingClassifier(TFModel):
 
     def _add_inputs_to_feed_dict(self, inputs, fd):
 
-        if self.nn_shape.startswith('rnn'):
+        if self.nn_shape.endswith('rnn'):
             fd[self.initial_state] = np.zeros([inputs.shape[0], self.emb_size])
             sliced_inputs = np.squeeze(np.array(np.split(np.array([ex for ex in inputs
                                                                    if ex is not None]),
