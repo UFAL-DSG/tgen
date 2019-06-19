@@ -5,15 +5,15 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
-MEM = 8g
-CPUS = 4
-QP = --queue troja-all.q
-QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM).$(RUN_NAME) $(QP) $(QHOLD)# using OB's qsubmit script
-ifdef PYPY
-  ACTIVATE = source ~/work/tools/virtualenv-pypy-x86_64/bin/activate
-else
-  ACTIVATE = echo -n
+MEM = 12g
+CPUS = 8
+QP = --queue=cpu-troja.q
+ifdef LOCAL
+  QP = --engine=console
 endif
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM)$(CV_NUM)$(SEED).$(RUN_NAME) $(QP) $(QHOLD) --
+ACTIVATE = echo -n
+
 ifdef DEBUG
   DEBUG_LOG_TRAIN = -d $(TRY_DIR)/train.debug-log.txt.gz
   DEBUG_LOG_GEN = -d $(TRY_DIR)/gen.debug-log.txt
@@ -21,12 +21,12 @@ endif
 ifdef DEBUG_GEN
   DEBUG_LOG_GEN = -d $(TRY_DIR)/gen.debug-log.txt
 endif
-MTEVAL = ../util/mteval-v11b.pl
+METRICS = $$HOME/e2e-metrics/measure_scores.py
 POSTPROCESS = ./postprocess/postprocess.py
-AVERAGE_SCORES = ../util/average_scores.pl
+AVERAGE_SCORES = ../util/average_scores.pl --e2e
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=10:22 --nist-range=4:5
 DESC_EXP = ../util/describe_experiment.pl
-LOG_CUTOFF= 10000
+NOWRAP = ../util/nowrap.pl
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
 LOGFILES = $$file/T.* $$file/{asearch_gen.,gen.,seq2seq_gen.,}log.txt # logfile pattern to use for score printing
@@ -59,29 +59,30 @@ TRAIN_PORTION = 1.0
 
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
+TRAIN_TOKS = data/$(TRAINING_SET)/train-text.txt
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
-TRAIN_CONC = data/$(TRAINING_SET)/train-conc.sgm
+TRAIN_CONC = data/$(TRAINING_SET)/train-conc.txt
 
 GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
 SURFACE_FORMS = data/$(TRAINING_SET)/surface_forms.json
 
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
-TEST_REF = data/$(TRAINING_SET)/devel-das.sgm
 TEST_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
+TEST_TOKS = data/$(TRAINING_SET)/devel-text.txt
 TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
-TEST_CONC = data/$(TRAINING_SET)/devel-conc.sgm
+TEST_CONC = data/$(TRAINING_SET)/devel-conc.txt
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
-  TEST_REF = data/$(TRAINING_SET)/test-das.sgm
   TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
+  TEST_TOKS = data/$(TRAINING_SET)/test-text.txt
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
-  TEST_CONC = data/$(TRAINING_SET)/test-conc.sgm
+  TEST_CONC = data/$(TRAINING_SET)/test-conc.txt
 
   VALID_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
   VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
   VALID_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
+  VALID_TOKS = data/$(TRAINING_SET)/devel-text.txt
 endif
-SURFACE_SCEN = T2T::EN2CS::AddNounGender Scen::Synthesis::CS
 
 EVAL_SELECTOR =
 TARGET_SELECTOR = gen
@@ -134,9 +135,10 @@ help:
 
 # List all experiments, find scores in logs (of various versions)
 desc:
+	@COLS=`tput cols`; \
 	@ls -d $(RUNS_DIR)/* | sort | tail -n $(NUM_EXP) | while read file; do \
 		if [[ -f $$file/$(SCOREFILE) && -z "$(REFRESH)" ]]; then \
-			cat $$file/$(SCOREFILE) ; \
+			cat $$file/$(SCOREFILE) | $(NOWRAP) $$COLS; \
 			continue ; \
 		fi ; \
 		echo -ne $$file ":  " | sed 's/runs\///;s/_/  /;s/_/ /;s/_/  /;s/  20/  /;s/-[0-9][0-9]  /  /;' > $$file/$(SCOREFILE);  \
@@ -144,7 +146,7 @@ desc:
 		echo -ne '    ' >> $$file/$(SCOREFILE) ; \
 		cat $$file/ABOUT | tr  '\n' ' ' >> $$file/$(SCOREFILE); \
 		echo >> $$file/$(SCOREFILE); \
-		cat $$file/$(SCOREFILE); \
+		cat $$file/$(SCOREFILE) | $(NOWRAP) $$COLS; \
 	done
 
 shortdesc:
@@ -214,15 +216,26 @@ seq2seq_train: prepare_dir
 seq2seq_train:
 	# copy needed files (to ensure replication), then run the experiment
 	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
-	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
-	cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz
 	cp $(TRAIN_ABSTR) $(TRY_DIR)/train-abst.txt
+	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
+	if [[ -n "$(TOKS)" ]]; then \
+		cp $(TRAIN_TOKS) $(TRY_DIR)/train-text.txt; \
+		TRAIN_DATA=$(TRY_DIR)/train-text.txt ; \
+	else \
+		cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz; \
+		TRAIN_DATA=$(TRY_DIR)/train-text.pickle.gz ; \
+	fi; \
 	if [[ -n "$(EVAL_TEST)" ]]; then \
 		cp $(VALID_ABSTR) $(TRY_DIR)/devel-abst.txt ; \
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
-		cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
-		VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz\""; \
+		if [[ -n "$(TOKS)" ]]; then \
+		    cp $(VALID_TOKS) $(TRY_DIR)/devel-text.txt ; \
+		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.txt\""; \
+		else \
+		    cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
+		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz\""; \
+		fi ; \
 		LEXIC_SPEC="$(TRY_DIR)/surface_forms.json,$(TRY_DIR)/train-abst.txt,$(TRY_DIR)/devel-abst.txt"; \
 	else \
 		LEXIC_SPEC="$(TRY_DIR)/surface_forms.json,$(TRY_DIR)/train-abst.txt"; \
@@ -231,7 +244,7 @@ seq2seq_train:
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" '"$$VALID_DATA_SPEC"' \
 		-l '"$$LEXIC_SPEC"' \
-		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.pickle.gz \
+		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt '$$TRAIN_DATA' \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
 seq2seq_gen_cv:
@@ -240,11 +253,15 @@ seq2seq_gen_cv:
 
 prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
-	cp $(TEST_REF) $(TRY_DIR)/test-das.sgm
-	cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz
-	cp $(TEST_CONC) $(TRY_DIR)/test-conc.sgm
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
-	cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv
+	cp $(TEST_CONC) $(TRY_DIR)/test-conc.txt
+	if [[ -n "$(TOKS)" ]]; then \
+		cp $(TEST_TOKS) $(TRY_DIR)/test-text.txt ; \
+	else \
+		cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz ; \
+	        cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv ; \
+	fi
+
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
@@ -260,8 +277,8 @@ gen_process:
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		$(POSTPROCESS) -m $(GEN_MODEL) -i $(TRY_DIR)/test-das.txt -f $(TRY_DIR)/surface_forms.json \
 			-g $(TRY_DIR)/grammatemes.tsv -s $(TARGET_SELECTOR) \
-			$(TRY_DIR)/out-trees.yaml.gz $(TRY_DIR)/out-text.sgm; \
-		$(MTEVAL) -s $(TRY_DIR)/test-das.sgm -r $(TRY_DIR)/test-conc.sgm -t $(TRY_DIR)/out-text.sgm' \
+			$(TRY_DIR)/out-trees.yaml.gz $(TRY_DIR)/out-text.txt; \
+		$(METRICS) $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-text.txt' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
 # Rerun an experiment (TRY_DIR, TRY_NUM, RUN_NAME must be set!)
