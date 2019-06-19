@@ -30,7 +30,7 @@ def process_file(args):
                 mode = 'tokens' if data['cfg']['use_tokens'] else 'trees'
 
     # compose scenario
-
+    # TODO builtin scenario for tokens/tagged lemmas
     scen = ['T2A::CS::VocalizePrepos',  # this surface stuff is needed for both tokens and tagged lemmas
             'T2A::CS::CapitalizeSentStart',
             'A2W::ConcatenateTokens',
@@ -68,7 +68,7 @@ def process_file(args):
     scen = ['Read::YAML from="%s"' % args.input_file] + scen
     scen += ['Write::Treex',
              'Util::Eval document="$.set_path(\\"\\"); $.set_file_stem(\\"test\\");"',
-             'Write::SgmMTEval to="%s" set_id=CsRest sys_id=TGEN add_header=tstset' % args.output_file]
+             'Write::Sentences to="%s"' % args.output_file]
 
     subprocess.call(('treex -Lcs -S%s ' % args.selector) + " ".join(scen), shell=True)
 
