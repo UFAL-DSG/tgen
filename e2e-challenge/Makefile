@@ -27,7 +27,6 @@ AVERAGE_SCORES = ../util/average_scores.pl --e2e
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=50:70 --nist-range=6:9 --meteor-range=30:45 --rouge-range=55:70 --cider-range=1:2.5
 DESC_EXP = ../util/describe_experiment.pl
 NOWRAP = ../util/nowrap.pl
-LOG_CUTOFF= 10000
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
 LOGFILES = $$file/T.* $$file/{asearch_gen.,gen.,seq2seq_gen.,}log.txt # logfile pattern to use for score printing
