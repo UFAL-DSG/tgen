@@ -629,7 +629,6 @@ def embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
     encoder_cell = EmbeddingWrapper(cell, num_encoder_symbols, embedding_size)
     encoder_outputs, encoder_state = rnn(
         encoder_cell, encoder_inputs, dtype=dtype, bidi=bidi_encoder)
-    import pudb; pu.db
 
     # First calculate a concatenation of encoder outputs to put attention on.
     top_states = [array_ops.reshape(e, [-1, 1, cell.output_size * (2 if bidi_encoder else 1)])
