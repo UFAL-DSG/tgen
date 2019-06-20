@@ -239,7 +239,7 @@ gen_process:
 			-w $(TRY_DIR)/out-text.txt $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		$(POSTPROCESS) $(TRY_DIR)/out-text.txt $(TRY_DIR)/out-detok.txt; \
-		$(METRICS) $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-text.txt' \
+		$(METRICS) $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-detok.txt' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
 # Rerun an experiment (TRY_DIR, TRY_NUM, RUN_NAME must be set!)
