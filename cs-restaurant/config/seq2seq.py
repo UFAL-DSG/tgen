@@ -12,7 +12,7 @@ config = {
           'emb_size': 50,
           'batch_size': 20,
           'optimizer_type': 'adam',
-          'max_cores': 4,
+          'max_cores': 8,
           'mode': 'tokens',
           'nn_type': 'emb_attention_seq2seq',
           'sort_da_emb': True,

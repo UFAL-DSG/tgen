@@ -13,7 +13,7 @@ config = {
           'batch_size': 20,
           'max_sent_len': 80,
           'optimizer_type': 'adam',
-          'max_cores': 4,
+          'max_cores': 8,
           'mode': 'tokens',
           'nn_type': 'emb_attention_seq2seq',
           'sort_da_emb': True,
@@ -41,7 +41,7 @@ config = {
           'beam_size': 10,
           'alpha_decay': 0, # 0.03
 
-         'classif_filter': {
+          'classif_filter': {
               'language': 'cs',
               'selector': '',
               #'nn': '1-hot',
@@ -61,7 +61,7 @@ config = {
               'delex_slots': 'name,area,address,phone,good_for_meal,near,food,price_range,count,price,postcode',
               },
 
-        'lexicalizer': {
+          'lexicalizer': {
             'form_select_type': 'random',
-        },
+            },
 }
