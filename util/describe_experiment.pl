@@ -159,6 +159,7 @@ elsif ( $mode eq 'seq2seq' ){
     }
     $nn_shape .= ' ' . ( ( $config_data =~ /'cell_type'\s*:\s*'([^']*)'/ )[0] // 'lstm' );
 
+    $nn_shape .= ' +bidi +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_bidi_attention_seq2seq'/ );
     $nn_shape .= ' +att'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention_seq2seq(_context)?'/ );
     $nn_shape .= ' +att2'  if ( $config_data =~ /'nn_type'\s*:\s*'emb_attention2_seq2seq(_context)?'/ );
     $nn_shape .= ' +sort'  if ( $config_data =~ /'sort_da_emb'\s*:\s*True/ );
@@ -210,7 +211,7 @@ elsif ( $mode eq 'seq2seq' ){
         $nn_shape .= '/' . (( $classif_filter_data =~ /'alpha'\s*:\s*([.0-9eE-]+)\s*,/ )[0] // '~' );
         $nn_shape .= '_';
 
-        if ( $cf_nn_type eq 'rnn' ){
+        if ( $cf_nn_type =~ /rnn$/ ){
             $nn_shape .= 'E' . ( ( $classif_filter_data =~ /'emb_size'\s*:\s*([0-9]*)/ )[0] // 50 );
         }
         $nn_shape .= '-N' . ( ( $classif_filter_data =~ /'num_hidden_units'\s*:\s*([0-9]*)/ )[0] // 128 );
@@ -222,6 +223,9 @@ elsif ( $mode eq 'seq2seq' ){
         my $form_sel_type = (( $lexicalizer_data =~ /'form_select_type'\s*:\s*'([^']*)'/ )[0] // 'random' );
         my $form_sample = (( $lexicalizer_data =~ /'form_sample'\s*:\s*(False|True)/ )[0] // 'False' );
         $nn_shape .= '-' . $form_sel_type;
+        if ($lexicalizer_data =~ /'bidi'\s*:\s*True/){
+            $nn_shape .= '-bidi';
+        }
         if ($form_sample eq 'True'){
             $nn_shape .= '+samp';
         }
