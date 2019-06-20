@@ -3,7 +3,6 @@
 from __future__ import unicode_literals
 from __future__ import division
 
-from past.builtins import cmp
 from future import standard_library
 standard_library.install_aliases()
 from builtins import zip
@@ -215,12 +214,10 @@ class Seq2SeqBase(SentencePlanner):
                 out_probs, st = self._beam_search_step(path.dec_inputs, path.dec_states)
                 new_paths.extend(path.expand(self.beam_size, out_probs, st))
 
-            def cmp_func(p, q):
-                """Length-weighted comparison of two paths' logprobs."""
-                return cmp(old_div(p.logprob, (len(p) ** self.length_norm_weight)),
-                           old_div(q.logprob, (len(q) ** self.length_norm_weight)))
-
-            paths = sorted(new_paths, cmp=cmp_func, reverse=True)[:self.beam_size]
+            # length-weighted comparison of two paths' logprobs
+            paths = sorted(new_paths,
+                           key=lambda p: p.logprob / (len(p) ** self.length_norm_weight),
+                           reverse=True)[:self.beam_size]
 
             if all([p.dec_inputs[-1] == self.tree_embs.VOID for p in paths]):
                 break  # stop decoding if we have reached the end in all paths
@@ -296,7 +293,7 @@ class Seq2SeqBase(SentencePlanner):
             for path in paths:
                 path.logprob /= len(path) ** self.length_norm_weight
 
-        return sorted(paths, cmp=lambda p, q: cmp(p.logprob, q.logprob), reverse=True)
+        return sorted(paths, key=lambda p: p.logprob, reverse=True)
 
     def _sample_path(self, paths):
         """Sample one path from the top k paths, based on their probabilities."""
@@ -306,7 +303,7 @@ class Seq2SeqBase(SentencePlanner):
         max_logprob = max(logprobs)
         probs = [math.exp(l - max_logprob) for l in logprobs]  # discount to avoid underflow, result is unnormalized
         sum_prob = sum(probs)
-        probs = [old_div(p, sum_prob) for p in probs]  # normalized
+        probs = [p / sum_prob for p in probs]  # normalized
 
         # select the path based on a draw from the uniform distribution
         draw = rnd.random()
