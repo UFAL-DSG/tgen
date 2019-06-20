@@ -61,7 +61,7 @@ TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
 TRAIN_TOKS = data/$(TRAINING_SET)/train-text.txt
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
-TRAIN_CONC = data/$(TRAINING_SET)/train-conc.txt
+TRAIN_CONC = data/$(TRAINING_SET)/train-text_l.txt
 
 GRAMMATEMES = data/$(TRAINING_SET)/grammatemes.tsv
 SURFACE_FORMS = data/$(TRAINING_SET)/surface_forms.json
@@ -70,13 +70,13 @@ TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
 TEST_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
 TEST_TOKS = data/$(TRAINING_SET)/devel-text.txt
 TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
-TEST_CONC = data/$(TRAINING_SET)/devel-conc.txt
+TEST_CONC = data/$(TRAINING_SET)/devel-text_l.txt
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
   TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
   TEST_TOKS = data/$(TRAINING_SET)/test-text.txt
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
-  TEST_CONC = data/$(TRAINING_SET)/test-conc.txt
+  TEST_CONC = data/$(TRAINING_SET)/test-text_l.txt
 
   VALID_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
   VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
