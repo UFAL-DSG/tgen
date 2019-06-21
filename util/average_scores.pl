@@ -26,7 +26,7 @@ GetOptions('e2e-metrics' => \$use_e2e_metrics) or die($usage);
 die($usage) if ( !@ARGV );
 
 if ($use_e2e_metrics){
-    @patterns = ( '^BLEU:', '^NIST:', '^METEOR:', '^ROUGE_L:', '^CIDEr:', 'Slot error' );
+    @patterns = ( '^BLEU:', '^NIST:', '^METEOR:', '^ROUGE_L:', '^CIDEr:', 'Slot error', '^SemERR', 'InstOK', 'InstAdd', 'InstMis', 'InstM+A' );
 }
 
 # filter ARGV to obtain just one file in each subdirectory
