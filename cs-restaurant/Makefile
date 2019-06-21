@@ -270,8 +270,13 @@ seq2seq_gen_process: gen_process
 
 gen_process:
 	# run
+	if [[ -n "$(TOKS)" ]]; then \
+		TEST_DATA=$(TRY_DIR)/test-conc.txt ; \
+	else \
+		TEST_DATA=$(TRY_DIR)/test-text.pickle.gz ; \
+	fi; \
 	$(QSUBMIT) '$(ACTIVATE); \
-		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.pickle.gz $(DEBUG_LOG_GEN) \
+		$(TGEN) $(RUN_NAME) -e '$$TEST_DATA' $(DEBUG_LOG_GEN) \
 		$(SELECTOR_CONFIG) \
 		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
