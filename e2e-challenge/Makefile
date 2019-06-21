@@ -5,7 +5,7 @@
 # Environment settings
 SHELL = /bin/bash
 TGEN = ../run_tgen.py
-MEM = 12g
+MEM = 16g
 CPUS = 8
 QP = --queue=cpu-troja.q
 ifdef LOCAL
