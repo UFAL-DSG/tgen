@@ -255,8 +255,8 @@ class RNNLMFormSelect(FormSelect, TFModel):
         ids += [self.vocab.get(tok.lower(), self.vocab.get('<UNK>')) for tok in sent]
         ids = ids[:self.max_sent_len]
         ids += [self.vocab.get('<STOP>')]
-        # actually using max_sent_len + 1 (inputs exclude last step, targets exclude the 1st)
-        ids += [self.vocab.get('<VOID>') for _ in range(self.max_sent_len - len(ids) + 1)]
+        # actually using max_sent_len + 2 (with padding)
+        ids += [self.vocab.get('<VOID>') for _ in range(self.max_sent_len - len(ids) + 2)]
         return ids
 
     def _train_batches(self):
@@ -264,16 +264,16 @@ class RNNLMFormSelect(FormSelect, TFModel):
         for batch_start in range(0, len(self._train_order), self.batch_size):
             sents = [self._train_data[idx]
                      for idx in self._train_order[batch_start: batch_start + self.batch_size]]
-            inputs = np.array([sent[:-1] for sent in sents], dtype=np.int32)
-            targets = np.array([sent[1:] for sent in sents], dtype=np.int32)
+            inputs = np.array([sent for sent in sents], dtype=np.int32)
+            targets = np.array([sent[1:-1] for sent in sents], dtype=np.int32)
             yield inputs, targets
 
     def _valid_batches(self):
         for batch_start in range(0, len(self._valid_data), self.batch_size):
             batch_end = min(batch_start + self.batch_size, len(self._valid_data))
             sents = [self._valid_data[idx] for idx in range(batch_start, batch_end)]
-            inputs = np.array([sent[:-1] for sent in sents], dtype=np.int32)
-            targets = np.array([sent[1:] for sent in sents], dtype=np.int32)
+            inputs = np.array([sent for sent in sents], dtype=np.int32)
+            targets = np.array([sent[1:-1] for sent in sents], dtype=np.int32)
             yield inputs, targets
 
     def _init_neural_network(self):
@@ -281,8 +281,8 @@ class RNNLMFormSelect(FormSelect, TFModel):
 
         with tf.variable_scope(self.scope_name):
             # TODO dropout
-            # I/O placeholders
-            self._inputs = tf.placeholder(tf.int32, [None, self.max_sent_len], name='inputs')
+            # I/O placeholders (note inputs have padding, targets don't)
+            self._inputs = tf.placeholder(tf.int32, [None, self.max_sent_len + 2], name='inputs')
             self._targets = tf.placeholder(tf.int32, [None, self.max_sent_len], name='targets')
 
             # RNN cell type
@@ -297,12 +297,17 @@ class RNNLMFormSelect(FormSelect, TFModel):
             emb_cell = tf.contrib.rnn.EmbeddingWrapper(self._cell, self.vocab_size, self.emb_size)
             # RNN encoder
             inputs = [tf.squeeze(input_, [1])
-                      for input_ in tf.split(axis=1, num_or_size_splits=self.max_sent_len, value=self._inputs)]
+                      for input_ in tf.split(axis=1, num_or_size_splits=self.max_sent_len + 2, value=self._inputs)]
             if self.bidi:
-                enc_outputs, _, _ = tf.nn.static_bidirectional_rnn(emb_cell, emb_cell, inputs, dtype=tf.float32)
+                # hand-made bidi RNN: reverse the backward inputs, then reverse the backward outputs,
+                # stagger the outputs by 2 (so we predict the same word going from both directions)
+                # (see https://medium.com/@plusepsilon/the-bidirectional-language-model-1f3961d1fb27)
+                enc_fws, _ = tf.nn.static_rnn(emb_cell, inputs[:-2], dtype=tf.float32)
+                enc_bws, _ = tf.nn.static_rnn(emb_cell, list(reversed(inputs[2:])), dtype=tf.float32)
+                enc_outputs = [tf.concat([fw, bw], axis=1, name='bidi') for fw, bw in zip(enc_fws, reversed(enc_bws))]
                 enc_size = 2 * self.emb_size
             else:
-                enc_outputs, _ = tf.nn.static_rnn(emb_cell, inputs, dtype=tf.float32)
+                enc_outputs, _ = tf.nn.static_rnn(emb_cell, inputs[:-2], dtype=tf.float32)
                 enc_size = self.emb_size
 
             # output layer
