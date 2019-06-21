@@ -14,7 +14,7 @@ config = {
           'optimizer_type': 'adam',
           'max_cores': 8,
           'mode': 'tokens',
-          'nn_type': 'emb_attention_seq2seq',
+          'nn_type': 'emb_bidi_attention_seq2seq',
           'sort_da_emb': True,
           'cell_type': 'lstm',
           'dropout_keep_prob': 1,
@@ -46,7 +46,7 @@ config = {
               #'nn': '1-hot',
               'nn': 'emb',
               #'nn_shape': 'ff1',
-              'nn_shape': 'rnn',
+              'nn_shape': 'bidi_rnn',
               'num_hidden_units': 128,
               #'passes': 200,
               'passes': 100,
@@ -62,6 +62,7 @@ config = {
 
         'lexicalizer': {
             'form_select_type': 'rnnlm',
+            'bidi': True,
             'form_sample': False,
             'randomize': True,
             'passes': 50,
