@@ -53,8 +53,7 @@ endif
 
 # Input data file defaults
 
-SEQ2SEQ_CONFIG = config/seq2seq.py
-CLASSIF_CONFIG = config/classif.py
+CONFIG = config/config.yaml
 TRAIN_PORTION = 1.0
 
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
@@ -166,7 +165,7 @@ printgit:
 prepare_dir:
 	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
-	CONFIG=$(SEQ2SEQ_CONFIG) ; \
+	CONFIG=$(CONFIG) ; \
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
 	[[ -n "$(EVAL_TEST)" ]] && EVAL_SETTING=-e ; \
@@ -215,7 +214,7 @@ seq2seq_train: RUN_NAME := seq2seq_train
 seq2seq_train: prepare_dir
 seq2seq_train:
 	# copy needed files (to ensure replication), then run the experiment
-	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
+	cp $(CONFIG) $(TRY_DIR)/config.yaml
 	cp $(TRAIN_ABSTR) $(TRY_DIR)/train-abst.txt
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
@@ -244,7 +243,7 @@ seq2seq_train:
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" '"$$VALID_DATA_SPEC"' \
 		-l '"$$LEXIC_SPEC"' \
-		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt '$$TRAIN_DATA' \
+		$(TRY_DIR)/config.yaml $(TRY_DIR)/train-das.txt '$$TRAIN_DATA' \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
 seq2seq_gen_cv:
@@ -278,7 +277,7 @@ gen_process:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e '$$TEST_DATA' $(DEBUG_LOG_GEN) \
 		$(SELECTOR_CONFIG) \
-		-w $(TRY_DIR)/out-trees.yaml.gz $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
+		-w $(TRY_DIR)/out-trees.yaml.gz -a $(TRY_DIR)/test-abst.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		$(POSTPROCESS) -m $(GEN_MODEL) -i $(TRY_DIR)/test-das.txt -f $(TRY_DIR)/surface_forms.json \
 			-g $(TRY_DIR)/grammatemes.tsv -s $(TARGET_SELECTOR) \
