@@ -32,7 +32,7 @@
 'top_k': 10
 'bleu_validation_weight': 1
 'beam_size': 20
-'alpha_decay': 0, # 0.03
+'alpha_decay': 0
 
 'classif_filter':
     'language': 'cs'

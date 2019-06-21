@@ -25,7 +25,7 @@ METRICS = $$HOME/e2e-metrics/measure_scores.py
 POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl --e2e
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=10:22 --nist-range=4:5
-DESC_EXP = ../util/describe_experiment.pl
+DESC_EXP = ../util/describe_experiment.py
 NOWRAP = ../util/nowrap.pl
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
@@ -53,7 +53,7 @@ endif
 
 # Input data file defaults
 
-CONFIG = config/config.yaml
+CONFIG = config/seq2seq_config.yaml
 TRAIN_PORTION = 1.0
 
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
@@ -169,7 +169,7 @@ prepare_dir:
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
 	[[ -n "$(EVAL_TEST)" ]] && EVAL_SETTING=-e ; \
-	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $$CONFIG > $(TRY_DIR)/ABOUT ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $$CONFIG > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
