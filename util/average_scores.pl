@@ -68,7 +68,7 @@ foreach my $file ( values %files_by_dir ) {
         if ( !$data{$p} ) {
             $data{$p} = [];
         }
-        push $data{$p}, $n;
+        push @{$data{$p}}, $n;
     }
     close($fh);
 }
