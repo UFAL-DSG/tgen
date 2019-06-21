@@ -22,6 +22,7 @@ ifdef DEBUG_GEN
   DEBUG_LOG_GEN = -d $(TRY_DIR)/gen.debug-log.txt
 endif
 METRICS = $$HOME/e2e-metrics/measure_scores.py
+SLOT_ERR = $$HOME/e2e-cleaning/slot_error.py
 POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl --e2e
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=50:70 --nist-range=6:9 --meteor-range=30:45 --rouge-range=55:70 --cider-range=1:2.5
@@ -58,20 +59,21 @@ TRAIN_PORTION = 1.0
 
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TEXTS = data/$(TRAINING_SET)/train-text.txt
-TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
+TRAIN_CONCDAS = data/$(TRAINING_SET)/train-conc_das.txt
 TRAIN_CONC = data/$(TRAINING_SET)/train-conc.txt
 
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
 TEST_TEXTS = data/$(TRAINING_SET)/devel-text.txt
-TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
+TEST_CONCDAS = data/$(TRAINING_SET)/devel-conc_das.txt
 TEST_CONC = data/$(TRAINING_SET)/devel-conc.txt
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
   TEST_TEXTS = data/$(TRAINING_SET)/test-text.txt
-  TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
+  TEST_CONCDAS = data/$(TRAINING_SET)/test-conc_das.txt
   TEST_CONC = data/$(TRAINING_SET)/test-conc.txt
 
-  VALID_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
+  VALID_CONCDAS = data/$(TRAINING_SET)/devel-conc_das.txt
+  VALID_CONC = data/$(TRAINING_SET)/devel-conc.txt
   VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
   VALID_TEXTS = data/$(TRAINING_SET)/devel-text.txt
 endif
@@ -205,9 +207,9 @@ seq2seq_train:
 	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(TRAIN_TEXTS) $(TRY_DIR)/train-text.txt
-	cp $(TRAIN_ABSTR) $(TRY_DIR)/train-abst.txt
+	cp $(TRAIN_CONCDAS) $(TRY_DIR)/train-conc_das.txt
 	if [[ -n "$(EVAL_TEST)" ]]; then \
-		cp $(VALID_ABSTR) $(TRY_DIR)/devel-abst.txt ; \
+		cp $(VALID_CONCDAS) $(TRY_DIR)/devel-conc_das.txt ; \
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
 		cp $(VALID_TEXTS) $(TRY_DIR)/devel-text.txt ; \
 		VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.txt\""; \
@@ -226,7 +228,7 @@ prepare_test_data:
 	cp $(TEST_DAS) $(TRY_DIR)/test-das.txt
 	cp $(TEST_TEXTS) $(TRY_DIR)/test-text.txt
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.txt
-	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
+	cp $(TEST_CONCDAS) $(TRY_DIR)/test-conc_das.txt
 
 seq2seq_gen_process: RUN_NAME := seq2seq_gen
 seq2seq_gen_process: GEN_MODEL := $(TRY_DIR)/seq2seq.pickle.gz
@@ -236,10 +238,11 @@ gen_process:
 	# run
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e $(TRY_DIR)/test-text.txt $(DEBUG_LOG_GEN) \
-			-w $(TRY_DIR)/out-text.txt $(GEN_CONFIG) -a $(TRY_DIR)/test-abst.txt \
+			-w $(TRY_DIR)/out-text.txt $(GEN_CONFIG) -a $(TRY_DIR)/test-conc_das.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		$(POSTPROCESS) $(TRY_DIR)/out-text.txt $(TRY_DIR)/out-detok.txt; \
-		$(METRICS) $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-detok.txt' \
+		$(METRICS) $(TRY_DIR)/test-conc.txt $(TRY_DIR)/out-detok.txt; \
+		$(SLOT_ERR) --mrs $(TRY_DIR)/test-conc_das.txt $(TRY_DIR)/out-detok.txt' \
 		2>&1 | tee $(TRY_DIR)/$(RUN_NAME).log.txt
 
 # Rerun an experiment (TRY_DIR, TRY_NUM, RUN_NAME must be set!)
