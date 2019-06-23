@@ -26,6 +26,7 @@ POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl --e2e
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=10:22 --nist-range=4:5
 DESC_EXP = ../util/describe_experiment.py
+CFG_OVERRIDE_TOOL = ../util/cfg_override.py
 NOWRAP = ../util/nowrap.pl
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
@@ -53,7 +54,7 @@ endif
 
 # Input data file defaults
 
-CONFIG = config/seq2seq_config.yaml
+CONFIG = config/config.yaml
 TRAIN_PORTION = 1.0
 
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
@@ -165,11 +166,14 @@ printgit:
 prepare_dir:
 	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
-	CONFIG=$(CONFIG) ; \
+	cp $(CONFIG) $(TRY_DIR)/config.yaml
+	if [[ -n '$(CFG_OVERRIDE)' ]]; then \
+		$(CFG_OVERRIDE_TOOL) $(TRY_DIR)/config.yaml '$(CFG_OVERRIDE)' ; \
+	fi;
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
 	[[ -n "$(EVAL_TEST)" ]] && EVAL_SETTING=-e ; \
-	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $$CONFIG > $(TRY_DIR)/ABOUT ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $(TRY_DIR)/config.yaml > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
@@ -214,7 +218,6 @@ seq2seq_train: RUN_NAME := seq2seq_train
 seq2seq_train: prepare_dir
 seq2seq_train:
 	# copy needed files (to ensure replication), then run the experiment
-	cp $(CONFIG) $(TRY_DIR)/config.yaml
 	cp $(TRAIN_ABSTR) $(TRY_DIR)/train-abst.txt
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
