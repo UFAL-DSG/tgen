@@ -4,6 +4,7 @@
 import re
 from tgen.data import DA
 from tgen.tfclassif import Reranker
+from tgen.logf import log_info
 
 # ----
 # BEGIN code copied over from e2e-cleaning -- TODO dependency?
@@ -324,6 +325,10 @@ class E2EPatternClassifier(Reranker):
         if not isinstance(das, list):
             log_info('Reading DAs from ' + das + '...')
             das = read_das(das)
+
+        # make training data smaller if necessary
+        train_size = int(round(data_portion * len(trees)))
+        self.train_das = das[:train_size]
 
         self.y = [self.da_feats.get_features(None, {'da': da}) for da in self.train_das]
         self.y = self.da_vect.fit_transform(self.y)
