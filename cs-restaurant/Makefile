@@ -59,7 +59,7 @@ TRAIN_PORTION = 1.0
 
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
 TRAIN_TREES = data/$(TRAINING_SET)/train-text.pickle.gz
-TRAIN_TOKS = data/$(TRAINING_SET)/train-text.txt
+TRAIN_TOKS = data/$(TRAINING_SET)/train-text.conll
 TRAIN_ABSTR = data/$(TRAINING_SET)/train-abst.txt
 TRAIN_CONC = data/$(TRAINING_SET)/train-text_l.txt
 
@@ -68,20 +68,20 @@ SURFACE_FORMS = data/$(TRAINING_SET)/surface_forms.json
 
 TEST_DAS = data/$(TRAINING_SET)/devel-das.txt
 TEST_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
-TEST_TOKS = data/$(TRAINING_SET)/devel-text.txt
+TEST_TOKS = data/$(TRAINING_SET)/devel-text.conll
 TEST_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
 TEST_CONC = data/$(TRAINING_SET)/devel-text_l.txt
 ifdef EVAL_TEST
   TEST_DAS = data/$(TRAINING_SET)/test-das.txt
   TEST_TREES = data/$(TRAINING_SET)/test-text.pickle.gz
-  TEST_TOKS = data/$(TRAINING_SET)/test-text.txt
+  TEST_TOKS = data/$(TRAINING_SET)/test-text.conll
   TEST_ABSTR = data/$(TRAINING_SET)/test-abst.txt
   TEST_CONC = data/$(TRAINING_SET)/test-text_l.txt
 
   VALID_ABSTR = data/$(TRAINING_SET)/devel-abst.txt
   VALID_DAS = data/$(TRAINING_SET)/devel-das.txt
   VALID_TREES = data/$(TRAINING_SET)/devel-text.pickle.gz
-  VALID_TOKS = data/$(TRAINING_SET)/devel-text.txt
+  VALID_TOKS = data/$(TRAINING_SET)/devel-text.conll
 endif
 
 EVAL_SELECTOR =
@@ -222,8 +222,8 @@ seq2seq_train:
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(SURFACE_FORMS) $(TRY_DIR)/surface_forms.json
 	if [[ -n "$(TOKS)" ]]; then \
-		cp $(TRAIN_TOKS) $(TRY_DIR)/train-text.txt; \
-		TRAIN_DATA=$(TRY_DIR)/train-text.txt ; \
+		cp $(TRAIN_TOKS) $(TRY_DIR)/train-text.conll; \
+		TRAIN_DATA=$(TRY_DIR)/train-text.conll ; \
 	else \
 		cp $(TRAIN_TREES) $(TRY_DIR)/train-text.pickle.gz; \
 		TRAIN_DATA=$(TRY_DIR)/train-text.pickle.gz ; \
@@ -232,8 +232,8 @@ seq2seq_train:
 		cp $(VALID_ABSTR) $(TRY_DIR)/devel-abst.txt ; \
 		cp $(VALID_DAS) $(TRY_DIR)/devel-das.txt ; \
 		if [[ -n "$(TOKS)" ]]; then \
-		    cp $(VALID_TOKS) $(TRY_DIR)/devel-text.txt ; \
-		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.txt\""; \
+		    cp $(VALID_TOKS) $(TRY_DIR)/devel-text.conll ; \
+		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.conll\""; \
 		else \
 		    cp $(VALID_TREES) $(TRY_DIR)/devel-text.pickle.gz ; \
 		    VALID_DATA_SPEC="-v \"$(TRY_DIR)/devel-das.txt,$(TRY_DIR)/devel-text.pickle.gz\""; \
@@ -258,7 +258,7 @@ prepare_test_data:
 	cp $(TEST_ABSTR) $(TRY_DIR)/test-abst.txt
 	cp $(TEST_CONC) $(TRY_DIR)/test-conc.txt
 	if [[ -n "$(TOKS)" ]]; then \
-		cp $(TEST_TOKS) $(TRY_DIR)/test-text.txt ; \
+		cp $(TEST_TOKS) $(TRY_DIR)/test-text.conll ; \
 	else \
 		cp $(TEST_TREES) $(TRY_DIR)/test-text.pickle.gz ; \
 	        cp $(GRAMMATEMES) $(TRY_DIR)/grammatemes.tsv ; \

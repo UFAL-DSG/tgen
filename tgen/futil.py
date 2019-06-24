@@ -122,6 +122,10 @@ def read_trees_or_tokens(input_file, mode, language=None, selector=None):
         if mode == 'trees':
             raise ValueError("Cannot read trees from a .txt file (%s)!" % input_file)
         return read_tokens(input_file)
+    elif input_file.endswith('.conll'):
+        if mode == 'trees':
+            raise ValueError("Cannot read trees from a .conll file (%s)!" % input_file)
+        return read_conll(input_file, use_lemmas=(mode == 'tagged_lemmas'))
     else:
         ttree_doc = read_ttrees(input_file)
         if selector is None or selector is None:  # for txt files, language/selector can be None, but not here
@@ -229,6 +233,23 @@ def read_tokens(tok_file, ref_mode=False, do_tokenize=False):
             refs.append(cur_ref)
         tokens = refs
     return tokens
+
+
+def read_conll(conll_file, use_lemmas=False):
+    """Read forms or lemmas + tags from a CoNLL-U formatted file. Ignores syntax."""
+    sents = []
+    with file_stream(conll_file) as fh:
+        cur_sent = []
+        for line in fh:
+            line = line.strip()
+            if not line and cur_sent:
+                sents.append(cur_sent)
+                cur_sent = []
+                continue
+            _, form, lemma, _, tag, _ = line.split("\t", 5)
+            cur_sent.append((lemma if use_lemmas else form, tag))
+
+    return sents
 
 
 def write_tokens(doc, tok_file):
