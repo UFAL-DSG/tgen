@@ -208,7 +208,7 @@ def read_tokens(tok_file, ref_mode=False, do_tokenize=False):
     # read all lines from the file
     with file_stream(tok_file) as fh:
         for line in fh:
-            # split to tokens + ingore consecutive spaces (no empty tokens)
+            # split to tokens + ignore consecutive spaces (no empty tokens)
             # empty line results in empty list
             line = line.strip()
             if do_tokenize:
@@ -219,19 +219,23 @@ def read_tokens(tok_file, ref_mode=False, do_tokenize=False):
             # TODO apply Morphodita here ?
             tokens.append([(form, None) for form in line])
 
-    # empty lines separate references from each other: regroup references by empty lines
-    if ref_mode and empty_lines:
-        refs = []
-        cur_ref = []
-        for toks in tokens:
-            if not toks:  # empty line separates references
+    if ref_mode:
+        # empty lines separate references from each other: regroup references by empty lines
+        if empty_lines:
+            refs = []
+            cur_ref = []
+            for toks in tokens:
+                if not toks:  # empty line separates references
+                    refs.append(cur_ref)
+                    cur_ref = []
+                else:
+                    cur_ref.append(toks)
+            if cur_ref:
                 refs.append(cur_ref)
-                cur_ref = []
-            else:
-                cur_ref.append(toks)
-        if cur_ref:
-            refs.append(cur_ref)
-        tokens = refs
+            tokens = refs
+        # no empty lines = single-references: just put references into length-1 arrays
+        else:
+            tokens = [[ref] for ref in tokens]
     return tokens
 
 
