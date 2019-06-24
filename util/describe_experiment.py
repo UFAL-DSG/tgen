@@ -58,17 +58,20 @@ def main(args):
     if 'classif_filter' in cfg:
         nn_shape += ' +cf'
         cf_cfg = cfg['classif_filter']
-        nn_shape += '_' + cf_cfg.get('nn_shape') + '_'
-        if 'min_passes' in cf_cfg:
-            nn_shape += str(cf_cfg['min_passes']) + '-'
-        nn_shape += str(cf_cfg.get('passes', '~'))
-        nn_shape += '/' + str(cf_cfg.get('batch_size', '~'))
-        nn_shape += '/' + str(cf_cfg.get('alpha', '~'))
+        if cf_cfg.get('model') == 'e2e_patterns':
+            nn_shape += '_e2e-pat'
+        else:
+            nn_shape += '_' + cf_cfg.get('nn_shape') + '_'
+            if 'min_passes' in cf_cfg:
+                nn_shape += str(cf_cfg['min_passes']) + '-'
+            nn_shape += str(cf_cfg.get('passes', '~'))
+            nn_shape += '/' + str(cf_cfg.get('batch_size', '~'))
+            nn_shape += '/' + str(cf_cfg.get('alpha', '~'))
 
-        nn_shape += '_'
-        if 'rnn' in cf_cfg.get('nn_shape'):
-            nn_shape += 'E' + str(cf_cfg.get('emb_size', 50))
-        nn_shape += '-N' + str(cf_cfg.get('num_hidden_units', 128))
+            nn_shape += '_'
+            if 'rnn' in cf_cfg.get('nn_shape'):
+                nn_shape += 'E' + str(cf_cfg.get('emb_size', 50))
+            nn_shape += '-N' + str(cf_cfg.get('num_hidden_units', 128))
 
     if 'lexicalizer' in cfg:
         nn_shape += ' +lx'
