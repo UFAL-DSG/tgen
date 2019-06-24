@@ -5,6 +5,7 @@ import re
 from tgen.data import DA
 from tgen.tfclassif import Reranker
 from tgen.logf import log_info
+from tgen.futil import file_stream
 
 # ----
 # BEGIN code copied over from e2e-cleaning -- TODO dependency?
@@ -334,7 +335,7 @@ class E2EPatternClassifier(Reranker):
         self.y = self.da_vect.fit_transform(self.y)
         log_info('Number of binary classes: %d.' % len(self.da_vect.get_feature_names()))
 
-    def save_to_file(self, reranker_fname):
+    def save_to_file(self, model_fname):
         log_info("Saving classifier to %s..." % model_fname)
         with file_stream(model_fname, 'wb', encoding=None) as fh:
             pickle.dump(self.__class__, fh, protocol=pickle.HIGHEST_PROTOCOL)
