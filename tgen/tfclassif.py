@@ -89,22 +89,107 @@ class TreeEmbeddingClassifExtract(EmbeddingExtract):
         return [self.max_tree_len * 2]
 
 
-class RerankingClassifier(TFModel):
+
+class Reranker(object):
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.language = cfg.get('language', 'en')
+        self.selector = cfg.get('selector', '')
+
+        self.mode = cfg.get('mode', 'tokens' if cfg.get('use_tokens') else 'trees')
+
+        self.da_feats = Features(['dat: dat_presence', 'svp: svp_presence'])
+        self.da_vect = DictVectorizer(sparse=False, binarize_numeric=True)
+
+        self.cur_da = None
+        self.cur_da_bin = None
+
+        self.delex_slots = cfg.get('delex_slots', None)
+        if self.delex_slots:
+            self.delex_slots = set(self.delex_slots.split(','))
+
+    @staticmethod
+    def get_model_type(cfg):
+        """Return the correct model class according to the config."""
+        if cfg.get('model') == 'e2e_patterns':
+            from tgen.e2e.slot_error import E2EPatternClassifier
+            return E2EPatternClassifier
+        return RerankingClassifier
+
+    @staticmethod
+    def load_from_file(reranker_fname):
+        """Detect correct model type and start loading."""
+        model_type = RerankingClassifier  # default to classifier
+        with file_stream(reranker_fname, 'rb', encoding=None) as fh:
+            data = pickle.load(fh)
+            if isinstance(data, type):
+                from tgen.e2e.slot_error import E2EPatternClassifier
+                model_type = data
+        return model_type.load_from_file(reranker_fname)
+
+    def save_to_file(self, reranker_fname):
+        raise NotImplementedError()
+
+    def get_all_settings(self):
+        raise NotImplementedError()
+
+    def classify(self, trees):
+        raise NotImplementedError()
+
+    def train(self, das, trees, data_portion=1.0, valid_das=None, valid_trees=None):
+        raise NotImplementedError()
+
+    def _normalize_da(self, da):
+        if isinstance(da, tuple):  # if DA is actually context + DA, ignore context
+            da = da[1]
+        if self.delex_slots:  # delexicalize the DA if needed
+            da = da.get_delexicalized(self.delex_slots)
+        return da
+
+    def init_run(self, da):
+        """Remember the current DA for subsequent runs of `dist_to_cur_da`."""
+        self.cur_da = self._normalize_da(da)
+        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': self.cur_da})])[0]
+        self.cur_da_bin = da_bin != 0
+
+    def dist_to_da(self, da, trees):
+        """Return Hamming distance of given trees to the given DA.
+
+        @param da: the DA as the base of the Hamming distance measure
+        @param trees: list of trees to measure the distance
+        @return: list of Hamming distances for each tree
+        """
+        self.init_run(da)
+        ret = self.dist_to_cur_da(trees)
+        self.cur_da = None
+        self.cur_da_bin = None
+        return ret
+
+    def dist_to_cur_da(self, trees):
+        """Return Hamming distance of given trees to the current DA (set in `init_run`).
+
+        @param trees: list of trees to measure the distance
+        @return: list of Hamming distances for each tree
+        """
+        da_bin = self.cur_da_bin
+        covered = self.classify(trees)
+        return [sum(abs(c - da_bin)) for c in covered]
+
+
+class RerankingClassifier(Reranker, TFModel):
     """A classifier for trees that decides which DAIs are currently represented
     (to be used in limiting candidate generator and/or re-scoring the trees)."""
 
     def __init__(self, cfg):
 
-        super(RerankingClassifier, self).__init__(scope_name='rerank-' +
-                                                  cfg.get('scope_suffix', ''))
-        self.cfg = cfg
-        self.language = cfg.get('language', 'en')
-        self.selector = cfg.get('selector', '')
+        Reranker.__init__(self, cfg)
+        TFModel.__init__(self, scope_name='rerank-' + cfg.get('scope_suffix', ''))
+
         self.tree_embs = cfg.get('nn', '').startswith('emb')
         if self.tree_embs:
             self.tree_embs = TreeEmbeddingClassifExtract(cfg)
             self.emb_size = cfg.get('emb_size', 50)
-        self.mode = cfg.get('mode', 'tokens' if cfg.get('use_tokens') else 'trees')
 
         self.nn_shape = cfg.get('nn_shape', 'ff')
         self.num_hidden_units = cfg.get('num_hidden_units', 512)
@@ -116,14 +201,8 @@ class RerankingClassifier(TFModel):
         self.batch_size = cfg.get('batch_size', 1)
 
         self.validation_freq = cfg.get('validation_freq', 10)
-        self.max_cores = cfg.get('max_cores')
-        self.cur_da = None
-        self.cur_da_bin = None
         self.checkpoint_path = None
-
-        self.delex_slots = cfg.get('delex_slots', None)
-        if self.delex_slots:
-            self.delex_slots = set(self.delex_slots.split(','))
+        self.max_cores = cfg.get('max_cores')
 
         # Train Summaries
         self.train_summary_dir = cfg.get('tb_summary_dir', None)
@@ -261,42 +340,6 @@ class RerankingClassifier(TFModel):
         # normalize & binarize the result
         return np.array([[1. if r > 0 else 0. for r in result] for result in results])
 
-    def _normalize_da(self, da):
-        if isinstance(da, tuple):  # if DA is actually context + DA, ignore context
-            da = da[1]
-        if self.delex_slots:  # delexicalize the DA if needed
-            da = da.get_delexicalized(self.delex_slots)
-        return da
-
-    def init_run(self, da):
-        """Remember the current DA for subsequent runs of `dist_to_cur_da`."""
-        self.cur_da = self._normalize_da(da)
-        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': self.cur_da})])[0]
-        self.cur_da_bin = da_bin != 0
-
-    def dist_to_da(self, da, trees):
-        """Return Hamming distance of given trees to the given DA.
-
-        @param da: the DA as the base of the Hamming distance measure
-        @param trees: list of trees to measure the distance
-        @return: list of Hamming distances for each tree
-        """
-        da = self._normalize_da(da)
-        da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': da})])[0]
-        da_bin = da_bin != 0
-        covered = self.classify(trees)
-        return [sum(abs(c - da_bin)) for c in covered]
-
-    def dist_to_cur_da(self, trees):
-        """Return Hamming distance of given trees to the current DA (set in `init_run`).
-
-        @param trees: list of trees to measure the distance
-        @return: list of Hamming distances for each tree
-        """
-        da_bin = self.cur_da_bin
-        covered = self.classify(trees)
-        return [sum(abs(c - da_bin)) for c in covered]
-
     def _init_training(self, das, trees, data_portion):
         """Initialize training.
 
@@ -351,8 +394,6 @@ class RerankingClassifier(TFModel):
             self.X = self.tree_vect.fit_transform(self.X)
 
         # initialize output features
-        self.da_feats = Features(['dat: dat_presence', 'svp: svp_presence'])
-        self.da_vect = DictVectorizer(sparse=False, binarize_numeric=True)
         self.y = [self.da_feats.get_features(None, {'da': da}) for da in self.train_das]
         self.y = self.da_vect.fit_transform(self.y)
         log_info('Number of binary classes: %d.' % len(self.da_vect.get_feature_names()))

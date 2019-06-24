@@ -34,7 +34,7 @@ from tgen.planner import SentencePlanner
 from tgen.tree import TreeData, TreeNode
 from tgen.eval import Evaluator, SlotErrAnalyzer
 from tgen.bleu import BLEUMeasure
-from tgen.tfclassif import RerankingClassifier
+from tgen.tfclassif import Reranker
 from tgen.tf_ml import TFModel, embedding_attention_seq2seq_context
 from tgen.ml import softmax
 from tgen.lexicalize import Lexicalizer
@@ -83,7 +83,7 @@ class Seq2SeqBase(SentencePlanner):
                             'embeddings_split_plurals', 'tb_summary_dir']:
                 if setting in cfg:
                     rerank_cfg[setting] = cfg[setting]
-            self.classif_filter = RerankingClassifier(rerank_cfg)
+            self.classif_filter = Reranker.get_model_type(rerank_cfg)(rerank_cfg)
             self.misfit_penalty = cfg.get('misfit_penalty', 100)
 
         self.lexicalizer = None
@@ -1002,7 +1002,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         if ret.classif_filter:
             classif_filter_fname = re.sub(r'((.pickle)?(.gz)?)$', r'.tftreecl\1', model_fname)
             if os.path.isfile(classif_filter_fname):
-                ret.classif_filter = RerankingClassifier.load_from_file(classif_filter_fname)
+                ret.classif_filter = Reranker.load_from_file(classif_filter_fname)
             else:
                 log_warn("Classification filter data not found, ignoring.")
                 ret.classif_filter = False
