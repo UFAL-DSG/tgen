@@ -1,11 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Postprocessing for Alex Context NLG Dataset
-"""
-
-from __future__ import unicode_literals
 import pickle
 import sys
 from argparse import ArgumentParser
