@@ -55,7 +55,7 @@ def main(args):
     nn_shape += ' ->tok'  if cfg.get('use_tokens') or cfg.get('mode') == 'tokens' else ''
     nn_shape += ' ->tls'  if cfg.get('mode') == 'tagged_lemmas' else ''
 
-    if 'classif_filter' in cfg:
+    if cfg.get('classif_filter'):
         nn_shape += ' +cf'
         cf_cfg = cfg['classif_filter']
         if cf_cfg.get('model') == 'e2e_patterns':
@@ -73,7 +73,7 @@ def main(args):
                 nn_shape += 'E' + str(cf_cfg.get('emb_size', 50))
             nn_shape += '-N' + str(cf_cfg.get('num_hidden_units', 128))
 
-    if 'lexicalizer' in cfg:
+    if cfg.get('lexicalizer'):
         nn_shape += ' +lx'
         lx_cfg = cfg['lexicalizer']
 

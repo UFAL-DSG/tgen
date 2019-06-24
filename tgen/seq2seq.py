@@ -75,7 +75,7 @@ class Seq2SeqBase(SentencePlanner):
         self.slot_err_stats = None
 
         self.classif_filter = None
-        if 'classif_filter' in cfg:
+        if cfg.get('classif_filter'):
             # use the specialized settings for the reranking classifier
             rerank_cfg = cfg['classif_filter']
             # plus, copy some settings from the main Seq2Seq module (so we're consistent)
@@ -87,7 +87,7 @@ class Seq2SeqBase(SentencePlanner):
             self.misfit_penalty = cfg.get('misfit_penalty', 100)
 
         self.lexicalizer = None
-        if 'lexicalizer' in cfg:
+        if cfg.get('lexicalizer'):
             # build a lexicalizer with the given settings
             lexer_cfg = cfg['lexicalizer']
             for setting in ['mode', 'language']:
