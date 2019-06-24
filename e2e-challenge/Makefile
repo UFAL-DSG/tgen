@@ -26,7 +26,7 @@ SLOT_ERR = $$HOME/e2e-cleaning/slot_error.py
 POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl --e2e
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=50:70 --nist-range=6:9 --meteor-range=30:45 --rouge-range=55:70 --cider-range=1:2.5
-DESC_EXP = ../util/describe_experiment.pl
+DESC_EXP = ../util/describe_experiment.py
 NOWRAP = ../util/nowrap.pl
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
@@ -54,7 +54,7 @@ endif
 
 # Input data file defaults
 
-SEQ2SEQ_CONFIG = config/seq2seq.py
+SEQ2SEQ_CONFIG = config/config.yaml
 TRAIN_PORTION = 1.0
 
 TRAIN_DAS = data/$(TRAINING_SET)/train-das.txt
@@ -155,11 +155,14 @@ printgit:
 prepare_dir:
 	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
-	CONFIG=$(SEQ2SEQ_CONFIG) ; \
+	cp $(CONFIG) $(TRY_DIR)/config.yaml
+	if [[ -n '$(CFG_OVERRIDE)' ]]; then \
+		$(CFG_OVERRIDE_TOOL) $(TRY_DIR)/config.yaml '$(CFG_OVERRIDE)' ; \
+	fi;
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
 	[[ -n "$(EVAL_TEST)" ]] && EVAL_SETTING=-e ; \
-	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $$CONFIG > $(TRY_DIR)/ABOUT ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $(TRY_DIR)/config.yaml > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
@@ -179,7 +182,7 @@ cv_run:
 	for SEED in "$${SEEDS[@]}"; do \
 		TRAIN_RUN=seq2seq_train ; \
 		TEST_RUN=seq2seq_gen_cv ; \
-		make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) 2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
+		make $$TRAIN_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) CFG_OVERRIDE='$(CFG_OVERRIDE)'  2>&1 | tee -a $(TRY_DIR)/cv.log.txt ; \
 		JOB_NUM=`cat $(TRY_DIR)/cv.log.txt | grep '^\(Your job\|Submitted batch\|Job_ID\)' | tail -n 1 | sed 's/^\(Your job\|Submitted batch job\|Job_ID:\) \([0-9]\+\).*/\2/;' ` ; \
 		make $$TEST_RUN TRY_DIR=$(TRY_DIR)/$$SEED SEED=$$SEED TRY_NUM=$(TRY_NUM) QP="$(QP)" QHOLD="--hold $$JOB_NUM"; \
 	done
@@ -204,7 +207,6 @@ seq2seq_train: RUN_NAME := seq2seq_train
 seq2seq_train: prepare_dir
 seq2seq_train:
 	# copy needed files (to ensure replication), then run the experiment
-	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/seq2seq_config.py
 	cp $(TRAIN_DAS) $(TRY_DIR)/train-das.txt
 	cp $(TRAIN_TEXTS) $(TRY_DIR)/train-text.txt
 	cp $(TRAIN_CONCDAS) $(TRY_DIR)/train-conc_das.txt
@@ -217,7 +219,7 @@ seq2seq_train:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) seq2seq_train $(DEBUG_LOG_TRAIN) \
 		-s $(TRAIN_PORTION) $(PARALLEL) -r "$(SEED)" '"$$VALID_DATA_SPEC"' \
-		$(TRY_DIR)/seq2seq_config.py $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.txt \
+		$(TRY_DIR)/config.yaml $(TRY_DIR)/train-das.txt $(TRY_DIR)/train-text.txt \
 		$(TRY_DIR)/seq2seq.pickle.gz' 2>&1 | tee $(TRY_DIR)/seq2seq_train.log.txt
 
 seq2seq_gen_cv:
