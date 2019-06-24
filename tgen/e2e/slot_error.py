@@ -6,7 +6,7 @@ import pickle
 from tgen.data import DA
 from tgen.tfclassif import Reranker
 from tgen.logf import log_info
-from tgen.futil import file_stream
+from tgen.futil import file_stream, read_das
 
 
 # ----
@@ -356,8 +356,3 @@ class E2EPatternClassifier(Reranker):
         ret = E2EPatternClassifier(cfg)
         ret.__dict__.update(cfg)  # load the trained settings
         return ret
-
-
-
-
-
