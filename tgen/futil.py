@@ -249,6 +249,8 @@ def read_conll(conll_file, use_lemmas=False):
             _, form, lemma, _, tag, _ = line.split("\t", 5)
             cur_sent.append((lemma if use_lemmas else form, tag))
 
+    if cur_sent:
+        sents.append(cur_sent)
     return sents
 
 
