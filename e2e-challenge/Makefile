@@ -27,6 +27,7 @@ POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl --e2e
 GREP_SCORES = ../util/grep_scores.pl --bleu-range=50:70 --nist-range=6:9 --meteor-range=30:45 --rouge-range=55:70 --cider-range=1:2.5
 DESC_EXP = ../util/describe_experiment.py
+CFG_OVERRIDE_TOOL = ../util/cfg_override.py
 NOWRAP = ../util/nowrap.pl
 NUM_EXP = 20  # number of experiments to list in `make desc'
 
@@ -155,14 +156,14 @@ printgit:
 prepare_dir:
 	# create the experiment directory, print description and git version
 	mkdir -p $(TRY_DIR)
-	cp $(CONFIG) $(TRY_DIR)/config.yaml
+	cp $(SEQ2SEQ_CONFIG) $(TRY_DIR)/config.yaml
 	if [[ -n '$(CFG_OVERRIDE)' ]]; then \
 		$(CFG_OVERRIDE_TOOL) $(TRY_DIR)/config.yaml '$(CFG_OVERRIDE)' ; \
 	fi;
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
 	[[ -n "$(EVAL_TEST)" ]] && EVAL_SETTING=-e ; \
-	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -j "$(JOBS)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $(TRY_DIR)/config.yaml > $(TRY_DIR)/ABOUT ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $(TRY_DIR)/config.yaml > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
