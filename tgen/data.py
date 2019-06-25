@@ -330,11 +330,14 @@ class Abst(object):
     def __bytes__(self):
         return str(self).encode('ascii', errors='xmlcharrefreplace')
 
+    def __repr__(self):
+        return 'Abst.parse("' + str(self) + '")'
+
     @staticmethod
     def parse(abst_str):
         """Create the abstraction instruction from a string representation, in the following
         format: slot="value":"surface_form":start-end. Here, surface form is optional and value
-        and surface form do not need to be equoted if they do not contain colons or spaces.
+        and surface form do not need to be enquoted if they do not contain colons or spaces.
         @param abst_str: string representation of the abstraction instruction
         @return: Abst object representing the abstraction instruction
         """
