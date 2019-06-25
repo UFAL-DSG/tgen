@@ -447,14 +447,14 @@ class RNNLMFormSelect(FormSelect, TFModel):
         if pos >= self.max_sent_len:  # don't use whole sentence if it's too long
             pos -= pos - self.max_sent_len + 1
             sentence = sentence[pos - self.max_sent_len + 1:]
-        inputs = np.array([self._sent_to_ids(sentence)[:-1]], dtype=np.int32)
+        inputs = np.array([self._sent_to_ids(sentence)], dtype=np.int32)
         logits = self.session.run([self._logits], {self._inputs: inputs})
         # pick out scores for possible forms
         scores = [logits[0][pos][self.vocab.get(form.lower(), self.vocab.get('<UNK>'))]
                   for form in possible_forms]
         probs = softmax(scores)
-        log_debug("Vocab: %s" % str(", ".join([str(self.vocab.get(form.lower(),
-                                                                          self.vocab.get('<UNK>')))
+        log_debug("Vocab: %s" % str(", ".join([str(self.vocab.get(f.lower(),
+                                                                  self.vocab.get('<UNK>')))
                                                    for f in possible_forms])))
         log_debug("Scores: %s, Probs: %s" % (str(", ".join(["%.3f" % s for s in scores])),
                                              str(", ".join(["%.3f" % p for p in probs]))))
