@@ -18,6 +18,7 @@ my $ranges = {
     'meteor' => '0:1',
     'cider' => '0:10',
     'rouge' => '0:1',
+    'semerr' => '0:5',
 };
 
 GetOptions(
@@ -26,6 +27,7 @@ GetOptions(
     'meteor-range|meteor|m=s' => \$ranges->{meteor},
     'cider-range|cider|c=s' => \$ranges->{cider},
     'rouge_l-range|rouge-range|rouge_l|rouge|r=s' => \$ranges->{rouge},
+    'slot_error-range|sloterr-range|semerr-range|slot_error|sloterr|semerr|s=s' => \$ranges->{semerr},
 ) or die($USAGE);
 die($USAGE) if ( !@ARGV );
 
@@ -45,7 +47,7 @@ exit() if ( !defined $file_to_process );
 
 # Process the file
 open( my $fh, '<:utf8', $file_to_process );
-my ( $pr, $lists, $bleu ) = ( '', '', '' );
+my ( $pr, $lists, $bleu, $semerr ) = ( '', '', '', '' );
 
 while ( my $line = <$fh> ) {
     chomp $line;
@@ -101,13 +103,19 @@ while ( my $line = <$fh> ) {
         # leave spaces instead of NIST
         $bleu = "             " . rg( split( /:/, $ranges->{bleu} ), $b ) . "BLEU $b\e[0m";
     }
+
+    # Slot erorr
+    elsif ( $line =~ /(^SemERR|Slot error) ([0-9].+)/){
+        my $s = $2;
+        $semerr = "  " . rg( split( /:/, $ranges->{semerr} ), $s, 1 ) . "S $s\e[0m";
+    }
 }
 
 close($fh);
 
 # Print the output
 if (!$pr){
-    print "$bleu\e[0m";
+    print "$bleu$semerr\e[0m";
 }
 elsif ($lists){
     print "$pr  $lists  $bleu\e[0m";
@@ -128,13 +136,16 @@ sub rgb_code {
 
 # Return red-green gradient rgb code
 sub rg {
-    my ( $t, $b, $v ) = @_;
+    my ( $t, $b, $v, $swap ) = @_;
     my $r = int( 0 + ( ( $v - $b ) / ( $t - $b ) * 6 ) );
     my $g = int( 6 - ( ( $v - $b ) / ( $t - $b ) * 6 ) );
     $r = 5 if ( $r > 5 );
     $r = 0 if ( $r < 0 );
     $g = 5 if ( $g > 5 );
     $g = 0 if ( $g < 0 );
+    if ($swap){
+        ($g, $r) = ($r, $g);
+    }
     return rgb_code( $r, $g, 0 );
 }
 
