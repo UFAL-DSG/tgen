@@ -24,7 +24,7 @@ endif
 METRICS = $$HOME/e2e-metrics/measure_scores.py
 POSTPROCESS = ./postprocess/postprocess.py
 AVERAGE_SCORES = ../util/average_scores.pl --e2e
-GREP_SCORES = ../util/grep_scores.pl --bleu-range=10:22 --nist-range=4:5
+GREP_SCORES = ../util/grep_scores.pl --bleu-range=8:20 --nist-range=2.5:4.5 --cider-range=0.5:2 --meteor-range=12:25 --rouge-range=25:50
 DESC_EXP = ../util/describe_experiment.py
 CFG_OVERRIDE_TOOL = ../util/cfg_override.py
 NOWRAP = ../util/nowrap.pl

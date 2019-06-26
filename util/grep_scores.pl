@@ -53,7 +53,7 @@ while ( my $line = <$fh> ) {
     $line =~ s/, / /g;
     $line =~ s/ = / /g;
     $line =~ s/: / /g;
-    $line =~ s/(?<!NIST score) 0\.([0-9]{2})/ $1./g;
+    $line =~ s/(?<!NIST score)(?<!CIDEr) 0\.([0-9]{2})/ $1./g;
 
     # Node precision, recall, F1-measure
     if ( $line =~ /(Node precision|NODE scores|Token precision)/i ) {
