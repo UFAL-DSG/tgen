@@ -716,14 +716,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # create placeholders for input & output (always batch-size * 1, list of up to num. steps)
         # TODO dropout with DropoutWrapper !!!
         self.enc_inputs = []
-        self.enc_inputs_drop = []
         for i in range(self.max_da_len):
             enc_input = tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
             self.enc_inputs.append(enc_input)
-            if self.dropout_keep_prob < 1:
-                enc_input_drop = tf.nn.dropout(enc_input, self.dropout_keep_prob,
-                                               name=('enc_inp-drop-%d' % i))
-                self.enc_inputs_drop.append(enc_input_drop)
 
         self.dec_inputs = []
         for i in range(self.max_tree_len):
@@ -740,6 +735,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         else:
             self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
 
+        if self.dropout_keep_prob < 1:
+            self.dropout_setting = tf.placeholder(tf.placeholder)
+            self.cell = tf.contrib.rnn.DropoutWrapper(self.cell, output_keep_prob=self.dropout_setting)
         if self.cell_type.endswith('/2'):
             self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
 
@@ -762,8 +760,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             # outputs = batch_size * num_decoder_symbols ~ i.e. output logits at each steps
             # states = cell states at each steps
             self.outputs, self.states = rnn_func(
-                self.enc_inputs_drop if self.enc_inputs_drop else self.enc_inputs,
-                self.dec_inputs, self.cell,
+                self.enc_inputs, self.dec_inputs, self.cell,
                 self.da_dict_size, self.tree_dict_size,
                 self.emb_size,
                 scope=scope)
@@ -838,6 +835,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             initial_state = np.zeros([self.batch_size, self.emb_size])
             feed_dict = {self.initial_state: initial_state,
                          self.learning_rate: it_learning_rate}
+            if self.dropout_keep_prob < 1:  # use the actual dropout probability for training
+                feed_dict[self.dropout_setting] = self.dropout_keep_prob
 
             # encoder inputs
             for i in range(len(self.train_enc[batch_no])):
@@ -1085,6 +1084,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """
         initial_state = np.zeros([len(enc_inputs[0]), self.emb_size])
         feed_dict = {self.initial_state: initial_state}
+        if self.dropout_keep_prob < 1:  # don't use dropout for decoding
+            feed_dict[self.dropout_setting] = 1.
 
         for i in range(len(enc_inputs)):
             feed_dict[self.enc_inputs[i]] = enc_inputs[i]
@@ -1113,6 +1114,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # initial state
         initial_state = np.zeros([1, self.emb_size])
         self._beam_search_feed_dict = {self.initial_state: initial_state}
+        if self.dropout_keep_prob < 1:  # don't use dropout for decoding
+            self._beam_search_feed_dict[self.dropout_setting] = 1.
         # encoder inputs
         for i in range(len(enc_inputs)):
             self._beam_search_feed_dict[self.enc_inputs[i]] = enc_inputs[i]
