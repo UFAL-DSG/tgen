@@ -386,6 +386,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.alpha_decay = cfg.get('alpha_decay', 0.0)
         self.validation_size = cfg.get('validation_size', 0)
         self.validation_freq = cfg.get('validation_freq', 10)
+        self.validation_no_overlap = cfg.get('validation_no_overlap', False)
         self.validation_use_all_refs = cfg.get('validation_use_all_refs', False)
         self.validation_delex_slots = cfg.get('validation_delex_slots', set())
         self.validation_use_train_refs = cfg.get('validation_use_train_refs', False)
@@ -438,17 +439,17 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.valid_das = []
         # load separate validation data files...
         if validation_files:
-            self._load_valid_data(validation_files)
+            valid_trees_for_lexic = self._load_valid_data(validation_files)
         # ... or save part of the training data for validation:
         elif self.validation_size > 0:
-            self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
+            valid_trees_for_lexic, valid_idxs = self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
 
-        self.valid_trees_for_lexic = self.valid_trees  # store original validation data
         if self.validation_use_all_refs:  # try to use multiple references (not in lexicalizer)
             self._regroup_valid_refs()
 
-        log_info('Using %d training, %d validation instances.' %
-                 (len(self.train_das), len(self.valid_das)))
+        log_info('Using %d training, %d validation instances (with %d references).' %
+                 (len(self.train_das), len(self.valid_das),
+                  len([ref for inst in self.valid_trees for ref in inst])))
 
         # initialize embeddings
         if self.use_context:
@@ -479,7 +480,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # train lexicalizer (store surface forms, possibly train LM)
         if self.lexicalizer:
-            self.lexicalizer.train(lexic_files, self.train_trees, self.valid_trees_for_lexic)
+            self.lexicalizer.train(lexic_files, self.train_trees, valid_trees_for_lexic, valid_idxs)
 
         # train the classifier for filtering n-best lists
         if self.classif_filter:
@@ -613,27 +614,66 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Put aside part of the training set for validation."""
         train_size = len(self.train_trees)
 
+        # select validation instances so there's no DA-wise overlap
+        if self.validation_no_overlap:
+            valid_size = self.validation_size
+            if self.multiple_refs:  # this works naturally with multi-ref systems (just multiply size)
+                num_refs, _ = self._check_multiple_ref_type(train_size)
+                valid_size *= num_refs
+
+            # with each item, also take on all the instances of the same DA, as long as they fit
+            # never take more than 1/10 of the full size
+            da_groups = {}
+            for idx, da in enumerate(self.train_das):
+                da_groups[da] = da_groups.get(da, []) + [idx]
+
+            valid_idxs = []
+            valid_chunks = []
+            for idx, da in reversed(list(enumerate(self.train_das))):  # go from the back (as in the other approaches)
+                if idx in valid_idxs:
+                    continue
+                if len(valid_idxs) >= valid_size:
+                    break
+                if len(da_groups[da]) <= valid_size / 10:
+                    valid_idxs.extend(da_groups[da])
+                    valid_chunks.append(da_groups[da])
+
+            self.valid_das = [[da for idx, da in enumerate(self.train_das) if idx in chunk][0]
+                              for chunk in valid_chunks]
+            valid_trees_for_lexic = [tree for idx, tree in enumerate(self.train_trees)
+                                     if idx in valid_idxs]
+            self.valid_trees = [[tree for idx, tree in enumerate(self.train_trees) if idx in chunk]
+                                for chunk in valid_chunks]
+            self.train_das = [da for idx, da in enumerate(self.train_das)
+                              if idx not in valid_idxs]
+            self.train_trees = [tree for idx, tree in enumerate(self.train_trees)
+                                if idx not in valid_idxs]
+
         # we have multiple references
-        if self.multiple_refs:
+        elif self.multiple_refs:
             num_refs, refs_stored = self._check_multiple_ref_type(train_size)
 
             # data stored "serially" (all different instances next to each other, then again in the
             # same order)
             if refs_stored == 'serial':
-                train_tree_chunks = [chunk for chunk in
-                                     chunk_list(self.train_trees, old_div(train_size, num_refs))]
-                train_da_chunks = [chunk for chunk in
-                                   chunk_list(self.train_das, old_div(train_size, num_refs))]
-                self.valid_trees = [[chunk[i] for chunk in train_tree_chunks]
-                                    for i in range(old_div(train_size, num_refs) - self.validation_size,
-                                                   old_div(train_size, num_refs))]
-                self.valid_das = train_da_chunks[0][-self.validation_size:]
-                self.train_trees = sum([chunk[:-self.validation_size]
-                                        for chunk in train_tree_chunks], [])
-                self.train_das = sum([chunk[:-self.validation_size]
-                                      for chunk in train_da_chunks], [])
+                chunk_len = old_div(train_size, num_refs)
+                tree_chunks = [chunk for chunk in chunk_list(self.train_trees, chunk_len)]
+                da_chunks = [chunk for chunk in chunk_list(self.train_das, chunk_len)]
+
+                valid_trees_for_lexic = [chunk[i] for chunk in tree_chunks
+                                         for i in range(chunk_len - self.validation_size, chunk_len)]
+                valid_idxs = [chunk_no * chunk_len + i for chunk_no in range(num_refs)
+                              for i in range(chunk_len - self.validation_size, chunk_len)]
+
+                self.valid_trees = [[chunk[i] for chunk in tree_chunks]
+                                    for i in range(chunk_len - self.validation_size, chunk_len)]
+                self.valid_das = da_chunks[0][-self.validation_size:]
+                self.train_trees = sum([chunk[:-self.validation_size] for chunk in tree_chunks], [])
+                self.train_das = sum([chunk[:-self.validation_size] for chunk in da_chunks], [])
             # data stored in "parallel" (all synonymous instances next to each other)
             else:
+                valid_trees_for_lexic = self.train_trees[-self.validation_size * num_refs:]
+                valid_idxs = range(len(self.train_trees) - self.validation_size * num_refs, len(self.train_trees))
                 self.valid_trees = [chunk for chunk in
                                     chunk_list(self.train_trees[-self.validation_size * num_refs:],
                                                num_refs)]
@@ -645,10 +685,14 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         else:
             # make "reference lists" of length 1 to accommodate for functions working
             # with multiple references
+            valid_trees_for_lexic = self.train_trees[-self.validation_size:]
+            valid_idxs = range(len(self.train_trees) - self.validation_size, len(self.train_trees))
             self.valid_trees = [[tree] for tree in self.train_trees[-self.validation_size:]]
             self.valid_das = self.train_das[-self.validation_size:]
             self.train_trees = self.train_trees[:-self.validation_size]
             self.train_das = self.train_das[:-self.validation_size]
+
+        return valid_trees_for_lexic, valid_idxs
 
     def _valid_data_to_flat_trees(self, valid_sents):
         """Convert validation data to flat trees, which are the result of `process_das` when
@@ -670,6 +714,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         tf.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
 
         # create placeholders for input & output (always batch-size * 1, list of up to num. steps)
+        # TODO dropout with DropoutWrapper !!!
         self.enc_inputs = []
         self.enc_inputs_drop = []
         for i in range(self.max_da_len):

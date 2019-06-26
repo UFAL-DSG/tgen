@@ -23,7 +23,10 @@ def main(args):
         iters = str(cfg.get('min_passes', 1)) + '-' + iters
         iters += ' V' + str(cfg['validation_size'])
         iters += '+A' if cfg.get('validation_use_all_refs') else ''
-        iters += '+T' if cfg.get('validation_use_train_refs') else ''
+        iters += '-O' if cfg.get('validation_no_overlap') else ''
+        iters += '+T' if (cfg.get('validation_use_all_refs') and
+                          cfg.get('validation_use_train_refs') and
+                          not cfg.get('validation_no_overlap')) else ''
         iters += '@' + str(cfg.get('validation_freq', 10))
         iters += ' I' + str(cfg.get('improve_interval', 10))
         iters += '@' + str(cfg.get('top_k', 5))

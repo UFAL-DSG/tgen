@@ -492,7 +492,7 @@ class Lexicalizer(object):
             elif cfg['form_select_type'] == 'rnnlm':
                 self._form_select = RNNLMFormSelect(cfg)
 
-    def train(self, fnames, train_trees, valid_trees=None):
+    def train(self, fnames, train_trees, valid_trees=None, valid_tree_idxs=None):
         """Train the lexicalizer (including its LM, if applicable).
         @param fnames: file names for surface forms (JSON) and training data lexicalization \
             instructions
@@ -516,7 +516,7 @@ class Lexicalizer(object):
         if train_abst_fname and not isinstance(self._form_select, RandomFormSelect):
             log_info('Training lexicalization LM from training trees and %s...' % train_abst_fname)
             self._form_select.train(*self._prepare_train_toks(train_trees, train_abst_fname,
-                                                              valid_trees, valid_abst_fname))
+                                                              valid_trees, valid_abst_fname, valid_tree_idxs))
 
     def _first_abst(self, absts, slot):
         """Get 1st abstraction instruction for a specific slot in the list, put it back to
@@ -530,7 +530,7 @@ class Lexicalizer(object):
             return None
 
     def _prepare_train_toks(self, train_trees, train_abstr_fname,
-                            valid_trees=None, valid_abstr_fname=None):
+                            valid_trees=None, valid_abstr_fname=None, valid_tree_idxs=None):
         """Prepare training data for form selection LM. Use training trees/tagged lemmas/tokens,
         apply lexicalization instructions including surface forms, and convert the output to a
         list of lists of tokens (sentences).
@@ -542,6 +542,10 @@ class Lexicalizer(object):
         abstss = read_absts(train_abstr_fname)
         if valid_abstr_fname is not None:
             abstss.extend(read_absts(valid_abstr_fname))
+        else:
+            # reorder train abstss so that valid_tree_idxs are at the end (and will be cut off)
+            abstss = ([absts for idx, absts in enumerate(abstss) if idx not in valid_tree_idxs] +
+                      [absts for idx, absts in enumerate(abstss) if idx in valid_tree_idxs])
         # concatenate training + validation data (will be handled in the same way)
         trees = list(train_trees)
         if valid_trees is not None:
