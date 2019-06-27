@@ -11,7 +11,7 @@ QP = --queue=cpu-troja.q
 ifdef LOCAL
   QP = --engine=console
 endif
-QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM)$(CV_NUM)$(SEED).$(RUN_NAME) $(QP) $(QHOLD) --
+QSUBMIT = qsubmit --logdir '$(TRY_DIR)' --mem $(MEM) --cores $(CPUS) --jobname T.$(TRY_NUM)$(SEED).$(RUN_NAME) $(QP) $(QHOLD) --
 ACTIVATE = echo -n
 
 ifdef DEBUG
@@ -173,7 +173,7 @@ prepare_dir:
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
 	[[ -n "$(RANDS)" ]] && RANDS_SETTING="-r $(RANDS)"; \
 	[[ -n "$(EVAL_TEST)" ]] && EVAL_SETTING=-e ; \
-	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $(TRY_DIR)/config.yaml > $(TRY_DIR)/ABOUT ; \
+	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $(TRY_DIR)/config.yaml > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
 	make printvars > $(TRY_DIR)/VARS
 	make printgit > $(TRY_DIR)/GIT_VERSION
