@@ -72,6 +72,8 @@ class Seq2SeqBase(SentencePlanner):
         self.length_norm_weight = cfg.get('length_norm_weight', 0.0)
         self.context_bleu_weight = cfg.get('context_bleu_weight', 0.0)
         self.context_bleu_metric = cfg.get('context_bleu_metric', 'bleu')
+        self.validation_delex_slots = cfg.get('validation_delex_slots', set())
+
         self.slot_err_stats = None
 
         self.classif_filter = None
@@ -338,7 +340,7 @@ class Seq2SeqBase(SentencePlanner):
 
     def init_slot_err_stats(self):
         """Initialize slot error statistics accumulator."""
-        self.slot_err_stats = SlotErrAnalyzer()
+        self.slot_err_stats = SlotErrAnalyzer(self.validation_delex_slots)
 
     def get_slot_err_stats(self):
         """Return current slot error statistics, as a string."""

@@ -339,8 +339,9 @@ class ASearchListsAnalyzer(object):
 class SlotErrAnalyzer(object):
     """Analyze slot error (as in Wen 2015 EMNLP paper), accumulator object."""
 
-    def __init__(self):
+    def __init__(self, delex_slots=set()):
         self.reset()
+        self.delex_slots = delex_slots
 
     def reset(self):
         """Zero all statistics."""
@@ -354,6 +355,8 @@ class SlotErrAnalyzer(object):
             sent = [form for form, pos in sent]  # ignore POS
         if isinstance(da, tuple):
             da = da[1]  # ignore contexts
+        if self.delex_slots:
+            da = da.get_delexicalized(self.delex_slots)
 
         slots_in_da = set([dai.value for dai in da if dai.value and dai.value.startswith('X-')])
         slots_in_sent = set([tok for tok in sent if tok.startswith('X-')])
