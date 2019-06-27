@@ -171,7 +171,7 @@ prepare_dir:
 		$(CFG_OVERRIDE_TOOL) $(TRY_DIR)/config.yaml '$(CFG_OVERRIDE)' ; \
 	fi;
 	[[ -n "$(DEBUG)" || -n "$(DEBUG_GEN)" ]] && DEBUG_SETTING=-d ; \
-	[[ -n "$(RANDS)" ]] && RANDS_SETTING=-r ; \
+	[[ -n "$(RANDS)" ]] && RANDS_SETTING="-r $(RANDS)"; \
 	[[ -n "$(EVAL_TEST)" ]] && EVAL_SETTING=-e ; \
 	$(DESC_EXP) -t "$(TRAINING_SET)" -p "$(TRAIN_PORTION)" -c "$(CV_NUMS)" $$EVAL_SETTING $$DEBUG_SETTING $$RANDS_SETTING $(TRY_DIR)/config.yaml > $(TRY_DIR)/ABOUT ; \
 	echo "$(DESC)" >> $(TRY_DIR)/ABOUT
@@ -186,7 +186,11 @@ cv_run: RUN_NAME := cv_run
 cv_run: prepare_dir
 cv_run:
 	if [[ -n "$(RANDS)" ]]; then \
-		SEEDS=(s0 s1 s2 s3 s4); \
+		if [[ "$(RANDS)" = 1 ]]; then \
+			SEEDS=(s0 s1 s2 s3 s4); \
+		else \
+			SEEDS=(`seq -f "s%1.0f" 0 $$(($(RANDS) - 1))`); \
+		fi; \
 	else \
 		SEEDS=(""); \
 	fi; \

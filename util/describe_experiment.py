@@ -81,7 +81,7 @@ def main(args):
         lx_cfg = cfg['lexicalizer']
 
         nn_shape += '-' + lx_cfg.get('form_select_type', 'random')
-        nn_shape += '-bidi' if lx_cfg.get('bidi') else ''
+        nn_shape += '-bidi' if lx_cfg.get('form_select_type') == 'rnnlm' and lx_cfg.get('bidi') else ''
         nn_shape += '+samp' if lx_cfg.get('form_sample') else ''
 
     if args.cv_runs:
@@ -90,7 +90,7 @@ def main(args):
     if args.debug:
         run_setting += ' DEBUG'
     if args.rands:
-        run_setting += ' RANDS'
+        run_setting += ' RANDS' + str(args.rands)
 
     run_setting = run_setting.strip()
     run_setting = run_setting.replace(' ', ',')
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     ap.add_argument('-t', '--training-set', '--training', type=str, help='Training set name')
     ap.add_argument('-d', '--debug', action='store_true', help='Are we running with debug prints?')
     ap.add_argument('-c', '--cv-runs', '--cv', type=str, help='Number of CV runs used')
-    ap.add_argument('-r', '--rands', action='store_true', help='Are we using more random inits?')
+    ap.add_argument('-r', '--rands', type=int, const=5, nargs='?', help='Are we using more random inits? Defaults to 5 if no value is specified')
     ap.add_argument('-p', '--train-portion', '--portion', type=float, help='Training data portion used', default=1.0)
     ap.add_argument('-e', '--eval-data', '--eval', action='store_true', help='Using evaluation data')
     ap.add_argument('config_file', type=str, help='Experiment YAML config file')
