@@ -55,8 +55,12 @@ def main(args):
     nn_shape += ' +sort'  if cfg.get('sort_da_emb') else ''
     nn_shape += ' +adgr'  if cfg.get('optimizer_type') == 'adagrad' else ''
     nn_shape += ' +dc'  if cfg.get('use_dec_cost') else ''
-    nn_shape += ' ->tok'  if cfg.get('use_tokens') or cfg.get('mode') == 'tokens' else ''
-    nn_shape += ' ->tls'  if cfg.get('mode') == 'tagged_lemmas' else ''
+    if cfg.get('use_tokens') or cfg.get('mode') == 'tokens':
+        nn_shape += ' ->tok'
+    elif cfg.get('mode') == 'tagged_lemmas':
+        nn_shape += ' ->tls'
+    else:
+        nn_shape += ' ->tre'
 
     if cfg.get('classif_filter'):
         nn_shape += ' +cf'
