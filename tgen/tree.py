@@ -250,7 +250,11 @@ class TreeData(object):
                                                  'ord': i})
                                          for i, node in enumerate(self.nodes[1:], start=1)]
         for parent_idx, tnode in zip(self.parents[1:], tnodes[1:]):
-            tnode.parent = tnodes[parent_idx]
+            try:
+                tnode.parent = tnodes[parent_idx]
+            except RuntimeException as e:
+                # if a cycle is attempted, the node will hang on technical root
+                log_warn(str(e) + "\nTree: " % str(self))
         return tnodes[0]
 
     def get_subtree(self, node_idxs):
