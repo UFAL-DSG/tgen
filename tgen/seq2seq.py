@@ -374,7 +374,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         self.emb_size = cfg.get('emb_size', 50)
         self.batch_size = cfg.get('batch_size', 10)
-        self.dropout_keep_prob = cfg.get('dropout_prob', 1)
+        self.dropout_keep_prob = cfg.get('dropout_keep_prob', 1)
         self.optimizer_type = cfg.get('optimizer_type', 'adam')
 
         self.passes = cfg.get('passes', 5)
@@ -716,7 +716,6 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         tf.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
 
         # create placeholders for input & output (always batch-size * 1, list of up to num. steps)
-        # TODO dropout with DropoutWrapper !!!
         self.enc_inputs = []
         for i in range(self.max_da_len):
             enc_input = tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
@@ -738,7 +737,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
 
         if self.dropout_keep_prob < 1:
-            self.dropout_setting = tf.placeholder(tf.placeholder)
+            self.dropout_setting = tf.placeholder(tf.float32)
             self.cell = tf.contrib.rnn.DropoutWrapper(self.cell, output_keep_prob=self.dropout_setting)
         if self.cell_type.endswith('/2'):
             self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
