@@ -815,7 +815,9 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self.session = tf.Session(config=session_config)
 
         # this helps us load/save the model
-        self.saver = tf.train.Saver(tf.global_variables())
+        # ignore reranker/lexicalizer settings
+        model_vars = [var for var in tf.global_variables() if not (var.name.startswith('rerank-') or var.name.startswith('formselect-'))]
+        self.saver = tf.train.Saver(model_vars)
         if self.train_summary_dir:  # Tensorboard summary writer
             self.train_summary_writer = tf.summary.FileWriter(
                 os.path.join(self.train_summary_dir, "main_seq2seq"), self.session.graph)
