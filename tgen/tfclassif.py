@@ -211,6 +211,9 @@ class RerankingClassifier(Reranker, TFModel):
             self.train_summary_op = None
             self.train_summary_writer = None
 
+        # backward compatibility flag -- will be 1 when loading older models
+        self.version = 2
+
     def save_to_file(self, model_fname):
         """Save the classifier  to a file (actually two files, one for configuration and one
         for the TensorFlow graph, which must be stored separately).
@@ -235,7 +238,8 @@ class RerankingClassifier(Reranker, TFModel):
                 'da_vect': self.da_vect,
                 'tree_embs': self.tree_embs,
                 'input_shape': self.input_shape,
-                'num_outputs': self.num_outputs, }
+                'num_outputs': self.num_outputs,
+                'version': self.version, }
         if self.tree_embs:
             data['dict_size'] = self.dict_size
         else:
@@ -268,6 +272,8 @@ class RerankingClassifier(Reranker, TFModel):
         log_info("Loading reranker from %s..." % model_fname)
         with file_stream(model_fname, 'rb', encoding=None) as fh:
             data = pickle.load(fh)
+            if 'version' not in data:
+                data['version'] = 1
             ret = RerankingClassifier(cfg=data['cfg'])
             ret.load_all_settings(data)
 
@@ -455,18 +461,23 @@ class RerankingClassifier(Reranker, TFModel):
                 self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
                 self.outputs = self._rnn('rnn', self.inputs, bidi=self.nn_shape.startswith('bidi'))
 
-        # the cost as computed by TF actually adds a "fake" sigmoid layer on top
-        # (or is computed as if there were a sigmoid layer on top)
-        self.cost = tf.reduce_mean(tf.reduce_sum(
-            tf.nn.sigmoid_cross_entropy_with_logits(logits=self.outputs, labels=self.targets, name='CE'), 1))
 
-        # NB: this would have been the "true" cost function, if there were a "real" sigmoid layer on top.
-        # However, it is not numerically stable in practice, so we have to use the TF function.
-        # self.cost = tf.reduce_mean(tf.reduce_sum(self.targets * -tf.log(self.outputs)
-        #                                          + (1 - self.targets) * -tf.log(1 - self.outputs), 1))
+        # older versions of the model put the optimizer into the default scope -- we want them in a separate scope
+        # (to be able to swap rerankers with the same main generator), but want to keep loading older models
+        # -> version setting decides where the variables will be created
+        with tf.variable_scope(self.scope_name if self.version > 1 else tf.get_variable_scope()):
+            # the cost as computed by TF actually adds a "fake" sigmoid layer on top
+            # (or is computed as if there were a sigmoid layer on top)
+            self.cost = tf.reduce_mean(tf.reduce_sum(
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=self.outputs, labels=self.targets, name='CE'), 1))
 
-        self.optimizer = tf.train.AdamOptimizer(self.alpha)
-        self.train_func = self.optimizer.minimize(self.cost)
+            # NB: this would have been the "true" cost function, if there were a "real" sigmoid layer on top.
+            # However, it is not numerically stable in practice, so we have to use the TF function.
+            # self.cost = tf.reduce_mean(tf.reduce_sum(self.targets * -tf.log(self.outputs)
+            #                                          + (1 - self.targets) * -tf.log(1 - self.outputs), 1))
+
+            self.optimizer = tf.train.AdamOptimizer(self.alpha)
+            self.train_func = self.optimizer.minimize(self.cost)
 
         # Tensorboard summaries
         if self.train_summary_dir:
