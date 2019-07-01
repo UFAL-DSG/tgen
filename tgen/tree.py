@@ -15,6 +15,8 @@ from collections import namedtuple, deque
 from pytreex.core.node import T
 from pytreex.core.exception import RuntimeException
 
+from tgen.logf import log_warn
+
 
 __author__ = "Ondřej Dušek"
 __date__ = "2014"
@@ -135,7 +137,7 @@ class TreeData(object):
         for pos in range(len(self)):
             if self.parents[pos] == node_idx:
                 self.parents[pos] = self.parents[node_idx]
-        self.move_node(node_idx, len(self)-1)
+        self.move_node(node_idx, len(self) - 1)
         del self.parents[-1]
         del self.nodes[-1]
 
@@ -470,7 +472,7 @@ class TreeNode(object):
         # fast descendants of root, no recursion (will be always ordered)
         if self.node_idx == 0:
             return [TreeNode(self.tree, idx) for idx in range(0 if add_self else 1,
-                                                               len(self.tree))]
+                                                              len(self.tree))]
         # slow descendants of any other node
         else:
             processed = []
