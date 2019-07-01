@@ -42,7 +42,7 @@ def process_file(args):
                 'T2A::CS::GenerateWordforms', ] + scen
     else:
         # get the canonical CS generation scenario
-        scen_dump_ps = subprocess.Popen('treex -d Scen::Synthesis::CS', shell=True, stdout=subprocess.PIPE)
+        scen_dump_ps = subprocess.Popen('treex -d Scen::Synthesis::CS', shell=True, stdout=subprocess.PIPE, encoding='UTF-8')
         scen, _ = scen_dump_ps.communicate()
         scen = [block for block in scen.split("\n") if block and not block.startswith('#')]
 
