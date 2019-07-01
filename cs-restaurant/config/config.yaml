@@ -20,7 +20,7 @@ classif_filter:
   selector: ''
   validation_freq: 1
 context_bleu_weight: 0
-dropout_keep_prob: 1
+dropout_keep_prob: 0.8
 emb_size: 50
 improve_interval: 50
 language: cs
@@ -56,6 +56,7 @@ use_dec_cost: false
 use_div_token: false
 validation_delex_slots: name,area,address,phone,good_for_meal,near,food,price_range,count,price,postcode
 validation_freq: 1
+validation_no_overlap: true
 validation_size: 300
 validation_use_all_refs: true
-validation_use_train_refs: true
+validation_use_train_refs: false
