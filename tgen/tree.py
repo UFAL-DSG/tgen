@@ -13,6 +13,7 @@ from builtins import range
 from builtins import object
 from collections import namedtuple, deque
 from pytreex.core.node import T
+from pytreex.core.exception import RuntimeException
 
 
 __author__ = "Ondřej Dušek"
