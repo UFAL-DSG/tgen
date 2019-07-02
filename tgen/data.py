@@ -192,7 +192,7 @@ class DA(object):
         """Parse a Diligent-style flat MR (E2E NLG dataset) string into a DA object."""
         da = DA()
 
-        for dai_text in re.finditer(r'([a-zA-Z]+)\[([^\]]*)\]', da_text):
+        for dai_text in re.finditer(r'([a-z_A-Z]+)\[([^\]]*)\]', da_text):
             slot, value = dai_text.groups()
             slot = re.sub(r'([A-Z])', r'_\1', slot).lower()
             da.append(DAI('inform', slot, value if value else None))
@@ -295,7 +295,9 @@ class DA(object):
     def to_diligent_da_string(self):
         """Convert to Diligent E2E dataset flat MR string (opposite of parse_diligent_da).
         Note that all DA type information is lost."""
-        return ', '.join([dai.slot + '[' + dai.value + ']' for dai in self])
+        # return slot names to camel case
+        return ', '.join([re.sub(r'_([a-z])', lambda pat: pat.group(1).upper(), dai.slot)
+                          + '[' + dai.value + ']' for dai in self])
 
 
 class Abst(object):
