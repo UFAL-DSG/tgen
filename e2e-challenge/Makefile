@@ -48,6 +48,12 @@ endif
 ifdef J # Shortcut J -> JOBS
   JOBS := $(J)
 endif
+ifdef R # Shortcut R -> REFRESH
+  REFRESH := $(R)
+endif
+ifdef N # Shortcut R -> REFRESH
+  NUM_EXP := $(N)
+endif
 
 ifdef JOBS
   PARALLEL := -j $(JOBS) -e "T.$(TRY_NUM)"
