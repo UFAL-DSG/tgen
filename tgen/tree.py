@@ -257,7 +257,7 @@ class TreeData(object):
                 tnode.parent = tnodes[parent_idx]
             except RuntimeException as e:
                 # if a cycle is attempted, the node will hang on technical root
-                log_warn(str(e) + "\nTree: " % str(self))
+                log_warn("Error when creatting t-tree: %s\nTree: %s" % (str(e), str(self)))
         return tnodes[0]
 
     def get_subtree(self, node_idxs):
