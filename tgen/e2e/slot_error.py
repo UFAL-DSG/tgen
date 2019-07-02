@@ -263,7 +263,11 @@ def reclassify_mr(ref, gold_mr=DA()):
     precise (in case of ambiguity, goes with the gold-standard value). Returns a dict-based MR format
     for the system output MR and the gold-standard MR."""
     # convert MR to dict for comparing & checking against
-    mr_dict = {dai.slot: {CAPITALIZE[dai.slot][dai.value.lower()]: 1} for dai in gold_mr.dais}
+    mr_dict = {}
+    for dai in gold_mr.dais:
+        mr_dict[dai.slot] = mr_dict.get(dai.slot, {})
+        val = CAPITALIZE[dai.slot][dai.value.lower()]
+        mr_dict[dai.slot][val] = mr_dict[dai.slot].get(val, 0) + 1
 
     # create MR dict representation of the output text
     # first, collect all value matches
