@@ -108,7 +108,7 @@ def main(args):
 if __name__ == '__main__':
 
     ap = ArgumentParser()
-    ap.add_argument('-t', '--training-set', '--training', type=str, help='Training set name')
+    ap.add_argument('-t', '--training-set', '--training', required=True, type=str, help='Training set name')
     ap.add_argument('-d', '--debug', action='store_true', help='Are we running with debug prints?')
     ap.add_argument('-c', '--cv-runs', '--cv', type=str, help='Number of CV runs used')
     ap.add_argument('-r', '--rands', type=int, const=5, nargs='?', help='Are we using more random inits? Defaults to 5 if no value is specified')
