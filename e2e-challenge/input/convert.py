@@ -67,6 +67,7 @@ def convert(args):
 
     # process the input data and store it in memory
     data = pd.read_csv(args.in_file, sep=',', encoding='UTF-8')
+    data['mr'] = data['mr'].fillna('')
     for inst in data.itertuples():
         da = DA.parse_diligent_da(inst.mr)
         process_instance(da, inst.ref)
