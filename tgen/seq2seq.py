@@ -73,6 +73,8 @@ class Seq2SeqBase(SentencePlanner):
         self.context_bleu_weight = cfg.get('context_bleu_weight', 0.0)
         self.context_bleu_metric = cfg.get('context_bleu_metric', 'bleu')
         self.validation_delex_slots = cfg.get('validation_delex_slots', set())
+        if self.validation_delex_slots:
+            self.validation_delex_slots = set(self.validation_delex_slots.split(','))
 
         self.slot_err_stats = None
 
