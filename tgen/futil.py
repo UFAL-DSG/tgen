@@ -116,12 +116,12 @@ def read_ttrees(ttree_file):
     return ttrees
 
 
-def read_trees_or_tokens(input_file, mode, language=None, selector=None):
+def read_trees_or_tokens(input_file, mode, language=None, selector=None, ref_mode=False):
     """Load input trees/sentences from a .yaml.gz/.pickle.gz (trees) or .txt (sentences) file."""
     if input_file.endswith('.txt'):
         if mode == 'trees':
             raise ValueError("Cannot read trees from a .txt file (%s)!" % input_file)
-        return read_tokens(input_file)
+        return read_tokens(input_file, ref_mode)
     elif input_file.endswith('.conll'):
         if mode == 'trees':
             raise ValueError("Cannot read trees from a .conll file (%s)!" % input_file)

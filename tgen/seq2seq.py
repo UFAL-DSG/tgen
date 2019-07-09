@@ -444,6 +444,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # load separate validation data files...
         if validation_files:
             valid_trees_for_lexic = self._load_valid_data(validation_files)
+            valid_idxs = None  # not needed, abstraction loads from separate file
         # ... or save part of the training data for validation:
         elif self.validation_size > 0:
             valid_trees_for_lexic, valid_idxs = self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
@@ -530,32 +531,44 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         log_info('Reading DAs from ' + valid_das_file + '...')
         self.valid_das = read_das(valid_das_file)
         log_info('Reading t-trees/sentences from ' + valid_trees_file + '...')
-        self.valid_trees = read_trees_or_tokens(valid_trees_file, self.mode, self.language, self.ref_selectors)
+        valid_trees = read_trees_or_tokens(valid_trees_file, self.mode, self.language, self.ref_selectors, ref_mode=True)
+
         if self.use_context:
             self.valid_das = self._load_contexts(self.valid_das, valid_context_file)
 
         # reorder validation data for multiple references (see also _cut_valid_data)
-        valid_size = len(self.valid_trees)
-        if self.multiple_refs:
-            num_refs, refs_stored = self._check_multiple_ref_type(valid_size)
 
-            # serial: different instances next to each other, then synonymous in the same order
-            if refs_stored == 'serial':
-                valid_tree_chunks = [chunk for chunk in
-                                     chunk_list(self.valid_trees, old_div(valid_size, num_refs))]
-                self.valid_trees = [[chunk[i] for chunk in valid_tree_chunks]
-                                    for i in range(old_div(valid_size, num_refs))]
-                if len(self.valid_das) > len(self.valid_trees):
-                    self.valid_das = self.valid_das[0:old_div(valid_size, num_refs)]
-            # parallel: synonymous instances next to each other
-            elif refs_stored == 'parallel':
-                self.valid_trees = [chunk for chunk in chunk_list(self.valid_trees, num_refs)]
-                if len(self.valid_das) > len(self.valid_trees):
-                    self.valid_das = self.valid_das[::num_refs]
-
-        # no multiple references; make lists of size 1 to simplify working with the data
+        # if we empty-lines-separated reference text file, use that organization
+        if self.mode == 'tokens' and any([len(inst) > 1 for inst in valid_trees]):
+            self.valid_trees = valid_trees
+            valid_trees = [tree for inst in valid_trees for tree in inst]  # no grouping for lexicalizer
+        # other type of validation data grouping
         else:
-            self.valid_trees = [[tree] for tree in self.valid_trees]
+            if self.mode == 'tokens':  # roll back the grouping when it's not used in our text file
+                valid_trees = [inst[0] for inst in valid_trees]
+            if self.multiple_refs:
+                valid_size = len(valid_trees)
+                num_refs, refs_stored = self._check_multiple_ref_type(valid_size)
+
+                # serial: different instances next to each other, then synonymous in the same order
+                if refs_stored == 'serial':
+                    valid_tree_chunks = [chunk for chunk in
+                                         chunk_list(valid_trees, old_div(valid_size, num_refs))]
+                    self.valid_trees = [[chunk[i] for chunk in valid_tree_chunks]
+                                        for i in range(old_div(valid_size, num_refs))]
+                    if len(self.valid_das) > len(self.valid_trees):
+                        self.valid_das = self.valid_das[0:old_div(valid_size, num_refs)]
+                # parallel: synonymous instances next to each other
+                elif refs_stored == 'parallel':
+                    self.valid_trees = [chunk for chunk in chunk_list(valid_trees, num_refs)]
+                    if len(self.valid_das) > len(self.valid_trees):
+                        self.valid_das = self.valid_das[::num_refs]
+
+            # no multiple references; make lists of size 1 to simplify working with the data
+            else:
+                self.valid_trees = [[tree] for tree in valid_trees]
+
+        return valid_trees  # return for lexicalizer, which doesn't use any grouping
 
     def _tokens_to_flat_trees(self, sents):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
