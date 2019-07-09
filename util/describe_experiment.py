@@ -35,6 +35,8 @@ def main(args):
 
     training_set = args.training_set
     training_set = re.sub('^training-', '', training_set)
+    if args.eval_data:
+        training_set = "\x1B[97;41mE\x1B[0m " + training_set
     if args.train_portion < 1.0:
         training_set += '/' + str(args.training_portion)
 
