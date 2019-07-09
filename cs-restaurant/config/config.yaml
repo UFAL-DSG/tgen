@@ -20,8 +20,8 @@ classif_filter:
   selector: ''
   validation_freq: 1
 context_bleu_weight: 0
-dropout_keep_prob: 0.8
-emb_size: 50
+dropout_keep_prob: 0.5
+emb_size: 200
 improve_interval: 50
 language: cs
 lexicalizer:
@@ -49,6 +49,7 @@ optimizer_type: adam
 passes: 1000
 randomize: true
 selector: ''
+ref_selectors: ''
 sort_da_emb: true
 top_k: 10
 use_context: false
