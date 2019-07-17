@@ -282,8 +282,10 @@ def dat_presence(tree, context):
     """Dialogue act type (assuming the same type for all DAIs).
 
     @rtype: dict
-    @return: dictionary with one key – DA type – and a value equal to 1
+    @return: dictionary with one key – DA type – and a value equal to 1 (if the DA is non-empty)
     """
+    if not context['da'].dais:
+        return {}
     return {context['da'][0].da_type: 1}
 
 
