@@ -4,7 +4,7 @@ TGen -- Installation and Usage
 Installation
 ------------
 
-TGen is written in Python (version 2.7). You can install it simply by cloning this repository, 
+TGen is written in Python (version 3.6+). You can install it simply by cloning this repository, 
 then installing all Python dependencies using pip:
 
 ```
@@ -29,7 +29,7 @@ Required Python modules (installed using pip and the [requirements file](require
 - [rpyc](https://pypi.python.org/pypi/rpyc/)
 - [pudb](https://pypi.python.org/pypi/pudb)
 - [recordclass](https://pypi.python.org/pypi/recordclass)
-- [TensorFlow](https://www.tensorflow.org/), only version 1.0.1 is supported
+- [TensorFlow](https://www.tensorflow.org/), only version 1.13.1 is supported
 - [kenlm](https://github.com/kpu/kenlm)
 - [PyTreex](https://github.com/ufal/pytreex)
 
