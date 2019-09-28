@@ -26,7 +26,7 @@ GetOptions('e2e-metrics' => \$use_e2e_metrics) or die($usage);
 die($usage) if ( !@ARGV );
 
 if ($use_e2e_metrics){
-    @patterns = ( '^BLEU:', '^NIST:', '^METEOR:', '^ROUGE_L:', '^CIDEr:', 'Slot error', '^SemERR', 'InstOK', 'InstAdd', 'InstMis', 'InstM+A' );
+    @patterns = ( '^BLEU:', '^NIST:', '^METEOR:', '^ROUGE_L:', '^CIDEr:', 'Slot error', '^SemERR', 'InstOK', 'InstAdd', 'InstMis', 'InstM\+A', '^A:' );
 }
 
 # filter ARGV to obtain just one file in each subdirectory
@@ -55,7 +55,7 @@ foreach my $file ( values %files_by_dir ) {
                 }
 
                 # extract all numbers on the line
-                my @nums = $line =~ m/[0-9]+\.[0-9]+/g;
+                my @nums = $line =~ m/[0-9]+(?:\.[0-9]+)?/g;
 
                 # store them, keep only the last ones for this file
                 $cur_data{$pattern} = \@nums;
@@ -106,13 +106,16 @@ foreach my $pattern (@patterns) {
     # print out the result
     my $line = $lines{$pattern};
     my $out  = "";
+    my $startpos = 0;
 
-    while ( $line =~ m/([0-9]+\.[0-9]+)/g ) {
+    while ( $line =~ m/([0-9]+(?:\.[0-9]+)?)/g ) {
         my $num    = $1;
         my $endpos = pos $line;
-        $out .= substr( $line, length($out), $endpos - length($out) - length($num) );
-        $out .= sprintf( "%.4f", shift @$cumul );
+        $out .= substr( $line, $startpos, $endpos - $startpos - length($num) );
+        $out .= sprintf(($num =~ /\./) ? "%.4f": "%.1f", shift @$cumul );
+        $startpos = $endpos;
     }
+    $out .= substr( $line, $startpos );
     print $out . "\n";
 }
 
