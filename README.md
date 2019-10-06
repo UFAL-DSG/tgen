@@ -15,9 +15,9 @@ Both algorithms support generating sentence plans (deep syntax trees), which are
 The seq2seq algorithm also supports direct string generation.
 
 For more details on the algorithms, please refer to our papers:
-* For A*-search based generation, see our [ACL 2015 paper](http://www.aclweb.org/anthology/P/P15/P15-1044.pdf).
 * For seq2seq generation, see our [ACL 2016 paper](http://aclweb.org/anthology/P16-2008).
 * For an improved version of the seq2seq generation that takes previous user utterance into account to generate a more contextually-appropriate response, see our [SIGDIAL 2016 paper](http://www.sigdial.org/workshops/conference17/proceedings/pdf/SIGDIAL22.pdf).
+* For the old A*-search-based generation, see our [ACL 2015 paper](http://www.aclweb.org/anthology/P/P15/P15-1044.pdf).
 
 Installation and Usage
 ----------------------
@@ -51,7 +51,7 @@ License
 -------
 Author: [Ondřej Dušek](http://ufal.cz/ondrej-dusek)
 
-Copyright © 2014-2017 Institute of Formal and Applied Linguistics, Charles University, Prague.
+Copyright © 2014-2019 Institute of Formal and Applied Linguistics, Charles University, Prague.
 
 Licensed under the Apache License, Version 2.0 (see [LICENSE.txt](LICENSE.txt)).
 
