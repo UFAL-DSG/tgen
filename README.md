@@ -62,4 +62,4 @@ Licensed under the Apache License, Version 2.0 (see [LICENSE.txt](LICENSE.txt)).
 Acknowledgements
 ----------------
 
-Work on this project was funded by the Ministry of Education, Youth and Sports of the Czech Republic under the grant agreement LK11221 and core research funding, SVV projects 260 104 and 260 333, and GAUK grant 2058214 of Charles University in Prague. It used language resources stored and distributed by the LINDAT/CLARIN project of the Ministry of Education, Youth and Sports of the Czech Republic (projects LM201001 and LM2015071).
+Work on this project was funded by the Ministry of Education, Youth and Sports of the Czech Republic under the grant agreement LK11221 and core research funding, SVV projects 260 104 and 260 333, and GAUK grant 2058214 of Charles University in Prague, as well as Charles University project PRIMUS/19/SCI/10. It used language resources stored and distributed by the LINDAT/CLARIN project of the Ministry of Education, Youth and Sports of the Czech Republic (projects LM201001 and LM2015071).
