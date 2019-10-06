@@ -43,6 +43,10 @@ If you use or refer to the context-aware improved seq2seq generation, please cit
 
 * Ondřej Dušek and Filip Jurčíček (2016): A Context-aware Natural Language Generator for Dialogue Systems. In _Proceedings of the 17th Annual Meeting of the Special Interest Group on Discourse and Dialogue_, Los Angeles, CA, USA.
 
+If you use or refer morphology-aware generation (designed for Czech), please cite this paper (link coming soon):
+
+* Ondřej Dušek and Filip Jurčíček (2019): Neural Generation for Czech: Data and Baselines. In _Proceedings of INLG_, Tokyo, Japan.
+
 If you use or refer to the A*-search generation in TGen, please cite [this paper](http://www.aclweb.org/anthology/P/P15/P15-1044.pdf):
 
 * Ondřej Dušek and Filip Jurčíček (2015): Training a Natural Language Generator From Unaligned Data. In _Proceedings of the 53rd Annual Meeting of the Association for Computational Linguistics and the 7th International Joint Conference on Natural Language Processing_, pages 451–461, Beijing, China.
