@@ -138,7 +138,7 @@ class Reader(object):
         with codecs.open(input_data, 'r', encoding='UTF-8') as fh:
             data = json.load(fh)
             for inst in data:
-                da = DA.parse(inst['da'])
+                da = DA.parse_cambridge_da(inst['da'])
                 da.sort()
                 self._das.append(da)
                 self._texts.append(self.analyze(inst['text']))
@@ -302,25 +302,6 @@ class Writer(object):
         das = [inst.delex_da if delex else inst.da for inst in insts]
         self._write_plain(data_file, das)
 
-    def write_json(self, data_file, insts):
-        with codecs.open(data_file, 'w', 'UTF-8') as fh:
-            json.dump([{"da": inst.da.to_cambridge_da_string(),
-                        "delex_da": inst.delex_da.to_cambridge_da_string(),
-                        "text": " ".join([w[0] for w in inst.text]),
-                        "delex_text": " ".join([w[0] for w in inst.delex_text])}
-                       for inst in insts], fh, indent=4, ensure_ascii=False)
-
-
-def split_roughly_equally(da_to_insts, num_parts):
-    """Split a DA-to-inst mapping into num_part roughly equal-sized parts,
-    keeping the division along the mapping."""
-    parts = [[] for _ in range(num_parts)]
-    # first-fit decreasing algorithm: sort decreasing by size, always add to currently smallest
-    for da, insts in sorted(list(da_to_insts.items()), key=lambda item: len(item[1]), reverse=True):
-        next_part = np.argmin([len(g) for g in parts])  # find the part that has least items
-        parts[next_part].extend(insts)  # give it the instances
-    return parts
-
 
 def convert(args):
     """Main conversion function (using command-line arguments as parsed by Argparse)."""
@@ -331,70 +312,23 @@ def convert(args):
     insts = reader.process_dataset(args.input_data)
     log_info('Loaded %d data items.' % len(insts))
 
-    # regroup data by delex DA & split from there
-    if args.split:
-        # mapping delex. DA to instance
-        da_to_insts = {}
-        for inst in insts:
-            da_to_insts[inst.delex_da] = da_to_insts.get(inst.delex_da, []) + [inst]
-
-        data_sizes = [int(size) for size in args.split.split(':')]
-        num_parts = sum(data_sizes)
-        groups = [[] for _ in range(len(data_sizes))]
-        for da_type in sorted(set([inst.delex_da.dais[0].da_type for inst in insts])):
-            # split instances of given DA type into equally sized parts
-            insts_for_da_type = {da: insts for da, insts in da_to_insts.items() if da.dais[0].da_type == da_type}
-            parts_for_da_type = split_roughly_equally(insts_for_da_type, num_parts)
-
-            # shuffle the parts, keeping the first at its place (if there's only 1 DA, it'll end up in training)
-            all_but_1st = parts_for_da_type[1:]
-            random.shuffle(all_but_1st)
-            parts_for_da_type = parts_for_da_type[:1] + all_but_1st
-
-            # merge parts into groups sequentially, e.g. add to 1, 2, 3, 1, 1 for size parts 3:1:1
-            trg_idx = 0
-            src_idx = 0
-            added = [0] * len(data_sizes)
-            while src_idx < num_parts:
-                if added[trg_idx] < data_sizes[trg_idx]:
-                    groups[trg_idx].extend(parts_for_da_type[src_idx])
-                    added[trg_idx] += 1
-                    src_idx += 1
-                trg_idx = (trg_idx + 1) % len(data_sizes)
-
-        # shuffle the order in the resulting groups
-        for group in groups:
-            random.shuffle(group)
-
-        # get output file name prefixes
-        out_names = re.split(r'[, ]+', args.out_prefix)
-
-    # use just one group -- containing all the data
-    else:
-        groups = [insts]
-        out_names = [args.out_prefix]
-
     # write all data groups
     # outputs: plain delex, plain lex, interleaved delex & lex, CoNLL-U delex & lex, DAs, abstrs
     writer = Writer()
-    for group, group_name in zip(groups, out_names):
-        log_info('Writing %s (size: %d)...' % (group_name, len(group)))
 
-        writer.write_json(group_name + '.json', group)
+    log_info('Writing %s (size: %d)...' % (args.out_prefix, len(insts)))
 
-        # TODO original delexicalization is basically invalid, there are various fixes
-        # -> new dataset release needs to use updated re-delexicalization
-        writer.write_absts(group_name + '-abst.txt', group)
+    writer.write_absts(args.out_prefix + '-abst.txt', insts)
 
-        writer.write_das(group_name + '-das_l.txt', group)
-        writer.write_das(group_name + '-das.txt', group, delex=True)
+    writer.write_das(args.out_prefix + '-das_l.txt', insts)
+    writer.write_das(args.out_prefix + '-das.txt', insts, delex=True)
 
-        writer.write_text(group_name + '-text_l.txt', 'plain', group)
-        writer.write_text(group_name + '-text.txt', 'plain', group, delex=True)
-        writer.write_text(group_name + '-tls_l.txt', 'interleaved', group)
-        writer.write_text(group_name + '-tls.txt', 'interleaved', group, delex=True)
-        writer.write_text(group_name + '-text_l.conll', 'conll', group)
-        writer.write_text(group_name + '-text.conll', 'conll', group, delex=True)
+    writer.write_text(args.out_prefix + '-text_l.txt', 'plain', insts)
+    writer.write_text(args.out_prefix + '-text.txt', 'plain', insts, delex=True)
+    writer.write_text(args.out_prefix + '-tls_l.txt', 'interleaved', insts)
+    writer.write_text(args.out_prefix + '-tls.txt', 'interleaved', insts, delex=True)
+    writer.write_text(args.out_prefix + '-text_l.conll', 'conll', insts)
+    writer.write_text(args.out_prefix + '-text.conll', 'conll', insts, delex=True)
 
 
 if __name__ == '__main__':
@@ -404,10 +338,9 @@ if __name__ == '__main__':
 
     ap.add_argument('tagger_model', type=str, help='MorphoDiTa tagger model')
     ap.add_argument('surface_forms', type=str, help='Input JSON with base forms')
-    ap.add_argument('input_data', type=str, help='Input data JSON')
+    ap.add_argument('input_data', type=str, help='Input data JSON ({train,devel,test}.json)')
     ap.add_argument('out_prefix', help='Output files name prefix(es - when used with -s, comma-separated)')
     ap.add_argument('-a', '--abst-slots', help='List of slots to delexicalize/abstract (comma-separated)')
-    ap.add_argument('-s', '--split', help='Colon-separated sizes of splits (e.g.: 3:1:1)')
 
     args = ap.parse_args()
     convert(args)
