@@ -22,7 +22,7 @@ import re
 import sys
 import hashlib
 
-from rpyc import Service, connect, async
+from rpyc import Service, connect, async_
 from rpyc.utils.server import ThreadPoolServer
 
 from tgen.futil import file_stream
@@ -47,7 +47,7 @@ def get_worker_registrar_for(head):
             log_info('Worker %s:%d connected, initializing training.' % (host, port))
             conn = connect(host, port, config={'allow_pickle': True})
             # initialize the remote server (with training data etc.)
-            init_func = async(conn.root.init_training)
+            init_func = async_(conn.root.init_training)
             # add unique 'scope suffix' so that the models don't clash in ensembles
             head.cfg['scope_suffix'] = hashlib.md5("%s:%d" % (host, port)).hexdigest()
             req = init_func(pickle.dumps(head.cfg, pickle.HIGHEST_PROTOCOL))
@@ -138,7 +138,7 @@ class ParallelSeq2SeqTraining(object):
                     if validation_files is not None:
                         validation_files = ','.join([os.path.relpath(f, self.work_dir)
                                                      for f in validation_files.split(',')])
-                    train_func = async(sc.conn.root.train)
+                    train_func = async_(sc.conn.root.train)
                     req = train_func(rnd_seeds[cur_assign],
                                      os.path.relpath(das_file, self.work_dir),
                                      os.path.relpath(ttree_file, self.work_dir),

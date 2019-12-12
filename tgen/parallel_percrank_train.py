@@ -28,7 +28,7 @@ import os
 import tempfile
 import numpy as np
 
-from rpyc import Service, connect, async
+from rpyc import Service, connect, async_
 from rpyc.utils.server import ThreadPoolServer
 
 from tgen.futil import file_stream
@@ -86,7 +86,7 @@ def get_worker_registrar_for(head):
             log_info('Worker %s:%d connected, initializing training.' % (host, port))
             conn = connect(host, port, config={'allow_pickle': True})
             # initialize the remote server (with training data etc.)
-            init_func = async(conn.root.init_training)
+            init_func = async_(conn.root.init_training)
             req = init_func(ranker_dump_path)
             # add it to the list of running services
             sc = ServiceConn(host, port, conn)
@@ -174,7 +174,7 @@ class ParallelRanker(Ranker):
                         sc = self.free_services.popleft()
                         log_info('Assigning request %d / %d to %s:%d' %
                                  (iter_no, cur_portion, sc.host, sc.port))
-                        train_func = async(sc.conn.root.training_pass)
+                        train_func = async_(sc.conn.root.training_pass)
                         req = train_func(w_dump, iter_no, rnd_seeds[cur_portion],
                                          * self._get_portion_bounds(cur_portion))
                         self.pending_requests.add((sc, cur_portion, req))
