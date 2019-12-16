@@ -5,6 +5,6 @@ numpy
 rpyc
 pudb
 recordclass
-tensorflow==1.13.1
+tensorflow==1.15.0
 https://github.com/kpu/kenlm/archive/master.zip
 git+https://github.com/ufal/pytreex
