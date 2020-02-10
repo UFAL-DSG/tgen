@@ -18,7 +18,7 @@ setup(
                       'rpyc',
                       'pudb',
                       'recordclass',
-                      'tensorflow==1.13.1',
+                      'tensorflow==1.15.2',
                       'kenlm',
                       'pytreex==0.1dev'],
     dependency_links=['https://github.com/kpu/kenlm/archive/master.zip#egg=kenlm',
