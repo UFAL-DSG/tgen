@@ -290,6 +290,7 @@ gen_process:
 	$(QSUBMIT) '$(ACTIVATE); \
 		$(TGEN) $(RUN_NAME) -e '$$TEST_DATA' $(DEBUG_LOG_GEN) \
 		$(SELECTOR_CONFIG) \
+		-D $(TRY_DIR)/out-delex.txt \
 		-w $(TRY_DIR)/out-trees.yaml.gz -a $(TRY_DIR)/test-abst.txt \
 		$(GEN_MODEL) $(TRY_DIR)/test-das.txt; \
 		$(POSTPROCESS) -m $(GEN_MODEL) -i $(TRY_DIR)/test-das.txt -f $(TRY_DIR)/surface_forms.json \

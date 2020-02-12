@@ -438,6 +438,15 @@ def asearch_gen(args):
 def seq2seq_gen(args):
     """Sequence-to-sequence generation"""
 
+    def write_trees_or_tokens(output_file, das, gen_trees, base_doc, language, selector):
+        """Decide to write t-trees or tokens based on the output file name."""
+        if output_file.endswith('.txt'):
+            gen_toks = [t.to_tok_list() for t in gen_trees]
+            postprocess_tokens(gen_toks, das)
+            write_tokens(gen_toks, output_file)
+        else:
+            write_ttrees(create_ttree_doc(gen_trees, base_doc, language, selector), output_file)
+
     ap = ArgumentParser(prog=' '.join(sys.argv[0:2]))
 
     ap.add_argument('-e', '--eval-file', type=str, help='A ttree/text file for evaluation')
@@ -449,6 +458,7 @@ def seq2seq_gen(args):
                     help='Target selector for generated trees in the output file')
     ap.add_argument('-d', '--debug-logfile', type=str, help='Debug output file name')
     ap.add_argument('-w', '--output-file', type=str, help='Output tree/text file')
+    ap.add_argument('-D', '--delex-output-file', type=str, help='Output file for trees/text before lexicalization')
     ap.add_argument('-b', '--beam-size', type=int,
                     help='Override beam size for beam search decoding')
     ap.add_argument('-c', '--context-file', type=str,
@@ -494,6 +504,11 @@ def seq2seq_gen(args):
             log_info("Generated tree %d" % num)
     log_info(tgen.get_slot_err_stats())
 
+    if args.delex_output_file is not None:
+        log_info('Writing delex output...')
+        write_trees_or_tokens(args.delex_output_file, das, gen_trees, None,
+                              tgen.language, args.target_selector or tgen.selector)
+
     # evaluate the generated trees against golden trees (delexicalized)
     eval_doc = None
     if args.eval_file and not args.eval_file.endswith('.txt'):
@@ -519,14 +534,8 @@ def seq2seq_gen(args):
     # write output .yaml.gz or .txt
     if args.output_file is not None:
         log_info('Writing output...')
-        if args.output_file.endswith('.txt'):
-            gen_toks = [t.to_tok_list() for t in gen_trees]
-            postprocess_tokens(gen_toks, das)
-            write_tokens(gen_toks, args.output_file)
-        else:
-            write_ttrees(create_ttree_doc(gen_trees, eval_doc, tgen.language,
-                                          args.target_selector or tgen.selector),
-                         args.output_file)
+        write_trees_or_tokens(args.output_file, das, gen_trees, eval_doc,
+                              tgen.language, args.target_selector or tgen.selector)
 
 
 def eval_tokens(das, eval_tokens, gen_tokens):
