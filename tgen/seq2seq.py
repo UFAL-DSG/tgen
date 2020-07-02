@@ -448,6 +448,8 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         # ... or save part of the training data for validation:
         elif self.validation_size > 0:
             valid_trees_for_lexic, valid_idxs = self._cut_valid_data()  # will set train_trees, valid_trees, train_das, valid_das
+        else:
+            valid_trees_for_lexic, valid_idxs = None, None
 
         if self.validation_use_all_refs:  # try to use multiple references (not in lexicalizer)
             self._regroup_valid_refs()
