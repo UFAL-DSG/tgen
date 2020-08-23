@@ -266,6 +266,10 @@ def write_tokens(doc, tok_file):
             # TODO some nice detokenization etc.
             print(' '.join(toks), file=fh)
 
+def write_das(das, das_file):
+    with file_stream(das_file, 'w') as fh:
+        fh.writelines([str(da) + "\n" for da in das])
+
 
 def chunk_list(l, n):
     """ Yield successive n-sized chunks from l."""

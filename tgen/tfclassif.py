@@ -89,7 +89,6 @@ class TreeEmbeddingClassifExtract(EmbeddingExtract):
         return [self.max_tree_len * 2]
 
 
-
 class Reranker(object):
 
     def __init__(self, cfg):
@@ -153,28 +152,31 @@ class Reranker(object):
         da_bin = self.da_vect.transform([self.da_feats.get_features(None, {'da': self.cur_da})])[0]
         self.cur_da_bin = da_bin != 0
 
-    def dist_to_da(self, da, trees):
+    def dist_to_da(self, da, trees, return_classif=False):
         """Return Hamming distance of given trees to the given DA.
 
         @param da: the DA as the base of the Hamming distance measure
         @param trees: list of trees to measure the distance
-        @return: list of Hamming distances for each tree
+        @return: list of Hamming distances for each tree (+ resulting classification if return_classif)
         """
         self.init_run(da)
-        ret = self.dist_to_cur_da(trees)
+        ret = self.dist_to_cur_da(trees, return_classif)
         self.cur_da = None
         self.cur_da_bin = None
         return ret
 
-    def dist_to_cur_da(self, trees):
+    def dist_to_cur_da(self, trees, return_classif=False):
         """Return Hamming distance of given trees to the current DA (set in `init_run`).
 
         @param trees: list of trees to measure the distance
-        @return: list of Hamming distances for each tree
+        @return: list of Hamming distances for each tree (+ resulting classification if return_classif)
         """
         da_bin = self.cur_da_bin
         covered = self.classify(trees)
-        return [sum(abs(c - da_bin)) for c in covered]
+        dist = [sum(abs(c - da_bin)) for c in covered]
+        if return_classif:
+            return dist, [[f for f, c_ in zip(self.da_vect.feature_names_, c) if c_] for c in covered]
+        return dist
 
 
 class RerankingClassifier(Reranker, TFModel):
@@ -461,7 +463,6 @@ class RerankingClassifier(Reranker, TFModel):
                 self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
                 self.outputs = self._rnn('rnn', self.inputs, bidi=self.nn_shape.startswith('bidi'))
 
-
         # older versions of the model put the optimizer into the default scope -- we want them in a separate scope
         # (to be able to swap rerankers with the same main generator), but want to keep loading older models
         # -> version setting decides where the variables will be created
@@ -610,11 +611,14 @@ class RerankingClassifier(Reranker, TFModel):
         trees = read_trees_or_tokens(ttree_file, self.mode, self.language, self.selector)
         if self.mode in ['tokens', 'tagged_lemmas']:
             trees = self._tokens_to_flat_trees(trees, use_tags=self.mode == 'tagged_lemmas')
-        da_len = 0
-        dist = 0
 
+        tot_len = 0
+        tot_dist = 0
+        classif_das = []
         for da, tree in zip(das, trees):
-            da_len += len(da)
-            dist += self.dist_to_da(da, [tree])[0]
+            tot_len += len(da)
+            dist, classif = self.dist_to_da(da, [tree], return_classif=True)
+            tot_dist += dist[0]
+            classif_das.append(DA.parse_features(classif[0]))
 
-        return da_len, dist
+        return tot_len, tot_dist, classif_das

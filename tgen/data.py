@@ -209,6 +209,22 @@ class DA(object):
         da.sort()
         return da
 
+    @staticmethod
+    def parse_features(da_feats):
+        """Parse a feature list from DictVectorizer, where svp_ are slot-value features
+        and dat_ are dialogue act type features (only the first one is used)."""
+        da = DA()
+        da_feats = [re.sub(r'=1\.0+$', '', f).split('_', 1) for f in da_feats]
+        try:
+            da_type = [v for f, v in da_feats if f == 'dat'][0]
+        except IndexError:
+            da_type = 'null'
+        for svp in [v for f, v in da_feats if f == 'svp']:
+            slot, val = svp.split('=', 1)
+            da.append(DAI(da_type, slot, val))
+        da.sort()
+        return da
+
     def value_for_slot(self, slot):
         """Return the value for the given slot (None if unset or not present at all).
         Uses the first occurrence of this slot if found."""

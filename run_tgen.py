@@ -57,7 +57,7 @@ from tgen.config import Config
 from tgen.logf import log_info, set_debug_stream, log_debug, log_warn
 from tgen.futil import file_stream, read_das, read_ttrees, chunk_list, add_bundle_text, \
     trees_from_doc, ttrees_from_doc, write_ttrees, tokens_from_doc, read_tokens, write_tokens, \
-    postprocess_tokens, create_ttree_doc
+    postprocess_tokens, create_ttree_doc, write_das
 from tgen.candgen import RandomCandidateGenerator
 from tgen.rank import PerceptronRanker
 from tgen.planner import ASearchPlanner, SamplingPlanner
@@ -565,6 +565,8 @@ def rerank_cl_eval(args):
                     help='Override classifier language (for t-tree input files)')
     ap.add_argument('-s', '--selector', type=str,
                     help='Override classifier selector (for t-tree input files)')
+    ap.add_argument('-w', '--write-classif', type=str,
+                    help='Write classification output to a file.')
     ap.add_argument('fname_cl_model', type=str, help='Path to trained reranking classifier model')
     ap.add_argument('fname_test_da', type=str, help='Path to test DA file')
     ap.add_argument('fname_test_sent', type=str, help='Path to test trees/sentences file')
@@ -578,8 +580,11 @@ def rerank_cl_eval(args):
         rerank_cl.selector = args.selector
 
     log_info("Evaluating...")
-    tot_len, dist = rerank_cl.evaluate_file(args.fname_test_da, args.fname_test_sent)
+    tot_len, dist, classifs = rerank_cl.evaluate_file(args.fname_test_da, args.fname_test_sent)
     log_info("Penalty: %d, Total DAIs %d." % (dist, tot_len))
+
+    if args.write_classif is not None:
+        write_das(classifs, args.write_classif)
 
 
 if __name__ == '__main__':
