@@ -22,8 +22,9 @@ To train and evaluate the baseline, you need to:
     * `*-text.txt` -- delexicalized reference texts
 
 ```
-./convert.py -a name,near -n new-data/trainset.csv train
-./convert.py -a name,near -n -m new-data/devset.csv devel
+./convert.py -a name,near -n trainset.csv train
+./convert.py -a name,near -n -m devset.csv devel
+./convert.py -a name,near -n -m testset_w_refs.csv test
 ```
 
 2. __Train TGen on the training set.__ 
@@ -37,21 +38,31 @@ To train and evaluate the baseline, you need to:
     input/train-das.txt input/train-text.txt \
     model.pickle.gz
 ```
+   
+   The default configuration uses a small part of the training data for validation
+   (early stopping if the performance goes down on that set).
+   You can also opt to use the development set for validation (in that case, the
+   validation set isn't “unseen” for the purposes of evaluation).
+   If you want to use the development set during training, add `-v input/devel-das.txt,input/devel-text.txt` 
+   to the parameters (right after `seq2seq_train`).
+ 
 
-
-3. __Generate outputs on the development set.__
+3. __Generate outputs on the development and test sets.__
    This will also perform lexicalization of the outputs.
    
 ```
-../run_tgen.py seq2seq_gen -w outputs.txt -a input/devel-abst.txt \
+../run_tgen.py seq2seq_gen -w outputs-dev.txt -a input/devel-abst.txt \
     model.pickle.gz input/devel-das.txt
+../run_tgen.py seq2seq_gen -w outputs-test.txt -a input/test-abst.txt \
+    model.pickle.gz input/test-das.txt
 ```
 
 4. __Postprocess the outputs.__
    This basically amounts to a simple detokenization.
    The [script](postprocess/postprocess.py) changes the outputs in-place, or you can specify a target file name.
 ```
-./postprocess/postprocess.py outputs.txt
+./postprocess/postprocess.py outputs-dev.txt
+./postprocess/postprocess.py outputs-test.txt
 ```
 
 
