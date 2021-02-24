@@ -67,7 +67,11 @@ def convert(args):
 
     # process the input data and store it in memory
     data = pd.read_csv(args.in_file, sep=',', encoding='UTF-8')
+    if 'mr' not in data.columns and 'MR' in data.columns:
+        data = data.rename(columns={'MR': 'mr'})
     data['mr'] = data['mr'].fillna('')
+    if args.no_refs and not 'ref' in data.columns:  # fill in dummy empty references
+        data['ref'] = [''] * len(data)
     for inst in data.itertuples():
         da = DA.parse_diligent_da(inst.mr)
         process_instance(da, inst.ref)
@@ -115,17 +119,19 @@ def convert(args):
         for conc_da in conc_das:
             fh.write(str(conc_da) + "\n")
 
-    with codecs.open(args.out_name + '-conc.txt', 'w', 'UTF-8') as fh:
-        for conc in concs:
-            fh.write(conc + "\n")
-
     with codecs.open(args.out_name + '-abst.txt', 'w', 'UTF-8') as fh:
         for abst in absts:
             fh.write(abst + "\n")
 
-    with codecs.open(args.out_name + '-text.txt', 'w', 'UTF-8') as fh:
-        for text in texts:
-            fh.write(text + "\n")
+    # write files with references only if they're not dummy
+    if not args.no_refs:
+        with codecs.open(args.out_name + '-conc.txt', 'w', 'UTF-8') as fh:
+            for conc in concs:
+                fh.write(conc + "\n")
+
+        with codecs.open(args.out_name + '-text.txt', 'w', 'UTF-8') as fh:
+            for text in texts:
+                fh.write(text + "\n")
 
 
 if __name__ == '__main__':
@@ -135,6 +141,7 @@ if __name__ == '__main__':
     argp.add_argument('-a', '--abstract', help='Comma-separated list of slots to be abstracted')
     argp.add_argument('-m', '--multi-ref',
                       help='Multiple reference mode: group by the same DA', action='store_true')
+    argp.add_argument('--no-refs', help='Use a file without references, only produce DA files', action='store_true')
     argp.add_argument('-n', '--slot-names', help='Include slot names in delexicalized texts', action='store_true')
     args = argp.parse_args()
     convert(args)

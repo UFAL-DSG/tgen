@@ -8,7 +8,7 @@ To train and evaluate the baseline, you need to:
    a format used by TGen.__ This is done using the [input/convert.py](input/convert.py) script.
    
    Note that multiple references are joined for one MR in the development set, but kept
-   separate for the training set. All files are plain text, one instance per line
+   separate for the training set (the `-m` switch). All files are plain text, one instance per line
    (except for multiple references, where instances are separated by empty lines).
    
    The `name` and `near` slots in the MRs are delexicalized. The output files are:
@@ -21,10 +21,16 @@ To train and evaluate the baseline, you need to:
     * `*-das.txt` -- delexicalized MRs
     * `*-text.txt` -- delexicalized reference texts
 
+   If you're using a test set file that only contains MRs and not references, use the 
+   `--no-refs` switch. This won't produce `*-text.txt` and `*-conc.txt` (since they wouldn't 
+   make sense anyway). You'll still have the `*-das.txt` and `*-abst.txt` files required
+   for generation.
+
 ```
 ./convert.py -a name,near -n trainset.csv train
 ./convert.py -a name,near -n -m devset.csv devel
-./convert.py -a name,near -n -m testset_w_refs.csv test
+./convert.py -a name,near -n -m testset_with_refs.csv test
+./convert.py -a name,near -n --no-refs testset_without_refs.csv test
 ```
 
 2. __Train TGen on the training set.__ 
