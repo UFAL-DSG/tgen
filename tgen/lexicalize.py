@@ -216,7 +216,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
         self._checkpoint_params = None
         self._checkpoint_settings = None
         np.random.seed(rnd.randint(0, 2**32 - 1))
-        tf.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
+        tf.compat.v1.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
 
     def _init_training(self, train_sents, valid_sents=None):
         """Initialize training (prepare vocabulary, prepare training batches), initialize the
@@ -279,11 +279,11 @@ class RNNLMFormSelect(FormSelect, TFModel):
     def _init_neural_network(self):
         """Initialize the RNNLM network."""
 
-        with tf.variable_scope(self.scope_name):
+        with tf.compat.v1.variable_scope(self.scope_name):
             # TODO dropout
             # I/O placeholders (note inputs have padding, targets don't)
-            self._inputs = tf.placeholder(tf.int32, [None, self.max_sent_len + 2], name='inputs')
-            self._targets = tf.placeholder(tf.int32, [None, self.max_sent_len], name='targets')
+            self._inputs = tf.compat.v1.placeholder(tf.int32, [None, self.max_sent_len + 2], name='inputs')
+            self._targets = tf.compat.v1.placeholder(tf.int32, [None, self.max_sent_len], name='targets')
 
             # RNN cell type
             if self.cell_type.startswith('gru'):
@@ -313,8 +313,8 @@ class RNNLMFormSelect(FormSelect, TFModel):
             # output layer
             enc_output = tf.reshape(tf.concat(axis=1, values=enc_outputs), [-1, enc_size])
             self._logits = (tf.matmul(enc_output,
-                                      tf.get_variable("W", [enc_size, self.vocab_size])) +
-                            tf.get_variable("b", [self.vocab_size]))
+                                      tf.compat.v1.get_variable("W", [enc_size, self.vocab_size])) +
+                            tf.compat.v1.get_variable("b", [self.vocab_size]))
 
             # cost
             targets_1d = tf.reshape(self._targets, [-1])
@@ -324,7 +324,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
             self._cost = tf.reduce_mean(self._loss)
 
             # optimizer
-            self._learning_rate = tf.placeholder(tf.float32, name="learning_rate")
+            self._learning_rate = tf.compat.v1.placeholder(tf.float32, name="learning_rate")
             if self.optimizer_type == 'sgd':
                 opt = tf.train.GradientDescentOptimizer(self._learning_rate)
             if self.optimizer_type == 'adagrad':

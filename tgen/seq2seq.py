@@ -730,37 +730,37 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         """Initializing the NN (building a TensorFlow graph and initializing session)."""
 
         # set TensorFlow random seed
-        tf.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
+        tf.compat.v1.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
 
         # create placeholders for input & output (always batch-size * 1, list of up to num. steps)
         self.enc_inputs = []
         for i in range(self.max_da_len):
-            enc_input = tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
+            enc_input = tf.compat.v1.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
             self.enc_inputs.append(enc_input)
 
         self.dec_inputs = []
         for i in range(self.max_tree_len):
-            self.dec_inputs.append(tf.placeholder(tf.int32, [None], name=('dec_inp-%d' % i)))
+            self.dec_inputs.append(tf.compat.v1.placeholder(tf.int32, [None], name=('dec_inp-%d' % i)))
 
         # targets are just decoder inputs shifted by one (+pad with one empty spot)
         self.targets = [self.dec_inputs[i + 1] for i in range(len(self.dec_inputs) - 1)]
-        self.targets.append(tf.placeholder(tf.int32, [None], name=('target-pad')))
+        self.targets.append(tf.compat.v1.placeholder(tf.int32, [None], name=('target-pad')))
 
         # prepare cells
-        self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
+        self.initial_state = tf.compat.v1.placeholder(tf.float32, [None, self.emb_size])
         if self.cell_type.startswith('gru'):
             self.cell = tf.contrib.rnn.GRUCell(self.emb_size)
         else:
             self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
 
         if self.dropout_keep_prob < 1:
-            self.dropout_setting = tf.placeholder(tf.float32)
+            self.dropout_setting = tf.compat.v1.placeholder(tf.float32)
             self.cell = tf.contrib.rnn.DropoutWrapper(self.cell, output_keep_prob=self.dropout_setting)
         if self.cell_type.endswith('/2'):
             self.cell = tf.contrib.rnn.MultiRNNCell([self.cell] * 2)
 
         # build the actual LSTM Seq2Seq network (for training and decoding)
-        with tf.variable_scope(self.scope_name) as scope:
+        with tf.compat.v1.variable_scope(self.scope_name) as scope:
 
             rnn_func = tf06s2s.embedding_rnn_seq2seq
             if self.nn_type == 'emb_attention_seq2seq':
@@ -815,7 +815,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
             self.train_summary_op = tf.summary.merge([self.loss_summary_seq2seq])
 
         # optimizer (default to Adam)
-        self.learning_rate = tf.placeholder(tf.float32, name="learning_rate")
+        self.learning_rate = tf.compat.v1.placeholder(tf.float32, name="learning_rate")
         if self.optimizer_type == 'sgd':
             self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate)
         if self.optimizer_type == 'adagrad':
@@ -833,7 +833,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
 
         # this helps us load/save the model
         # ignore reranker/lexicalizer settings
-        model_vars = [var for var in tf.global_variables() if not (var.name.startswith('rerank-') or var.name.startswith('formselect-'))]
+        model_vars = [var for var in tf.compat.v1.global_variables() if not (var.name.startswith('rerank-') or var.name.startswith('formselect-'))]
         self.saver = tf.compat.v1.train.Saver(model_vars)
         if self.train_summary_dir:  # Tensorboard summary writer
             self.train_summary_writer = tf.summary.FileWriter(
