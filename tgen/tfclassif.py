@@ -416,7 +416,7 @@ class RerankingClassifier(Reranker, TFModel):
         # initialize NN classifier
         self._init_neural_network()
         # initialize the NN variables
-        self.session.run(tf.global_variables_initializer())
+        self.session.run(tf.compat.v1.global_variables_initializer())
 
     def _tokens_to_flat_trees(self, sents, use_tags=False):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
@@ -477,7 +477,7 @@ class RerankingClassifier(Reranker, TFModel):
             # self.cost = tf.reduce_mean(tf.reduce_sum(self.targets * -tf.log(self.outputs)
             #                                          + (1 - self.targets) * -tf.log(1 - self.outputs), 1))
 
-            self.optimizer = tf.train.AdamOptimizer(self.alpha)
+            self.optimizer = tf.compat.v1.train.AdamOptimizer(self.alpha)
             self.train_func = self.optimizer.minimize(self.cost)
 
         # Tensorboard summaries
@@ -488,12 +488,12 @@ class RerankingClassifier(Reranker, TFModel):
         # initialize session
         session_config = None
         if self.max_cores:
-            session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
+            session_config = tf.compat.v1.ConfigProto(inter_op_parallelism_threads=self.max_cores,
                                             intra_op_parallelism_threads=self.max_cores)
-        self.session = tf.Session(config=session_config)
+        self.session = tf.compat.v1.Session(config=session_config)
 
         # this helps us load/save the model
-        self.saver = tf.train.Saver(tf.global_variables())
+        self.saver = tf.compat.v1.train.Saver(tf.global_variables())
         if self.train_summary_dir:  # Tensorboard summary writer
             self.train_summary_writer = tf.summary.FileWriter(
                 os.path.join(self.train_summary_dir, "reranker"), self.session.graph)

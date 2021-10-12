@@ -243,7 +243,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
             for sent in valid_sents:
                 self._valid_data.append(self._sent_to_ids(sent))
         self._init_neural_network()
-        self.session.run(tf.global_variables_initializer())
+        self.session.run(tf.compat.v1.global_variables_initializer())
 
     def _sent_to_ids(self, sent):
         """Convert tokens in a sentence to integer IDs to be used as an input to the RNN.
@@ -330,7 +330,7 @@ class RNNLMFormSelect(FormSelect, TFModel):
             if self.optimizer_type == 'adagrad':
                 opt = tf.train.AdagradOptimizer(self._learning_rate)
             else:
-                opt = tf.train.AdamOptimizer(self._learning_rate)
+                opt = tf.compat.v1.train.AdamOptimizer(self._learning_rate)
 
             # gradient clipping
             grads_tvars = opt.compute_gradients(self._loss, tf.trainable_variables())
@@ -340,9 +340,9 @@ class RNNLMFormSelect(FormSelect, TFModel):
         # initialize TF session
         session_config = None
         if self.max_cores:
-            session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
+            session_config = tf.compat.v1.ConfigProto(inter_op_parallelism_threads=self.max_cores,
                                             intra_op_parallelism_threads=self.max_cores)
-        self.session = tf.Session(config=session_config)
+        self.session = tf.compat.v1.Session(config=session_config)
 
     def get_all_settings(self):
         return {'vocab': self.vocab,

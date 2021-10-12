@@ -507,7 +507,7 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         self._init_neural_network()
 
         # initialize the NN variables
-        self.session.run(tf.global_variables_initializer())
+        self.session.run(tf.compat.v1.global_variables_initializer())
 
     def _load_contexts(self, das, context_file):
         """Load input context utterances from a .yaml.gz/.pickle.gz/.txt file and add them to the
@@ -821,20 +821,20 @@ class Seq2SeqGen(Seq2SeqBase, TFModel):
         if self.optimizer_type == 'adagrad':
             self.optimizer = tf.train.AdagradOptimizer(self.learning_rate)
         else:
-            self.optimizer = tf.train.AdamOptimizer(self.learning_rate)
+            self.optimizer = tf.compat.v1.train.AdamOptimizer(self.learning_rate)
         self.train_func = self.optimizer.minimize(self.cost)
 
         # initialize session
         session_config = None
         if self.max_cores:
-            session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
+            session_config = tf.compat.v1.ConfigProto(inter_op_parallelism_threads=self.max_cores,
                                             intra_op_parallelism_threads=self.max_cores)
-        self.session = tf.Session(config=session_config)
+        self.session = tf.compat.v1.Session(config=session_config)
 
         # this helps us load/save the model
         # ignore reranker/lexicalizer settings
         model_vars = [var for var in tf.global_variables() if not (var.name.startswith('rerank-') or var.name.startswith('formselect-'))]
-        self.saver = tf.train.Saver(model_vars)
+        self.saver = tf.compat.v1.train.Saver(model_vars)
         if self.train_summary_dir:  # Tensorboard summary writer
             self.train_summary_writer = tf.summary.FileWriter(
                 os.path.join(self.train_summary_dir, "main_seq2seq"), self.session.graph)
