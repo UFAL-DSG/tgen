@@ -14,7 +14,7 @@ from collections import OrderedDict
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)+'/../../'))
 
 from tgen.data import DA
 from tgen.delex import delex_sent
