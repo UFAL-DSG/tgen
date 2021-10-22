@@ -21,8 +21,8 @@ def recursive_update(orig, update):
 
 def main(config_file, values):
     with codecs.open(config_file, 'r', 'UTF-8') as fh:
-        cfg = yaml.load(fh)
-    cfg = recursive_update(cfg, yaml.load(values))
+        cfg = yaml.load(fh, Loader=yaml.FullLoader)
+    cfg = recursive_update(cfg, yaml.load(values, Loader=yaml.FullLoader))
     with codecs.open(config_file, 'w', 'UTF-8') as fh:
         yaml.dump(cfg, fh, default_flow_style=False, allow_unicode=True)
 

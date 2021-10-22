@@ -416,7 +416,7 @@ class RerankingClassifier(Reranker, TFModel):
         # initialize NN classifier
         self._init_neural_network()
         # initialize the NN variables
-        self.session.run(tf.global_variables_initializer())
+        self.session.run(tf.compat.v1.global_variables_initializer())
 
     def _tokens_to_flat_trees(self, sents, use_tags=False):
         """Use sentences (pairs token-tag) read from Treex files and convert them into flat
@@ -441,15 +441,15 @@ class RerankingClassifier(Reranker, TFModel):
         parameter (as set in configuration)."""
 
         # set TensorFlow random seed
-        tf.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
+        tf.compat.v1.set_random_seed(rnd.randint(-sys.maxsize, sys.maxsize))
 
-        self.targets = tf.placeholder(tf.float32, [None, self.num_outputs], name='targets')
+        self.targets = tf.compat.v1.placeholder(tf.float32, [None, self.num_outputs], name='targets')
 
-        with tf.variable_scope(self.scope_name):
+        with tf.compat.v1.variable_scope(self.scope_name):
 
             # feedforward networks
             if self.nn_shape.startswith('ff'):
-                self.inputs = tf.placeholder(tf.float32, [None] + self.input_shape, name='inputs')
+                self.inputs = tf.compat.v1.placeholder(tf.float32, [None] + self.input_shape, name='inputs')
                 num_ff_layers = 2
                 if self.nn_shape[-1] in ['0', '1', '3', '4']:
                     num_ff_layers = int(self.nn_shape[-1])
@@ -457,8 +457,8 @@ class RerankingClassifier(Reranker, TFModel):
 
             # RNNs
             elif self.nn_shape.endswith('rnn'):
-                self.initial_state = tf.placeholder(tf.float32, [None, self.emb_size])
-                self.inputs = [tf.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
+                self.initial_state = tf.compat.v1.placeholder(tf.float32, [None, self.emb_size])
+                self.inputs = [tf.compat.v1.placeholder(tf.int32, [None], name=('enc_inp-%d' % i))
                                for i in range(self.input_shape[0])]
                 self.cell = tf.contrib.rnn.BasicLSTMCell(self.emb_size)
                 self.outputs = self._rnn('rnn', self.inputs, bidi=self.nn_shape.startswith('bidi'))
@@ -466,7 +466,7 @@ class RerankingClassifier(Reranker, TFModel):
         # older versions of the model put the optimizer into the default scope -- we want them in a separate scope
         # (to be able to swap rerankers with the same main generator), but want to keep loading older models
         # -> version setting decides where the variables will be created
-        with tf.variable_scope(self.scope_name if self.version > 1 else tf.get_variable_scope()):
+        with tf.compat.v1.variable_scope(self.scope_name if self.version > 1 else tf.compat.v1.get_variable_scope()):
             # the cost as computed by TF actually adds a "fake" sigmoid layer on top
             # (or is computed as if there were a sigmoid layer on top)
             self.cost = tf.reduce_mean(tf.reduce_sum(
@@ -477,7 +477,7 @@ class RerankingClassifier(Reranker, TFModel):
             # self.cost = tf.reduce_mean(tf.reduce_sum(self.targets * -tf.log(self.outputs)
             #                                          + (1 - self.targets) * -tf.log(1 - self.outputs), 1))
 
-            self.optimizer = tf.train.AdamOptimizer(self.alpha)
+            self.optimizer = tf.compat.v1.train.AdamOptimizer(self.alpha)
             self.train_func = self.optimizer.minimize(self.cost)
 
         # Tensorboard summaries
@@ -488,12 +488,12 @@ class RerankingClassifier(Reranker, TFModel):
         # initialize session
         session_config = None
         if self.max_cores:
-            session_config = tf.ConfigProto(inter_op_parallelism_threads=self.max_cores,
+            session_config = tf.compat.v1.ConfigProto(inter_op_parallelism_threads=self.max_cores,
                                             intra_op_parallelism_threads=self.max_cores)
-        self.session = tf.Session(config=session_config)
+        self.session = tf.compat.v1.Session(config=session_config)
 
         # this helps us load/save the model
-        self.saver = tf.train.Saver(tf.global_variables())
+        self.saver = tf.compat.v1.train.Saver(tf.compat.v1.global_variables())
         if self.train_summary_dir:  # Tensorboard summary writer
             self.train_summary_writer = tf.summary.FileWriter(
                 os.path.join(self.train_summary_dir, "reranker"), self.session.graph)
@@ -505,9 +505,9 @@ class RerankingClassifier(Reranker, TFModel):
         activ = (num_layers * [tf.tanh]) + [tf.identity]
         Y = X
         for i in range(num_layers + 1):
-            w = tf.get_variable(name + ('-w%d' % i), (width[i], width[i + 1]),
+            w = tf.compat.v1.get_variable(name + ('-w%d' % i), (width[i], width[i + 1]),
                                 initializer=tf.random_normal_initializer(stddev=0.1))
-            b = tf.get_variable(name + ('-b%d' % i), (width[i + 1],),
+            b = tf.compat.v1.get_variable(name + ('-b%d' % i), (width[i + 1],),
                                 initializer=tf.constant_initializer())
             Y = activ[i](tf.matmul(Y, w) + b)
         return Y
@@ -529,9 +529,9 @@ class RerankingClassifier(Reranker, TFModel):
         else:
             state_size = self.cell.state_size
 
-        w = tf.get_variable(name + '-w', (state_size, self.num_outputs),
+        w = tf.compat.v1.get_variable(name + '-w', (state_size, self.num_outputs),
                             initializer=tf.random_normal_initializer(stddev=0.1))
-        b = tf.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
+        b = tf.compat.v1.get_variable(name + 'b', (self.num_outputs,), initializer=tf.constant_initializer())
         return tf.matmul(enc_state, w) + b
 
     def _batches(self):

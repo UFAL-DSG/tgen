@@ -14,7 +14,7 @@ from collections import OrderedDict
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../../'))
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)+'/../../'))
 
 from tgen.data import DA
 from tgen.delex import delex_sent
@@ -111,25 +111,25 @@ def convert(args):
         # convert abstraction instruction to string (coordinate output with multi-ref mode)
         absts = ["\t".join([str(a) for a in absts_]) for absts_ in absts]
 
-    with codecs.open(args.out_name + '-das.txt', 'w', 'UTF-8') as fh:
+    with codecs.open(os.path.dirname(__file__) + '/' + args.out_name + '-das.txt', 'w', 'UTF-8') as fh:
         for da in das:
             fh.write(str(da) + "\n")
 
-    with codecs.open(args.out_name + '-conc_das.txt', 'w', 'UTF-8') as fh:
+    with codecs.open(os.path.dirname(__file__) + '/' + args.out_name + '-conc_das.txt', 'w', 'UTF-8') as fh:
         for conc_da in conc_das:
             fh.write(str(conc_da) + "\n")
 
-    with codecs.open(args.out_name + '-abst.txt', 'w', 'UTF-8') as fh:
+    with codecs.open(os.path.dirname(__file__) + '/' + args.out_name + '-abst.txt', 'w', 'UTF-8') as fh:
         for abst in absts:
             fh.write(abst + "\n")
 
     # write files with references only if they're not dummy
     if not args.no_refs:
-        with codecs.open(args.out_name + '-conc.txt', 'w', 'UTF-8') as fh:
+        with codecs.open(os.path.dirname(__file__) + '/' + args.out_name + '-conc.txt', 'w', 'UTF-8') as fh:
             for conc in concs:
                 fh.write(conc + "\n")
 
-        with codecs.open(args.out_name + '-text.txt', 'w', 'UTF-8') as fh:
+        with codecs.open(os.path.dirname(__file__) + '/' + args.out_name + '-text.txt', 'w', 'UTF-8') as fh:
             for text in texts:
                 fh.write(text + "\n")
 

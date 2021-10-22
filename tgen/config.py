@@ -125,7 +125,7 @@ class Config(object):
     def load(self, file_name):
         if file_name.endswith('.yaml'):
             with codecs.open(file_name, 'r', encoding='UTF-8') as fh:
-                self.config = yaml.load(fh)
+                self.config = yaml.load(fh, Loader=yaml.FullLoader)
         else:
             # pylint: disable-msg=E0602
             global config
