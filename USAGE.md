@@ -4,8 +4,8 @@ TGen -- Installation and Usage
 Installation
 ------------
 
-TGen is written in Python (version 3.6+). You can install it simply by cloning this repository, 
-then installing all Python dependencies using pip:
+TGen is written in Python (version 3.6-3.7 are supported). You can install it simply by cloning this 
+repository, then installing all Python dependencies using pip:
 
 ```
 git clone https://github.com/UFAL-DSG/tgen
@@ -14,6 +14,8 @@ pip install -r requirements.txt
 ```
 
 We recommend using [virtualenv](https://virtualenv.pypa.io/) to install all the required libraries.
+If your system Python version is different from 3.6-3.7, you can use [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
+to get a minimal Python 3.7 environment.
 
 To replicate most of the experiments in our papers, you will also need to install 
 [Treex](http://ufal.cz/treex) (including the newest version from the Git repository as 
