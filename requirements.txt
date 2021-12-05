@@ -5,6 +5,8 @@ numpy
 rpyc
 pudb
 recordclass
+pandas
+future
 tensorflow>=1.15.4,<2
 https://github.com/kpu/kenlm/archive/master.zip
 git+https://github.com/ufal/pytreex
